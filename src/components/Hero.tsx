@@ -162,11 +162,17 @@ export default function Hero({ onGoVault, onGoMethod }: HeroProps) {
 
         <div style={{ position: "relative", padding: "48px 0" }} className="mo-rise">
           <div style={{ position: "relative", border: "1px solid #1f1f27", padding: 14, background: "#0e0e12" }}>
-            <img
-              src="/assets/bottle-portrait.png"
-              alt="Maison Obsidian house bottle"
-              style={{ display: "block", width: "100%", height: "auto" }}
-            />
+            <picture>
+              <source srcSet="/assets/bottle-portrait.webp" type="image/webp" />
+              <img
+                src="/assets/bottle-portrait.png"
+                alt="Maison Obsidian house bottle"
+                width={1200}
+                height={1310}
+                decoding="async"
+                style={{ display: "block", width: "100%", height: "auto" }}
+              />
+            </picture>
             <div
               style={{
                 position: "absolute",
