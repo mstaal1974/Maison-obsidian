@@ -29,6 +29,7 @@ function rowToFragrance(r: FragranceRow): Fragrance {
     stock30: r.stock_30ml,
     stock50: r.stock_50ml,
     lowStock: r.low_stock_threshold,
+    oilMl: r.oil_ml,
   };
 }
 

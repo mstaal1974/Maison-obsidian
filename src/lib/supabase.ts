@@ -35,4 +35,5 @@ export interface FragranceRow {
   stock_30ml?: number;
   stock_50ml?: number;
   low_stock_threshold?: number;
+  oil_ml?: number;
 }

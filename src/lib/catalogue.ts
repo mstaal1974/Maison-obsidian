@@ -37,6 +37,11 @@ export function demoSetStock(id: string, s10?: number, s30?: number, s50?: numbe
   emitCat();
 }
 
+export function demoSetOil(id: string, oilMl: number): void {
+  demoCat = demoCat.map((x) => (x.id === id ? { ...x, oilMl } : x));
+  emitCat();
+}
+
 // ─── Demo shipments (keyed by fragrance id — one commit per scent in demo) ────
 export interface DemoShipment {
   status: "pending" | "label_created" | "shipped" | "delivered" | "cancelled";

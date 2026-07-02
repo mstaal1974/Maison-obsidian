@@ -56,8 +56,9 @@ Faithful to the redesign comp:
   a `payment_intent_id`; a `capture-batch` Edge Function captures the holds when the
   batch is met (or releases them if it closes short).
 - **Admin console** (`#/admin`, admins only) — add / edit / remove fragrances and
-  manage per-size inventory (with low-stock flags), plus a fulfillment queue that
-  turns commits into shipments.
+  manage per-size inventory (with low-stock flags), track raw oil on hand against
+  per-size commitment demand, plus a fulfillment queue that turns commits into
+  shipments.
 - **Shipping / fulfillment** — a Supabase-native `shipments` model; admins create
   shipments (carrier + tracking), and each customer sees status + a tracking link on
   their reservations. Fulfillment defaults to **Australia Post Parcel Post**, and the
@@ -115,7 +116,8 @@ supabase/
 │   ├── 0002_seed.sql            Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
 │   ├── 0003_admin_inventory.sql admins + is_admin(), stock columns, fragrance CRUD RPCs
 │   ├── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
-│   └── 0005_chat.sql            concierge transcripts + log_chat_message RPC, RLS
+│   ├── 0005_chat.sql            concierge transcripts + log_chat_message RPC, RLS
+│   └── 0006_oil_inventory.sql   oil_ml + admin_set_oil; commit_size_counts (per-size demand)
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -155,6 +157,13 @@ stock columns on `fragrances` (`stock_10ml/30ml/50ml` + `low_stock_threshold`), 
 `admin_delete_fragrance(id)`, `admin_set_stock(...)`, `admin_adjust_stock(...)`. Direct
 table writes stay closed by RLS; every mutation goes through a guarded RPC.
 
+`0006_oil_inventory.sql` adds an `oil_ml` column (raw perfume oil on hand — bottles
+are filled into 10/30/50 ml on demand) set via `admin_set_oil(id, ml)`, and a
+`commit_size_counts()` RPC returning outstanding commitments grouped by fragrance and
+size. The Catalogue tab uses these to show commitments per size (`10 · n / 30 · n /
+50 · n`) and an oil-coverage line — implied demand (`10·q₁₀ + 30·q₃₀ + 50·q₅₀` ml)
+against oil on hand — flagged `covered` or `short N ml`.
+
 `0004_shipments.sql` adds a `shipments` table (status, carrier, tracking, `ship_to`,
 provider) with RLS so customers read their own and admins read all, plus
 `admin_create_shipment(...)` and `admin_set_shipment_status(...)`.
@@ -167,7 +176,8 @@ secrets (see `.env.example`); without them it falls back to a stub article id so
 flow still runs. The commit engine is untouched — this is fulfillment only.
 
 The **Admin Console** (`#/admin`) surfaces all of this: a Catalogue tab (add / edit /
-remove, inline per-size stock with low-stock flags) and a Fulfillment tab (commits →
+remove, inline per-size stock with low-stock flags, raw oil on hand, and per-size
+commitment counts with oil-coverage) and a Fulfillment tab (commits →
 create shipment). Make a user an admin with
 `insert into admins(user_id) values ('<auth-user-id>');`. In the offline demo any
 signed-in user is treated as an admin and edits are in-memory.

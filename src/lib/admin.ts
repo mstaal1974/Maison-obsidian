@@ -6,6 +6,7 @@ import {
   demoUpsertFragrance,
   demoDeleteFragrance,
   demoSetStock,
+  demoSetOil,
   demoSetShipment,
   type DemoShipment,
 } from "./catalogue";
@@ -59,12 +60,23 @@ function toPayload(f: Fragrance): Record<string, unknown> {
   };
 }
 
-export async function adminUpsertFragrance(f: Fragrance): Promise<boolean> {
+/** Upserts a fragrance and returns its id (needed to then set oil on new rows). */
+export async function adminUpsertFragrance(f: Fragrance): Promise<string | null> {
   if (!supabase) {
-    demoUpsertFragrance({ ...f, id: f.id || `f_${Math.random().toString(36).slice(2, 8)}` });
+    const id = f.id || `f_${Math.random().toString(36).slice(2, 8)}`;
+    demoUpsertFragrance({ ...f, id });
+    return id;
+  }
+  const { data, error } = await supabase.rpc("admin_upsert_fragrance", { p_data: toPayload(f) });
+  return error ? null : (data as string);
+}
+
+export async function adminSetOil(id: string, oilMl: number): Promise<boolean> {
+  if (!supabase) {
+    demoSetOil(id, Math.max(0, oilMl));
     return true;
   }
-  const { error } = await supabase.rpc("admin_upsert_fragrance", { p_data: toPayload(f) });
+  const { error } = await supabase.rpc("admin_set_oil", { p_id: id, p_oil_ml: Math.max(0, oilMl) });
   return !error;
 }
 
@@ -126,6 +138,24 @@ export async function fetchAllCommits(): Promise<AdminCommitRow[] | null> {
 /** Australia Post consumer tracking link for a parcel article id. */
 export function auspostTrackingUrl(article: string): string {
   return `https://auspost.com.au/mypost/track/details/${article}`;
+}
+
+export interface CommitSizeCount {
+  fragrance_id: string;
+  size_ml: number;
+  outstanding: number;
+}
+
+/** Outstanding commitment counts per fragrance + size. Null when unconfigured. */
+export async function fetchCommitSizeCounts(): Promise<CommitSizeCount[] | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.rpc("commit_size_counts");
+    if (error) return null;
+    return (data ?? []) as CommitSizeCount[];
+  } catch {
+    return null;
+  }
 }
 
 export async function adminCreateShipment(

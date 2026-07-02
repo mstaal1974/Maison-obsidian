@@ -35,6 +35,7 @@ export interface Fragrance {
   stock30?: number;
   stock50?: number;
   lowStock?: number;
+  oilMl?: number; // raw oil on hand (ml), filled into bottles on demand
 }
 
 export const FRAGS: Fragrance[] = [
