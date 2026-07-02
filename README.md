@@ -47,12 +47,14 @@ Faithful to the redesign comp:
   (dense table). Each entry shows live `committed / moq` progress and VIP / Batch-Met
   badges.
 - **Product detail** — hash-routed at `#/fragrance/:slug`; story, composition
-  (top / heart / base), stats, the **Custom Engraving engine** with a live label
+  (top / heart / base), stats, a **10 / 30 / 50 ml size selector** that drives the
+  volume, price and commit total, the **Custom Engraving engine** with a live label
   preview, and the batch progress + *Commit to this Batch* CTA.
 - **The Method** — the four movements (Source → Macerate → Commit → Pour).
-- **VIP Club** — membership panel with join state.
-- **Commit drawer** — slide-out confirming the reserved batch, engraving, and the
-  authorize-not-charge promise.
+- **VIP Club** — email enrolment that writes to the `subscribers` table (via the
+  `enroll_subscriber` RPC) and unlocks VIP-only batches.
+- **Commit drawer** — slide-out confirming the reserved batch, chosen size + price,
+  engraving, and the authorize-not-charge promise.
 - **Footer** + film-grain overlay, responsive breakpoints, and reduced-motion support.
 
 ## Architecture
@@ -94,14 +96,21 @@ as ordered migrations under `supabase/migrations/`:
 | Object | Purpose |
 | --- | --- |
 | `fragrances` | Catalogue (25 scents); columns mirror the `Fragrance` type 1:1, with per-size pricing (`price_10ml_cents` / `_30ml_` / `_50ml_`). Public read. |
-| `commits` | Batch reservations (engraving, `authorized`/`captured`/`released`/`void`, optional `payment_intent_id`). Anyone may insert; users read their own. |
+| `commits` | Batch reservations (engraving, chosen `size_ml` + `charge_cents`, `authorized`/`captured`/`released`/`void`, optional `payment_intent_id`). Anyone may insert; users read their own. |
 | `subscribers` | General list + `vip` tier (gates VIP-only batches). |
 | `sync_fragrance_committed()` trigger | Keeps `fragrances.committed` in step as commits are inserted / released. |
-| `commit_to_batch(fragrance_id, engraving, payment_intent_id)` | `SECURITY DEFINER` RPC that inserts a commit and returns `(committed, moq, met)` atomically; rejects VIP-only batches unless the caller is a VIP subscriber. |
+| `commit_to_batch(fragrance_id, engraving, size_ml, charge_cents, payment_intent_id)` | `SECURITY DEFINER` RPC that inserts a commit and returns `(committed, moq, met)` atomically; rejects VIP-only batches unless the caller is a VIP subscriber. |
+| `enroll_subscriber(email, tier)` | `SECURITY DEFINER` RPC that upserts a subscriber (default `vip`), tying it to the signed-in user when present. |
 
 The batch model: a fragrance pours only once `committed >= moq`. Each commit
 **authorizes, never charges** — capture the held Stripe intents once the batch is met
 (and release them if it closes short). See the SQL comments for the production wiring.
+
+VIP note: `enroll_subscriber` records the VIP by email, while the DB-side VIP gate in
+`commit_to_batch` is *auth*-based (it checks `subscribers.user_id = auth.uid()`). The
+demo has no auth, so the UI unlocks VIP batches client-side on enrolment; in
+production, wiring Supabase Auth ties the subscriber row to the signed-in user and the
+gate enforces it server-side.
 
 ### Catalogue data
 

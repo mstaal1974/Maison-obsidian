@@ -48,6 +48,9 @@ create table if not exists public.commits (
   user_id           uuid references auth.users(id) on delete set null,
   user_email        text,
   engraving         text,                                -- optional custom label
+  size_ml           integer not null default 50
+                    check (size_ml in (10, 30, 50)),     -- chosen bottle size
+  charge_cents      integer,                             -- price held for that size
   payment_intent_id text,                                -- Stripe PI (authorize-later)
   status            text not null default 'authorized'
     check (status in ('authorized','captured','released','void')),
@@ -108,9 +111,12 @@ create trigger trg_commits_sync
 -- Inserts a commit and returns the batch's new state in one round-trip. Runs as
 -- SECURITY DEFINER so clients don't need broad insert grants; the check keeps
 -- VIP-only batches gated to VIP subscribers.
+drop function if exists public.commit_to_batch(text, text, text);
 create or replace function public.commit_to_batch(
   p_fragrance_id      text,
   p_engraving         text default null,
+  p_size_ml           integer default 50,
+  p_charge_cents      integer default null,
   p_payment_intent_id text default null
 )
 returns table (committed integer, moq integer, met boolean)
@@ -136,11 +142,13 @@ begin
     end if;
   end if;
 
-  insert into public.commits (fragrance_id, user_id, engraving, payment_intent_id)
+  insert into public.commits (fragrance_id, user_id, engraving, size_ml, charge_cents, payment_intent_id)
   values (
     p_fragrance_id,
     auth.uid(),
     nullif(btrim(coalesce(p_engraving, '')), ''),
+    coalesce(p_size_ml, 50),
+    p_charge_cents,
     p_payment_intent_id
   );
 
@@ -151,7 +159,33 @@ begin
 end;
 $$;
 
-grant execute on function public.commit_to_batch(text, text, text) to anon, authenticated;
+grant execute on function public.commit_to_batch(text, text, integer, integer, text) to anon, authenticated;
+
+-- ─── VIP enrolment RPC ───────────────────────────────────────────────────────
+-- Upserts a subscriber at the requested tier. SECURITY DEFINER so the client
+-- can enrol via a single call; ties the row to the signed-in user when present.
+create or replace function public.enroll_subscriber(
+  p_email text,
+  p_tier  text default 'vip'
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_tier not in ('general', 'vip') then
+    raise exception 'invalid tier %', p_tier using errcode = 'check_violation';
+  end if;
+  insert into public.subscribers (email, user_id, tier)
+  values (lower(btrim(p_email)), auth.uid(), p_tier)
+  on conflict (email) do update
+    set tier    = excluded.tier,
+        user_id = coalesce(excluded.user_id, public.subscribers.user_id);
+end;
+$$;
+
+grant execute on function public.enroll_subscriber(text, text) to anon, authenticated;
 
 -- ─── Row-Level Security ──────────────────────────────────────────────────────
 alter table public.fragrances  enable row level security;

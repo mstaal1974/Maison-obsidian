@@ -57,22 +57,45 @@ export function useFragrances() {
 }
 
 /**
- * Records a batch commit in Supabase via the atomic `commit_to_batch` RPC.
- * No-ops when Supabase isn't configured (the UI already tracks commits
- * locally and persists them to localStorage). Errors are swallowed so a
- * backend hiccup never blocks the optimistic UI.
+ * Records a batch commit in Supabase via the atomic `commit_to_batch` RPC,
+ * including the chosen bottle size and the price held for it. No-ops when
+ * Supabase isn't configured (the UI already tracks commits locally and
+ * persists them to localStorage). Errors are swallowed so a backend hiccup
+ * never blocks the optimistic UI.
  */
 export async function recordCommit(
   fragranceId: string,
   engraving: string | null,
+  sizeMl: number,
+  chargeCents: number,
 ): Promise<void> {
   if (!supabase) return;
   try {
     await supabase.rpc("commit_to_batch", {
       p_fragrance_id: fragranceId,
       p_engraving: engraving,
+      p_size_ml: sizeMl,
+      p_charge_cents: chargeCents,
     });
   } catch {
     /* offline / RLS / network — optimistic UI already reflects the commit */
+  }
+}
+
+/**
+ * Enrols an email address in the VIP club via the `enroll_subscriber` RPC.
+ * No-ops (returns true) when Supabase isn't configured so the demo still
+ * unlocks locally; returns false only when a configured backend rejects it.
+ */
+export async function enrollVip(email: string): Promise<boolean> {
+  if (!supabase) return true;
+  try {
+    const { error } = await supabase.rpc("enroll_subscriber", {
+      p_email: email,
+      p_tier: "vip",
+    });
+    return !error;
+  } catch {
+    return false;
   }
 }

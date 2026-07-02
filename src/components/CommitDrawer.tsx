@@ -1,9 +1,11 @@
-import { type Fragrance, GOLD } from "../lib/data";
+import { type Fragrance, GOLD, money } from "../lib/data";
 
 interface CommitDrawerProps {
   lastCommit: Fragrance | null;
   effectiveCommitted: number;
   engraving: string | null;
+  sizeMl?: number;
+  chargeCents?: number;
   hasCommits: boolean;
   showInspiration: boolean;
   onClose: () => void;
@@ -14,6 +16,8 @@ export default function CommitDrawer({
   lastCommit,
   effectiveCommitted,
   engraving,
+  sizeMl,
+  chargeCents,
   hasCommits,
   showInspiration,
   onClose,
@@ -126,6 +130,28 @@ export default function CommitDrawer({
                 <div style={{ marginTop: 9, height: 3, background: "#1f1f27" }}>
                   <div style={{ height: "100%", width: `${pct}%`, background: GOLD }} />
                 </div>
+                {sizeMl && (
+                  <div
+                    style={{
+                      marginTop: 18,
+                      paddingTop: 16,
+                      borderTop: "1px solid #1f1f27",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      fontFamily: "'Space Mono',monospace",
+                      fontSize: 11,
+                      color: "rgba(243,236,220,0.6)",
+                    }}
+                  >
+                    <span style={{ letterSpacing: "0.16em", textTransform: "uppercase", fontSize: 9, color: "rgba(243,236,220,0.45)" }}>
+                      Size
+                    </span>
+                    <span>
+                      {sizeMl} ml{chargeCents != null ? ` · ${money(chargeCents)}` : ""}
+                    </span>
+                  </div>
+                )}
                 {engraving && (
                   <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #1f1f27" }}>
                     <div

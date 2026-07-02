@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { type Fragrance, type Filter, pad } from "./lib/data";
-import { useFragrances, recordCommit } from "./lib/store";
+import { useFragrances, recordCommit, enrollVip } from "./lib/store";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Vault from "./components/Vault";
@@ -15,6 +15,8 @@ type View = "home" | "product";
 type Direction = "gallery" | "ledger";
 interface CommitRecord {
   label: string | null;
+  sizeMl?: number;
+  chargeCents?: number;
 }
 
 const STORAGE_KEY = "mo:commits";
@@ -109,15 +111,15 @@ export default function App() {
   const lastCommit = lastCommittedId ? fragrances.find((f) => f.id === lastCommittedId) ?? null : null;
 
   const commitSelected = useCallback(
-    (engraving: string | null) => {
+    (engraving: string | null, sizeMl: number, chargeCents: number) => {
       if (!selected) return;
       const locked = !!selected.vipOnly && !vip;
       if (locked || committed[selected.id]) return;
-      setCommitted((prev) => ({ ...prev, [selected.id]: { label: engraving } }));
+      setCommitted((prev) => ({ ...prev, [selected.id]: { label: engraving, sizeMl, chargeCents } }));
       setLastCommittedId(selected.id);
       setDrawerOpen(true);
       // Persist to the backend when configured (optimistic UI already updated).
-      void recordCommit(selected.id, engraving);
+      void recordCommit(selected.id, engraving, sizeMl, chargeCents);
     },
     [selected, vip, committed],
   );
@@ -152,7 +154,13 @@ export default function App() {
             onOpen={openProduct}
           />
           <Method />
-          <VIP vip={vip} onJoin={() => setVip(true)} />
+          <VIP
+            vip={vip}
+            onJoin={(email) => {
+              setVip(true);
+              void enrollVip(email);
+            }}
+          />
         </main>
       )}
 
@@ -203,6 +211,8 @@ export default function App() {
           lastCommit={lastCommit}
           effectiveCommitted={lastCommit ? effective(lastCommit) : 0}
           engraving={lastCommit && committed[lastCommit.id] ? committed[lastCommit.id].label : null}
+          sizeMl={lastCommit && committed[lastCommit.id] ? committed[lastCommit.id].sizeMl : undefined}
+          chargeCents={lastCommit && committed[lastCommit.id] ? committed[lastCommit.id].chargeCents : undefined}
           hasCommits={hasCommits}
           showInspiration={showInspiration}
           onClose={() => setDrawerOpen(false)}
