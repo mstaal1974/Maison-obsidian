@@ -29,6 +29,12 @@ export interface Fragrance {
   top: string[];
   heart: string[];
   base: string[];
+  // Inventory (on-hand stock per size). Optional: the seed omits it and the
+  // admin/DB manage it; treat missing as 0 when displaying.
+  stock10?: number;
+  stock30?: number;
+  stock50?: number;
+  lowStock?: number;
 }
 
 export const FRAGS: Fragrance[] = [

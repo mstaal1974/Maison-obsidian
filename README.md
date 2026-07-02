@@ -50,6 +50,13 @@ Faithful to the redesign comp:
 - **Payments** — authorize-later Stripe: each commit authorizes a hold and records
   a `payment_intent_id`; a `capture-batch` Edge Function captures the holds when the
   batch is met (or releases them if it closes short).
+- **Admin console** (`#/admin`, admins only) — add / edit / remove fragrances and
+  manage per-size inventory (with low-stock flags), plus a fulfillment queue that
+  turns commits into shipments.
+- **Shipping / fulfillment** — a Supabase-native `shipments` model; admins create
+  shipments (carrier + tracking), and each customer sees status + tracking on their
+  reservations. A `create-shipment` Edge Function is the provider seam
+  (Shopify / Shippo / EasyPost).
 - **Hero** — atmospheric landing with the four brand stats (30% · 4wk · 20 · DXB).
 - **The Vault** — catalogue with **All / For Him / For Her** tabs and two layouts a
   floating switch toggles between: **Gallery** (liquid-swatch cards) and **Ledger**
@@ -78,19 +85,24 @@ src/
 │   ├── data.ts            Fragrance type, seed catalogue, design tokens, helpers
 │   ├── supabase.ts        Null-safe Supabase client + row types
 │   ├── auth.ts            useAuth() — Supabase Auth (email + Google) w/ demo fallback
+│   ├── admin.ts           useIsAdmin() + fragrance CRUD / inventory / fulfillment ops
+│   ├── catalogue.ts       In-memory demo stores (catalogue + shipments) for offline
 │   ├── stripe.ts          authorizePayment() — authorize-later hold (stub + real seam)
-│   └── store.ts           useFragrances() + recordCommit() + fetchMyCommits()
+│   └── store.ts           useFragrances() + recordCommit() + fetch{MyCommits,MyShipments}()
 └── components/
     ├── Header.tsx  Hero.tsx  Vault.tsx  FragranceCard.tsx
     ├── Method.tsx  VIP.tsx   ProductDetail.tsx  CommitDrawer.tsx
-    ├── AuthModal.tsx  MyReservations.tsx  Footer.tsx  LayoutSwitch.tsx  Logo.tsx
+    ├── AuthModal.tsx  MyReservations.tsx  AdminConsole.tsx  Footer.tsx  LayoutSwitch.tsx  Logo.tsx
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
 ├── migrations/
-│   ├── 0001_init.sql      Schema, committed-sync trigger, commit_to_batch RPC, RLS
-│   └── 0002_seed.sql      Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
+│   ├── 0001_init.sql            Schema, committed-sync trigger, commit_to_batch RPC, RLS
+│   ├── 0002_seed.sql            Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
+│   ├── 0003_admin_inventory.sql admins + is_admin(), stock columns, fragrance CRUD RPCs
+│   └── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
 └── functions/
-    └── capture-batch/     Edge Function: capture/release held intents on batch met
+    ├── capture-batch/     Edge Function: capture/release held intents on batch met
+    └── create-shipment/   Edge Function: buy a label via a shipping provider
 ```
 
 ### The batch model
@@ -118,6 +130,29 @@ as ordered migrations under `supabase/migrations/`:
 The batch model: a fragrance pours only once `committed >= moq`. Each commit
 **authorizes, never charges** — capture the held Stripe intents once the batch is met
 (and release them if it closes short). See the SQL comments for the production wiring.
+
+### Admin, inventory & fulfillment
+
+`0003_admin_inventory.sql` adds an `admins` table and an `is_admin()` guard, per-size
+stock columns on `fragrances` (`stock_10ml/30ml/50ml` + `low_stock_threshold`), and
+`SECURITY DEFINER` RPCs that only an admin may call: `admin_upsert_fragrance(jsonb)`,
+`admin_delete_fragrance(id)`, `admin_set_stock(...)`, `admin_adjust_stock(...)`. Direct
+table writes stay closed by RLS; every mutation goes through a guarded RPC.
+
+`0004_shipments.sql` adds a `shipments` table (status, carrier, tracking, `ship_to`,
+provider) with RLS so customers read their own and admins read all, plus
+`admin_create_shipment(...)` and `admin_set_shipment_status(...)`. The
+`create-shipment` Edge Function is the provider seam — set `SHIPPING_PROVIDER` +
+API key and fill in the Shippo/EasyPost/Shopify call to buy real labels.
+
+The **Admin Console** (`#/admin`) surfaces all of this: a Catalogue tab (add / edit /
+remove, inline per-size stock with low-stock flags) and a Fulfillment tab (commits →
+create shipment). Make a user an admin with
+`insert into admins(user_id) values ('<auth-user-id>');`. In the offline demo any
+signed-in user is treated as an admin and edits are in-memory.
+
+> Make an admin: grab the id from Supabase → Authentication → Users, then run the
+> insert above in the SQL editor.
 
 ### Authentication
 

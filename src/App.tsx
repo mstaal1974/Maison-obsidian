@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from "react";
 import { type Fragrance, type Filter, pad } from "./lib/data";
 import {
   useFragrances,
@@ -6,12 +6,17 @@ import {
   enrollVip,
   isVipSubscriber,
   fetchMyCommits,
+  fetchMyShipments,
   type CommitRow,
+  type ShipmentRow,
 } from "./lib/store";
 import { useAuth } from "./lib/auth";
+import { useIsAdmin, type AdminCommitRow } from "./lib/admin";
+import { demoShipments, subscribeShipments } from "./lib/catalogue";
 import { authorizePayment } from "./lib/stripe";
 import AuthModal from "./components/AuthModal";
 import MyReservations, { type Reservation } from "./components/MyReservations";
+import AdminConsole from "./components/AdminConsole";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Vault from "./components/Vault";
@@ -22,7 +27,7 @@ import CommitDrawer from "./components/CommitDrawer";
 import Footer from "./components/Footer";
 import LayoutSwitch from "./components/LayoutSwitch";
 
-type View = "home" | "product" | "account";
+type View = "home" | "product" | "account" | "admin";
 type Direction = "gallery" | "ledger";
 interface CommitRecord {
   label: string | null;
@@ -58,8 +63,9 @@ export default function App() {
   const [vip, setVip] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
 
-  const { fragrances } = useFragrances();
+  const { fragrances, reload } = useFragrances();
   const auth = useAuth();
+  const isAdmin = useIsAdmin(auth.user);
   const showInspiration = true;
 
   // Reflect VIP membership from the backend for a signed-in user (sign-out
@@ -84,6 +90,9 @@ export default function App() {
         setView("product");
       } else if (window.location.hash === "#/account") {
         setView("account");
+        setSlug(null);
+      } else if (window.location.hash === "#/admin") {
+        setView("admin");
         setSlug(null);
       } else {
         setView("home");
@@ -140,6 +149,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const goAdmin = useCallback(() => {
+    window.location.hash = "#/admin";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const selected = view === "product" && slug ? fragrances.find((f) => f.slug === slug) ?? null : null;
   const lastCommit = lastCommittedId ? fragrances.find((f) => f.id === lastCommittedId) ?? null : null;
 
@@ -175,6 +189,35 @@ export default function App() {
     };
   }, [view, usingRemote, auth.user?.id, committed]);
 
+  // Shipments to surface on each reservation.
+  const [remoteShipments, setRemoteShipments] = useState<ShipmentRow[] | null>(null);
+  const demoShip = useSyncExternalStore(subscribeShipments, demoShipments);
+
+  useEffect(() => {
+    if (view !== "account" || !usingRemote || !auth.user?.id) return;
+    let active = true;
+    void fetchMyShipments(auth.user.id).then((rows) => {
+      if (active) setRemoteShipments(rows);
+    });
+    return () => {
+      active = false;
+    };
+  }, [view, usingRemote, auth.user?.id, committed]);
+
+  const shipmentFor = useCallback(
+    (fragranceId: string): Partial<Reservation> => {
+      if (usingRemote) {
+        const s = (remoteShipments ?? []).find((x) => x.fragrance_id === fragranceId);
+        return s
+          ? { shipmentStatus: s.status, carrier: s.carrier ?? undefined, tracking: s.tracking_number ?? undefined, trackingUrl: s.tracking_url ?? undefined }
+          : {};
+      }
+      const d = demoShip[fragranceId];
+      return d ? { shipmentStatus: d.status, carrier: d.carrier, tracking: d.trackingNumber, trackingUrl: d.trackingUrl } : {};
+    },
+    [usingRemote, remoteShipments, demoShip],
+  );
+
   const reservations: Reservation[] = useMemo(() => {
     if (usingRemote) {
       return (remoteCommits ?? [])
@@ -188,6 +231,7 @@ export default function App() {
             engraving: row.engraving,
             status: row.status,
             effectiveCommitted: effective(frag),
+            ...shipmentFor(frag.id),
           };
         })
         .filter((r): r is Reservation => r !== null);
@@ -204,10 +248,26 @@ export default function App() {
           engraving: rec.label,
           status: "authorized",
           effectiveCommitted: effective(frag),
+          ...shipmentFor(frag.id),
         };
       })
       .filter((r): r is Reservation => r !== null);
-  }, [usingRemote, remoteCommits, committed, fragrances, effective]);
+  }, [usingRemote, remoteCommits, committed, fragrances, effective, shipmentFor]);
+
+  // Commits passed to the admin fulfillment tab in demo mode.
+  const demoAdminCommits: AdminCommitRow[] = useMemo(
+    () =>
+      Object.entries(committed).map(([id, rec]) => ({
+        id,
+        fragrance_id: id,
+        size_ml: rec.sizeMl ?? 50,
+        charge_cents: rec.chargeCents ?? null,
+        engraving: rec.label,
+        status: "authorized",
+        created_at: "",
+      })),
+    [committed],
+  );
 
   const reservationsLoading = usingRemote && view === "account" && remoteCommits === null;
 
@@ -230,6 +290,8 @@ export default function App() {
           void auth.signOut();
         }}
         onGoAccount={goAccount}
+        onGoAdmin={goAdmin}
+        isAdmin={isAdmin}
       />
 
       {view === "home" && (
@@ -312,6 +374,20 @@ export default function App() {
           }}
         />
       )}
+
+      {view === "admin" &&
+        (isAdmin ? (
+          <AdminConsole fragrances={fragrances} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} />
+        ) : (
+          <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
+            <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 44, color: "#f3ecdc" }}>
+              Admins only.
+            </h1>
+            <p style={{ marginTop: 12, fontSize: 13, color: "rgba(243,236,220,0.5)" }}>
+              Sign in with an admin account to manage the atelier.
+            </p>
+          </main>
+        ))}
 
       <Footer />
 

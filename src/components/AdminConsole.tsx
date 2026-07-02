@@ -1,0 +1,460 @@
+import { type CSSProperties, useEffect, useState, useSyncExternalStore } from "react";
+import { type Fragrance, GOLD, money } from "../lib/data";
+import {
+  adminUpsertFragrance,
+  adminDeleteFragrance,
+  adminSetStock,
+  adminCreateShipment,
+  fetchAllCommits,
+  demoFulfil,
+  type AdminCommitRow,
+} from "../lib/admin";
+import { demoShipments, subscribeShipments } from "../lib/catalogue";
+
+interface AdminConsoleProps {
+  fragrances: Fragrance[];
+  configured: boolean;
+  onReload: () => void;
+  demoCommits: AdminCommitRow[];
+}
+
+const BLANK: Fragrance = {
+  id: "",
+  slug: "",
+  name: "",
+  inspiration: "",
+  tagline: "",
+  story: "",
+  price: 0,
+  price10: 0,
+  price30: 0,
+  gender: "unisex",
+  moq: 20,
+  committed: 0,
+  liquid: "#3b2a18",
+  accent: "#c9a961",
+  vipOnly: false,
+  top: [],
+  heart: [],
+  base: [],
+  stock10: 0,
+  stock30: 0,
+  stock50: 0,
+  lowStock: 5,
+};
+
+const label: CSSProperties = {
+  fontFamily: "'Space Mono',monospace",
+  fontSize: 9,
+  letterSpacing: "0.2em",
+  textTransform: "uppercase",
+  color: "rgba(243,236,220,0.45)",
+};
+const field: CSSProperties = {
+  width: "100%",
+  background: "none",
+  border: "1px solid #1f1f27",
+  outline: "none",
+  height: 40,
+  padding: "0 12px",
+  color: "#f3ecdc",
+  fontFamily: "'Space Mono',monospace",
+  fontSize: 12,
+};
+const btnGold: CSSProperties = {
+  background: GOLD,
+  color: "#0b0b0d",
+  border: 0,
+  cursor: "pointer",
+  height: 40,
+  padding: "0 20px",
+  fontSize: 10.5,
+  letterSpacing: "0.24em",
+  textTransform: "uppercase",
+  fontWeight: 600,
+};
+const btnGhost: CSSProperties = {
+  background: "none",
+  color: "rgba(243,236,220,0.75)",
+  border: "1px solid #1f1f27",
+  cursor: "pointer",
+  height: 40,
+  padding: "0 18px",
+  fontSize: 10.5,
+  letterSpacing: "0.2em",
+  textTransform: "uppercase",
+  fontWeight: 600,
+};
+
+export default function AdminConsole({ fragrances, configured, onReload, demoCommits }: AdminConsoleProps) {
+  const [tab, setTab] = useState<"catalogue" | "fulfillment">("catalogue");
+
+  return (
+    <main data-screen-label="Admin" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
+      <div style={{ ...label, color: "rgba(201,169,97,0.85)", letterSpacing: "0.28em" }}>Atelier Admin</div>
+      <h1 style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 54, color: "#f3ecdc" }}>
+        The <span style={{ fontStyle: "italic", color: "#c9a961" }}>Console.</span>
+      </h1>
+      {!configured && (
+        <p style={{ margin: "12px 0 0", fontSize: 11.5, color: "rgba(243,236,220,0.45)" }}>
+          Demo mode — edits are in-memory for this session. Connect Supabase to persist.
+        </p>
+      )}
+
+      <div style={{ display: "flex", gap: 22, margin: "28px 0 30px", borderBottom: "1px solid #1f1f27" }}>
+        {(["catalogue", "fulfillment"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              background: "none",
+              border: 0,
+              borderBottom: tab === t ? "1px solid #c9a961" : "1px solid transparent",
+              cursor: "pointer",
+              padding: "0 0 12px",
+              color: tab === t ? "#c9a961" : "rgba(243,236,220,0.55)",
+              fontSize: 11,
+              letterSpacing: "0.24em",
+              textTransform: "uppercase",
+              fontWeight: 600,
+            }}
+          >
+            {t === "catalogue" ? "Catalogue & Inventory" : "Fulfillment"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "catalogue" ? (
+        <Catalogue fragrances={fragrances} configured={configured} onReload={onReload} />
+      ) : (
+        <Fulfillment fragrances={fragrances} configured={configured} demoCommits={demoCommits} />
+      )}
+    </main>
+  );
+}
+
+function Catalogue({
+  fragrances,
+  configured,
+  onReload,
+}: {
+  fragrances: Fragrance[];
+  configured: boolean;
+  onReload: () => void;
+}) {
+  const [editing, setEditing] = useState<Fragrance | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async (f: Fragrance) => {
+    setBusy(true);
+    await adminUpsertFragrance(f);
+    if (configured) onReload();
+    setBusy(false);
+    setEditing(null);
+  };
+
+  const remove = async (id: string, name: string) => {
+    if (!confirm(`Remove “${name}” from the catalogue?`)) return;
+    await adminDeleteFragrance(id);
+    if (configured) onReload();
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+        <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "rgba(243,236,220,0.55)" }}>
+          {fragrances.length} fragrances
+        </div>
+        <button style={btnGold} onClick={() => setEditing({ ...BLANK })}>
+          + Add Fragrance
+        </button>
+      </div>
+
+      {editing && <Editor initial={editing} busy={busy} onSave={save} onCancel={() => setEditing(null)} />}
+
+      <div style={{ display: "grid", gap: 10, marginTop: editing ? 24 : 0 }}>
+        {fragrances.map((f) => (
+          <Row key={f.id} f={f} configured={configured} onEdit={() => setEditing({ ...f })} onDelete={() => remove(f.id, f.name)} onReload={onReload} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Row({
+  f,
+  configured,
+  onEdit,
+  onDelete,
+  onReload,
+}: {
+  f: Fragrance;
+  configured: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onReload: () => void;
+}) {
+  const [s10, setS10] = useState(f.stock10 ?? 0);
+  const [s30, setS30] = useState(f.stock30 ?? 0);
+  const [s50, setS50] = useState(f.stock50 ?? 0);
+  const low = f.lowStock ?? 5;
+  const dirty = s10 !== (f.stock10 ?? 0) || s30 !== (f.stock30 ?? 0) || s50 !== (f.stock50 ?? 0);
+
+  const saveStock = async () => {
+    await adminSetStock(f.id, s10, s30, s50);
+    if (configured) onReload();
+  };
+
+  const stockBox = (v: number, set: (n: number) => void, size: string) => (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ ...label, fontSize: 8 }}>
+        {size}
+        {v <= low && <span style={{ color: "#d98a6a" }}> · low</span>}
+      </span>
+      <input
+        type="number"
+        min={0}
+        value={v}
+        onChange={(e) => set(Math.max(0, Number(e.target.value)))}
+        aria-label={`${f.name} ${size} stock`}
+        style={{ ...field, width: 62, height: 34, color: v <= low ? "#d98a6a" : "#f3ecdc" }}
+      />
+    </label>
+  );
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 18,
+        flexWrap: "wrap",
+        border: "1px solid #1f1f27",
+        background: "#101015",
+        padding: "16px 18px",
+      }}
+    >
+      <div style={{ minWidth: 200, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 10, height: 28, background: f.liquid, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#f3ecdc", lineHeight: 1 }}>{f.name}</div>
+            <div style={{ ...label, marginTop: 4 }}>
+              {f.gender} · {money(f.price)} {f.vipOnly ? "· VIP" : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+        {stockBox(s10, setS10, "10ml")}
+        {stockBox(s30, setS30, "30ml")}
+        {stockBox(s50, setS50, "50ml")}
+        <button onClick={saveStock} disabled={!dirty} style={{ ...btnGhost, height: 34, opacity: dirty ? 1 : 0.4 }}>
+          Save Stock
+        </button>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={onEdit} style={{ ...btnGhost, height: 34 }}>
+          Edit
+        </button>
+        <button onClick={onDelete} style={{ ...btnGhost, height: 34, color: "#d98a6a" }}>
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Editor({
+  initial,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  initial: Fragrance;
+  busy: boolean;
+  onSave: (f: Fragrance) => void;
+  onCancel: () => void;
+}) {
+  const [f, setF] = useState<Fragrance>(initial);
+  const set = <K extends keyof Fragrance>(k: K, v: Fragrance[K]) => setF((p) => ({ ...p, [k]: v }));
+  const dollars = (cents: number) => (cents ? String(cents / 100) : "");
+  const notes = (arr: string[]) => arr.join(", ");
+  const parseNotes = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
+  const valid = f.name.trim() && f.slug.trim();
+
+  const grid: CSSProperties = { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 };
+  const cell = (labelText: string, node: React.ReactNode) => (
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span style={label}>{labelText}</span>
+      {node}
+    </label>
+  );
+
+  return (
+    <div style={{ border: "1px solid rgba(201,169,97,0.35)", background: "rgba(20,20,26,0.5)", padding: 24 }}>
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#f3ecdc", marginBottom: 18 }}>
+        {initial.id ? "Edit fragrance" : "New fragrance"}
+      </div>
+      <div style={{ display: "grid", gap: 14 }}>
+        <div style={grid}>
+          {cell("Name", <input style={field} value={f.name} onChange={(e) => set("name", e.target.value)} />)}
+          {cell("Slug", <input style={field} value={f.slug} onChange={(e) => set("slug", e.target.value)} />)}
+          {cell(
+            "Gender",
+            <select
+              style={{ ...field, appearance: "auto" }}
+              value={f.gender}
+              onChange={(e) => set("gender", e.target.value as Fragrance["gender"])}
+            >
+              <option value="masculine">masculine</option>
+              <option value="feminine">feminine</option>
+              <option value="unisex">unisex</option>
+            </select>,
+          )}
+        </div>
+        {cell("Inspiration", <input style={field} value={f.inspiration} onChange={(e) => set("inspiration", e.target.value)} />)}
+        {cell("Tagline", <input style={field} value={f.tagline} onChange={(e) => set("tagline", e.target.value)} />)}
+        {cell(
+          "Story",
+          <textarea
+            style={{ ...field, height: 70, padding: 12, resize: "vertical" }}
+            value={f.story}
+            onChange={(e) => set("story", e.target.value)}
+          />,
+        )}
+        <div style={grid}>
+          {cell("Price 10ml ($)", <input type="number" style={field} value={dollars(f.price10)} onChange={(e) => set("price10", Math.round(Number(e.target.value) * 100))} />)}
+          {cell("Price 30ml ($)", <input type="number" style={field} value={dollars(f.price30)} onChange={(e) => set("price30", Math.round(Number(e.target.value) * 100))} />)}
+          {cell("Price 50ml ($)", <input type="number" style={field} value={dollars(f.price)} onChange={(e) => set("price", Math.round(Number(e.target.value) * 100))} />)}
+        </div>
+        <div style={grid}>
+          {cell("MOQ", <input type="number" style={field} value={f.moq} onChange={(e) => set("moq", Number(e.target.value))} />)}
+          {cell("Liquid (hex)", <input style={field} value={f.liquid} onChange={(e) => set("liquid", e.target.value)} />)}
+          {cell("Accent (hex)", <input style={field} value={f.accent} onChange={(e) => set("accent", e.target.value)} />)}
+        </div>
+        {cell("Top notes (comma-separated)", <input style={field} value={notes(f.top)} onChange={(e) => set("top", parseNotes(e.target.value))} />)}
+        {cell("Heart notes", <input style={field} value={notes(f.heart)} onChange={(e) => set("heart", parseNotes(e.target.value))} />)}
+        {cell("Base notes", <input style={field} value={notes(f.base)} onChange={(e) => set("base", parseNotes(e.target.value))} />)}
+        <div style={grid}>
+          {cell("Stock 10ml", <input type="number" style={field} value={f.stock10 ?? 0} onChange={(e) => set("stock10", Math.max(0, Number(e.target.value)))} />)}
+          {cell("Stock 30ml", <input type="number" style={field} value={f.stock30 ?? 0} onChange={(e) => set("stock30", Math.max(0, Number(e.target.value)))} />)}
+          {cell("Stock 50ml", <input type="number" style={field} value={f.stock50 ?? 0} onChange={(e) => set("stock50", Math.max(0, Number(e.target.value)))} />)}
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 10, ...label }}>
+          <input type="checkbox" checked={!!f.vipOnly} onChange={(e) => set("vipOnly", e.target.checked)} />
+          VIP only
+        </label>
+      </div>
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <button style={{ ...btnGold, opacity: valid && !busy ? 1 : 0.5 }} disabled={!valid || busy} onClick={() => onSave(f)}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button style={btnGhost} onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Fulfillment({
+  fragrances,
+  configured,
+  demoCommits,
+}: {
+  fragrances: Fragrance[];
+  configured: boolean;
+  demoCommits: AdminCommitRow[];
+}) {
+  const [remote, setRemote] = useState<AdminCommitRow[] | null>(null);
+  const demoShip = useSyncExternalStore(subscribeShipments, demoShipments);
+
+  useEffect(() => {
+    if (!configured) return;
+    let active = true;
+    void fetchAllCommits().then((rows) => {
+      if (active) setRemote(rows);
+    });
+    return () => {
+      active = false;
+    };
+  }, [configured]);
+
+  const commits = configured ? remote ?? [] : demoCommits;
+  const nameOf = (id: string) => fragrances.find((f) => f.id === id)?.name ?? id;
+
+  if (configured && remote === null) {
+    return <p style={{ fontSize: 13, color: "rgba(243,236,220,0.5)" }}>Loading commits…</p>;
+  }
+  if (commits.length === 0) {
+    return <p style={{ fontSize: 13, color: "rgba(243,236,220,0.5)" }}>No commits to fulfill yet.</p>;
+  }
+
+  return (
+    <div style={{ display: "grid", gap: 10 }}>
+      {commits.map((c) => (
+        <FulfillRow
+          key={c.id}
+          commit={c}
+          name={nameOf(c.fragrance_id)}
+          configured={configured}
+          demoStatus={demoShip[c.fragrance_id]}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FulfillRow({
+  commit,
+  name,
+  configured,
+  demoStatus,
+}: {
+  commit: AdminCommitRow;
+  name: string;
+  configured: boolean;
+  demoStatus?: { status: string; carrier?: string; trackingNumber?: string };
+}) {
+  const [carrier, setCarrier] = useState("USPS");
+  const [tracking, setTracking] = useState("");
+  const [done, setDone] = useState<string | null>(demoStatus ? `${demoStatus.status} · ${demoStatus.trackingNumber ?? ""}` : null);
+  const [busy, setBusy] = useState(false);
+
+  const ship = async () => {
+    setBusy(true);
+    if (configured) {
+      const ok = await adminCreateShipment(commit.id, carrier, tracking, "");
+      setDone(ok ? `label_created · ${tracking || "—"}` : "failed");
+    } else {
+      demoFulfil(commit.fragrance_id, { status: "label_created", carrier, trackingNumber: tracking || `1Z${Math.random().toString(36).slice(2, 8).toUpperCase()}` });
+      setDone(`label_created · ${tracking || "auto"}`);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", border: "1px solid #1f1f27", background: "#101015", padding: "14px 18px" }}>
+      <div>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#f3ecdc" }}>{name}</div>
+        <div style={{ ...label, marginTop: 4 }}>
+          {commit.size_ml} ml · {commit.charge_cents != null ? money(commit.charge_cents) : "—"}
+          {commit.engraving ? ` · “${commit.engraving}”` : ""} · {commit.status}
+        </div>
+      </div>
+      {done ? (
+        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#8bb98a" }}>✓ {done}</span>
+      ) : (
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input aria-label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} style={{ ...field, width: 90 }} />
+          <input aria-label="Tracking number" placeholder="tracking #" value={tracking} onChange={(e) => setTracking(e.target.value)} style={{ ...field, width: 140 }} />
+          <button style={{ ...btnGold, height: 40 }} disabled={busy} onClick={ship}>
+            {busy ? "…" : "Create Shipment"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

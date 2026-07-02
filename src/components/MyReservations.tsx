@@ -7,7 +7,19 @@ export interface Reservation {
   engraving: string | null;
   status: "authorized" | "captured" | "released" | "void";
   effectiveCommitted: number;
+  shipmentStatus?: "pending" | "label_created" | "shipped" | "delivered" | "cancelled";
+  carrier?: string;
+  tracking?: string;
+  trackingUrl?: string;
 }
+
+const SHIP_LABEL: Record<NonNullable<Reservation["shipmentStatus"]>, string> = {
+  pending: "Preparing",
+  label_created: "Label created",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
 
 interface MyReservationsProps {
   reservations: Reservation[];
@@ -179,6 +191,43 @@ export default function MyReservations({ reservations, loading, onOpen, onBackTo
                       <div style={{ height: "100%", width: `${pct}%`, background: GOLD }} />
                     </div>
                   </div>
+
+                  {r.shipmentStatus && (
+                    <div
+                      style={{
+                        marginTop: 16,
+                        paddingTop: 14,
+                        borderTop: "1px solid #1f1f27",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#8bb98a" }}>
+                        ● {SHIP_LABEL[r.shipmentStatus]}
+                        {r.carrier ? ` · ${r.carrier}` : ""}
+                      </span>
+                      {r.tracking &&
+                        (r.trackingUrl ? (
+                          <a
+                            href={r.trackingUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="mo-link"
+                            style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#c9a961", textDecoration: "none" }}
+                          >
+                            Track · {r.tracking}
+                          </a>
+                        ) : (
+                          <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "rgba(243,236,220,0.55)" }}>
+                            {r.tracking}
+                          </span>
+                        ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

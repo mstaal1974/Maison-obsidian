@@ -31,4 +31,8 @@ export interface FragranceRow {
   heart: string[];
   base: string[];
   sort_order: number;
+  stock_10ml?: number;
+  stock_30ml?: number;
+  stock_50ml?: number;
+  low_stock_threshold?: number;
 }

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { type Fragrance, FRAGS } from "./data";
 import { supabase, type FragranceRow } from "./supabase";
+import { demoFragrances, subscribeCatalogue } from "./catalogue";
 
 type Source = "seed" | "supabase";
 
@@ -24,6 +25,10 @@ function rowToFragrance(r: FragranceRow): Fragrance {
     top: r.top ?? [],
     heart: r.heart ?? [],
     base: r.base ?? [],
+    stock10: r.stock_10ml,
+    stock30: r.stock_30ml,
+    stock50: r.stock_50ml,
+    lowStock: r.low_stock_threshold,
   };
 }
 
@@ -33,27 +38,30 @@ function rowToFragrance(r: FragranceRow): Fragrance {
  * Supabase responds. Falls back to seed on any error or when unconfigured.
  */
 export function useFragrances() {
-  const [fragrances, setFragrances] = useState<Fragrance[]>(FRAGS);
-  const [source, setSource] = useState<Source>("seed");
+  const [remote, setRemote] = useState<Fragrance[] | null>(null);
+  const [source, setSource] = useState<Source>(supabase ? "supabase" : "seed");
+  // In demo mode the catalogue is a mutable in-memory store (admin edits it).
+  const demo = useSyncExternalStore(subscribeCatalogue, demoFragrances);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     if (!supabase) return;
-    let active = true;
     void supabase
       .from("fragrances")
       .select("*")
       .order("sort_order", { ascending: true })
       .then(({ data, error }) => {
-        if (!active || error || !data || data.length === 0) return;
-        setFragrances((data as FragranceRow[]).map(rowToFragrance));
+        if (error || !data || data.length === 0) return;
+        setRemote((data as FragranceRow[]).map(rowToFragrance));
         setSource("supabase");
       });
-    return () => {
-      active = false;
-    };
   }, []);
 
-  return { fragrances, source };
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  const fragrances = supabase ? remote ?? FRAGS : demo;
+  return { fragrances, source, reload };
 }
 
 /**
@@ -107,6 +115,29 @@ export async function fetchMyCommits(userId: string): Promise<CommitRow[] | null
       .order("created_at", { ascending: false });
     if (error) return null;
     return (data ?? []) as CommitRow[];
+  } catch {
+    return null;
+  }
+}
+
+export interface ShipmentRow {
+  fragrance_id: string | null;
+  status: "pending" | "label_created" | "shipped" | "delivered" | "cancelled";
+  carrier: string | null;
+  tracking_number: string | null;
+  tracking_url: string | null;
+}
+
+/** Fetches the signed-in user's shipments (RLS-scoped). Null when unconfigured. */
+export async function fetchMyShipments(userId: string): Promise<ShipmentRow[] | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("shipments")
+      .select("fragrance_id, status, carrier, tracking_number, tracking_url")
+      .eq("user_id", userId);
+    if (error) return null;
+    return (data ?? []) as ShipmentRow[];
   } catch {
     return null;
   }

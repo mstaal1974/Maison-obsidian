@@ -12,6 +12,8 @@ interface HeaderProps {
   onSignIn: () => void;
   onSignOut: () => void;
   onGoAccount: () => void;
+  onGoAdmin: () => void;
+  isAdmin: boolean;
 }
 
 const navLink: CSSProperties = {
@@ -36,6 +38,8 @@ export default function Header({
   onSignIn,
   onSignOut,
   onGoAccount,
+  onGoAdmin,
+  isAdmin,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -193,6 +197,30 @@ export default function Header({
                     >
                       My Reservations
                     </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onGoAdmin();
+                        }}
+                        className="mo-ghost"
+                        style={{
+                          marginTop: 10,
+                          width: "100%",
+                          background: "none",
+                          border: "1px solid rgba(201,169,97,0.4)",
+                          cursor: "pointer",
+                          height: 38,
+                          color: "#c9a961",
+                          fontSize: 10,
+                          letterSpacing: "0.24em",
+                          textTransform: "uppercase",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Admin Console
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setMenuOpen(false);
