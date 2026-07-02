@@ -1,8 +1,60 @@
 import { type Fragrance, type Filter, matches, money } from "./data";
+import { supabase } from "./supabase";
 
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+/**
+ * Persists a concierge message via the log_chat_message RPC (user_id is stamped
+ * server-side from auth.uid()). No-ops when Supabase isn't configured.
+ */
+export async function logChat(
+  conversationId: string,
+  role: "user" | "assistant",
+  content: string,
+  source?: "claude" | "fallback",
+): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.rpc("log_chat_message", {
+      p_conversation_id: conversationId,
+      p_role: role,
+      p_content: content,
+      p_source: source ?? null,
+    });
+  } catch {
+    /* logging is best-effort — never block the chat UI */
+  }
+}
+
+// ─── Deep-linking recommended scents ─────────────────────────────────────────
+export interface TextSegment {
+  text: string;
+  slug?: string; // present when this segment is a fragrance name → link target
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Splits assistant text into segments, tagging any exact fragrance-name
+ * occurrence with its slug so the UI can render it as a product link. Longest
+ * names first so overlapping names match greedily.
+ */
+export function linkifyFragrances(text: string, frags: Fragrance[]): TextSegment[] {
+  if (!frags.length) return [{ text }];
+  const byLen = [...frags].sort((a, b) => b.name.length - a.name.length);
+  const re = new RegExp(`(${byLen.map((f) => escapeRegExp(f.name)).join("|")})`, "g");
+  return text
+    .split(re)
+    .filter((part) => part !== "")
+    .map((part) => {
+      const hit = byLen.find((f) => f.name === part);
+      return hit ? { text: part, slug: hit.slug } : { text: part };
+    });
 }
 
 /** Compact catalogue context sent to the server-side concierge. */
@@ -34,6 +86,7 @@ export async function streamChat(
     body: JSON.stringify({ messages, catalogue }),
     signal,
   });
+  if (res.status === 429) throw new Error("rate_limited");
   const contentType = res.headers.get("content-type") ?? "";
   // A dev/preview server with no serverless function serves index.html (200) —
   // treat any non-streamable / HTML response as "unavailable" and fall back.

@@ -29,11 +29,42 @@ How the house works:
 - Shipping: fulfilled via Australia Post Parcel Post once a batch pours; customers see status + tracking under "My Reservations".
 - Accounts: sign in (email or Google) to commit, track reservations, and join VIP.
 
-Guidance: recommend from the catalogue below by notes, inspiration, or gender when asked. If asked something you don't know (order-specific details, stock for a size), say so and point them to the relevant page (the Vault, a product page, or My Reservations). Never invent prices, scents, or policies.`;
+Guidance: recommend from the catalogue below by notes, inspiration, or gender when asked. When you mention a fragrance, write its name EXACTLY as it appears in the catalogue (the app turns exact names into clickable product links). If asked something you don't know (order-specific details, stock for a size), say so and point them to the relevant page (the Vault, a product page, or My Reservations). Never invent prices, scents, or policies.`;
 
 function buildSystem(catalogue?: string): string {
   const cat = catalogue && catalogue.trim().slice(0, 8000);
   return cat ? `${BRAND}\n\nCurrent catalogue:\n${cat}` : BRAND;
+}
+
+// ─── Best-effort per-IP rate limit ───────────────────────────────────────────
+// In-memory sliding window. Serverless instances aren't shared, so this bounds
+// abuse per warm instance rather than globally — for strict distributed limits,
+// back it with Upstash/Redis or a Supabase table. Good enough to stop a single
+// client hammering the endpoint.
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 20;
+const hits = new Map<string, number[]>();
+
+function retryAfterSeconds(ip: string): number {
+  const now = Date.now();
+  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
+  if (recent.length >= MAX_PER_WINDOW) {
+    hits.set(ip, recent);
+    return Math.max(1, Math.ceil((WINDOW_MS - (now - recent[0])) / 1000));
+  }
+  recent.push(now);
+  hits.set(ip, recent);
+  if (hits.size > 5000) {
+    // opportunistic cleanup of stale IPs
+    for (const [k, v] of hits) if (v.every((t) => now - t >= WINDOW_MS)) hits.delete(k);
+  }
+  return 0;
+}
+
+function clientIp(req: any): string {
+  const fwd = req.headers["x-forwarded-for"];
+  const first = Array.isArray(fwd) ? fwd[0] : (fwd ?? "").split(",")[0];
+  return (first || req.socket?.remoteAddress || "unknown").trim();
 }
 
 function sanitize(messages: unknown): ChatMessage[] {
@@ -61,6 +92,13 @@ export default async function handler(req: any, res: any) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     res.status(501).json({ error: "Concierge is not configured" });
+    return;
+  }
+
+  const retry = retryAfterSeconds(clientIp(req));
+  if (retry > 0) {
+    res.setHeader("Retry-After", String(retry));
+    res.status(429).json({ error: "rate_limited", retryAfter: retry });
     return;
   }
 

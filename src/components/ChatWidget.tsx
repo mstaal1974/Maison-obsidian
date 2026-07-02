@@ -1,17 +1,36 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { type Fragrance, GOLD } from "../lib/data";
-import { type ChatMessage, catalogueSummary, streamChat, localFallbackReply } from "../lib/concierge";
+import {
+  type ChatMessage,
+  catalogueSummary,
+  streamChat,
+  localFallbackReply,
+  logChat,
+  linkifyFragrances,
+} from "../lib/concierge";
+
+function newConversationId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `conv-${Math.random().toString(36).slice(2)}`;
+}
 
 const GREETING =
   "Welcome to Maison Obsidian. I'm your concierge — ask me about a scent, how batch commits work, sizes, engraving, VIP, or shipping.";
 
 const SUGGESTIONS = ["How do batch commits work?", "Recommend something with oud", "How does shipping work?"];
 
-export default function ChatWidget({ fragrances }: { fragrances: Fragrance[] }) {
+interface ChatWidgetProps {
+  fragrances: Fragrance[];
+  onOpenProduct: (slug: string) => void;
+}
+
+export default function ChatWidget({ fragrances, onOpenProduct }: ChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: GREETING }]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [conversationId] = useState(newConversationId);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,18 +52,33 @@ export default function ChatWidget({ fragrances }: { fragrances: Fragrance[] }) 
         return next;
       });
 
+    void logChat(conversationId, "user", q);
+
     let acc = "";
+    let source: "claude" | "fallback" = "claude";
     try {
       await streamChat(history, catalogueSummary(fragrances), (delta) => {
         acc += delta;
         setLast(acc);
       });
-      if (!acc.trim()) setLast(localFallbackReply(q, fragrances));
-    } catch {
-      // Offline / no API key — answer locally.
-      setLast(localFallbackReply(q, fragrances));
+      if (!acc.trim()) {
+        acc = localFallbackReply(q, fragrances);
+        source = "fallback";
+        setLast(acc);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message === "rate_limited") {
+        acc = "You're sending messages a little quickly — give me a moment, then try again.";
+        source = "fallback";
+      } else {
+        // Offline / no API key — answer locally.
+        acc = localFallbackReply(q, fragrances);
+        source = "fallback";
+      }
+      setLast(acc);
     } finally {
       setBusy(false);
+      void logChat(conversationId, "assistant", acc, source);
     }
   };
 
@@ -103,7 +137,33 @@ export default function ChatWidget({ fragrances }: { fragrances: Fragrance[] }) 
           <div ref={scrollRef} className="mo-scroll" style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
             {messages.map((m, i) => (
               <div key={i} style={bubble(m.role)}>
-                {m.content || (busy && i === messages.length - 1 ? "…" : "")}
+                {m.role === "assistant" && m.content
+                  ? linkifyFragrances(m.content, fragrances).map((seg, j) =>
+                      seg.slug ? (
+                        <button
+                          key={j}
+                          onClick={() => {
+                            onOpenProduct(seg.slug!);
+                            setOpen(false);
+                          }}
+                          style={{
+                            background: "none",
+                            border: 0,
+                            padding: 0,
+                            cursor: "pointer",
+                            color: GOLD,
+                            font: "inherit",
+                            textDecoration: "underline",
+                            textUnderlineOffset: 2,
+                          }}
+                        >
+                          {seg.text}
+                        </button>
+                      ) : (
+                        <span key={j}>{seg.text}</span>
+                      ),
+                    )
+                  : m.content || (busy && i === messages.length - 1 ? "…" : "")}
               </div>
             ))}
             {messages.length <= 1 && (

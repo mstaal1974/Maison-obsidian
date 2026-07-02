@@ -428,7 +428,7 @@ export default function App() {
         />
       )}
 
-      <ChatWidget fragrances={fragrances} />
+      <ChatWidget fragrances={fragrances} onOpenProduct={openProduct} />
     </div>
   );
 }

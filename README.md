@@ -109,7 +109,8 @@ supabase/
 │   ├── 0001_init.sql            Schema, committed-sync trigger, commit_to_batch RPC, RLS
 │   ├── 0002_seed.sql            Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
 │   ├── 0003_admin_inventory.sql admins + is_admin(), stock columns, fragrance CRUD RPCs
-│   └── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
+│   ├── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
+│   └── 0005_chat.sql            concierge transcripts + log_chat_message RPC, RLS
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -221,6 +222,18 @@ catalogue summary** (`concierge.ts`), and the function prepends a house system p
 Set `ANTHROPIC_API_KEY` in the Vercel project (Settings → Environment Variables). When
 it's absent — or in the offline demo — the widget falls back to a **local rule-based
 concierge** (`localFallbackReply`) so it still answers the common questions.
+
+Three refinements on top:
+
+- **Rate limit** — `/api/chat` enforces a best-effort **20 requests/min per IP** (sliding
+  window; returns `429` + `Retry-After`, which the widget surfaces as a "give me a moment"
+  message). It's per warm serverless instance — back it with Upstash/Redis or a Supabase
+  table for strict distributed limits.
+- **Transcripts** — messages persist to `chat_messages` via the `log_chat_message` RPC
+  (`0005_chat.sql`), which stamps `user_id` from `auth.uid()` (null for anonymous). RLS lets
+  customers read their own and admins read all; writes go through the RPC only.
+- **Deep links** — the concierge names scents exactly as in the catalogue, and the widget
+  turns those names into **clickable product links** (`linkifyFragrances`) that open the PDP.
 
 > Live Claude calls aren't exercised in this environment (no key / no serverless in
 > `vite preview`); the streaming client and the serverless function are written against
