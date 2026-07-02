@@ -247,6 +247,28 @@ function Row({
           </div>
         </div>
       </div>
+      {(() => {
+        const pct = Math.min(100, Math.round((f.committed / f.moq) * 100));
+        const met = f.committed >= f.moq;
+        const totalStock = s10 + s30 + s50;
+        return (
+          <div style={{ minWidth: 150 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", ...label, fontSize: 8 }}>
+              <span>Commitments{met ? " · met" : ""}</span>
+              <span style={{ color: met ? "#8bb98a" : "#c9a961" }}>{pct}%</span>
+            </div>
+            <div style={{ marginTop: 4, fontFamily: "'Space Mono',monospace", fontSize: 12, color: "#f3ecdc" }}>
+              {f.committed} / {f.moq} committed
+            </div>
+            <div style={{ height: 2, background: "#1f1f27", marginTop: 5 }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: met ? "#8bb98a" : GOLD }} />
+            </div>
+            <div style={{ ...label, fontSize: 8, marginTop: 5, color: totalStock <= low ? "#d98a6a" : "rgba(243,236,220,0.45)" }}>
+              {totalStock} in stock
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
         {stockBox(s10, setS10, "10ml")}
         {stockBox(s30, setS30, "30ml")}
