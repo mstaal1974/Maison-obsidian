@@ -75,7 +75,7 @@ public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
 └── migrations/
     ├── 0001_init.sql      Schema, committed-sync trigger, commit_to_batch RPC, RLS
-    └── 0002_seed.sql      Seed catalogue (mirrors src/lib/data.ts)
+    └── 0002_seed.sql      Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
 ```
 
 ### The batch model
@@ -93,7 +93,7 @@ as ordered migrations under `supabase/migrations/`:
 
 | Object | Purpose |
 | --- | --- |
-| `fragrances` | Catalogue; columns mirror the `Fragrance` type 1:1. Public read. |
+| `fragrances` | Catalogue (25 scents); columns mirror the `Fragrance` type 1:1, with per-size pricing (`price_10ml_cents` / `_30ml_` / `_50ml_`). Public read. |
 | `commits` | Batch reservations (engraving, `authorized`/`captured`/`released`/`void`, optional `payment_intent_id`). Anyone may insert; users read their own. |
 | `subscribers` | General list + `vip` tier (gates VIP-only batches). |
 | `sync_fragrance_committed()` trigger | Keeps `fragrances.committed` in step as commits are inserted / released. |
@@ -102,6 +102,21 @@ as ordered migrations under `supabase/migrations/`:
 The batch model: a fragrance pours only once `committed >= moq`. Each commit
 **authorizes, never charges** — capture the held Stripe intents once the batch is met
 (and release them if it closes short). See the SQL comments for the production wiring.
+
+### Catalogue data
+
+The 25-scent catalogue is imported from the *Fragrance upload* spreadsheet — name,
+inspiration, description, top/heart/base notes, and per-size prices (10 / 30 / 50 ml)
+come straight from the sheet. The sheet omits a few fields the app needs, so:
+
+- **gender** is assigned from the (well-known) inspiration reference — the sheet has
+  no gender column, and inferring it from the description text is unreliable;
+- **moq / committed** are deterministic demo batch values;
+- **liquid / accent** swatch colours are derived from each scent's notes;
+- **vipOnly** flags the single most expensive scent, so the VIP gate stays demoable.
+
+Regenerate both `src/lib/data.ts` and `0002_seed.sql` from a new sheet with the
+importer under `scripts/` (see below) to keep the live DB and offline seed identical.
 
 ### Applying the migrations
 

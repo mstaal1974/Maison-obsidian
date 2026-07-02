@@ -20,7 +20,9 @@ create table if not exists public.fragrances (
   inspiration   text not null,
   tagline       text not null,
   story         text not null,
-  price_cents   integer not null check (price_cents > 0),
+  price_10ml_cents integer not null check (price_10ml_cents > 0),
+  price_30ml_cents integer not null check (price_30ml_cents > 0),
+  price_50ml_cents integer not null check (price_50ml_cents > 0),
   gender        text not null default 'unisex'
                 check (gender in ('masculine','feminine','unisex')),
   moq           integer not null check (moq > 0),

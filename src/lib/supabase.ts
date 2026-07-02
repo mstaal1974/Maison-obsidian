@@ -18,7 +18,9 @@ export interface FragranceRow {
   inspiration: string;
   tagline: string;
   story: string;
-  price_cents: number;
+  price_10ml_cents: number;
+  price_30ml_cents: number;
+  price_50ml_cents: number;
   gender: "masculine" | "feminine" | "unisex";
   moq: number;
   committed: number;
