@@ -30,8 +30,13 @@ npm run lint     # eslint
 No backend is required to demo the app — the catalogue, batch counters, gender
 filters, engraving preview, commit flow, VIP enrolment and commit drawer all run
 client-side against the seed data in `src/lib/data.ts`, and commits persist to
-`localStorage`. Point it at a Supabase project (below) and the same UI reads and
-writes live data instead, with the seed as an automatic fallback.
+`localStorage`. Point it at a Supabase project and the same UI reads and writes
+live data instead, with the seed as an automatic fallback.
+
+> **Wiring up the backend?** Follow the step-by-step guide in
+> [`docs/SUPABASE_SETUP.md`](docs/SUPABASE_SETUP.md) — project creation, applying the
+> migrations, env vars, auth (email + Google), granting admin, and deploying the edge
+> functions.
 
 ---
 
