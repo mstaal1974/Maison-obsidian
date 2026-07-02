@@ -5,6 +5,7 @@ import {
   adminDeleteFragrance,
   adminSetStock,
   adminCreateShipment,
+  auspostTrackingUrl,
   fetchAllCommits,
   demoFulfil,
   type AdminCommitRow,
@@ -418,19 +419,25 @@ function FulfillRow({
   configured: boolean;
   demoStatus?: { status: string; carrier?: string; trackingNumber?: string };
 }) {
-  const [carrier, setCarrier] = useState("USPS");
+  const [carrier, setCarrier] = useState("Australia Post");
   const [tracking, setTracking] = useState("");
   const [done, setDone] = useState<string | null>(demoStatus ? `${demoStatus.status} · ${demoStatus.trackingNumber ?? ""}` : null);
   const [busy, setBusy] = useState(false);
 
   const ship = async () => {
     setBusy(true);
+    const article = tracking || `MO${Math.random().toString().slice(2, 12)}`;
     if (configured) {
       const ok = await adminCreateShipment(commit.id, carrier, tracking, "");
       setDone(ok ? `label_created · ${tracking || "—"}` : "failed");
     } else {
-      demoFulfil(commit.fragrance_id, { status: "label_created", carrier, trackingNumber: tracking || `1Z${Math.random().toString(36).slice(2, 8).toUpperCase()}` });
-      setDone(`label_created · ${tracking || "auto"}`);
+      demoFulfil(commit.fragrance_id, {
+        status: "label_created",
+        carrier,
+        trackingNumber: article,
+        trackingUrl: carrier === "Australia Post" ? auspostTrackingUrl(article) : undefined,
+      });
+      setDone(`label_created · ${article}`);
     }
     setBusy(false);
   };
@@ -448,8 +455,8 @@ function FulfillRow({
         <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#8bb98a" }}>✓ {done}</span>
       ) : (
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <input aria-label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} style={{ ...field, width: 90 }} />
-          <input aria-label="Tracking number" placeholder="tracking #" value={tracking} onChange={(e) => setTracking(e.target.value)} style={{ ...field, width: 140 }} />
+          <input aria-label="Carrier" value={carrier} onChange={(e) => setCarrier(e.target.value)} style={{ ...field, width: 130 }} />
+          <input aria-label="Tracking number" placeholder="AusPost article id" value={tracking} onChange={(e) => setTracking(e.target.value)} style={{ ...field, width: 150 }} />
           <button style={{ ...btnGold, height: 40 }} disabled={busy} onClick={ship}>
             {busy ? "…" : "Create Shipment"}
           </button>

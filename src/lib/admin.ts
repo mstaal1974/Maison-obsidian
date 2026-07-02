@@ -123,6 +123,11 @@ export async function fetchAllCommits(): Promise<AdminCommitRow[] | null> {
   }
 }
 
+/** Australia Post consumer tracking link for a parcel article id. */
+export function auspostTrackingUrl(article: string): string {
+  return `https://auspost.com.au/mypost/track/details/${article}`;
+}
+
 export async function adminCreateShipment(
   commitId: string,
   carrier: string,
@@ -130,13 +135,15 @@ export async function adminCreateShipment(
   trackingUrl: string,
 ): Promise<boolean> {
   if (!supabase) return true; // demo handled via demoFulfil()
+  const url =
+    trackingUrl || (trackingNumber && carrier === "Australia Post" ? auspostTrackingUrl(trackingNumber) : "");
   const { error } = await supabase.rpc("admin_create_shipment", {
     p_commit_id: commitId,
-    p_provider: "manual",
+    p_provider: carrier === "Australia Post" ? "auspost" : "manual",
     p_carrier: carrier || null,
-    p_service: null,
+    p_service: carrier === "Australia Post" ? "Parcel Post" : null,
     p_tracking_number: trackingNumber || null,
-    p_tracking_url: trackingUrl || null,
+    p_tracking_url: url || null,
     p_ship_to: null,
   });
   return !error;

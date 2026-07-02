@@ -1,55 +1,132 @@
-// Supabase Edge Function — buy a shipping label for a commit and record it.
+// Supabase Edge Function — fulfill a commit via Australia Post Parcel Post.
 //
-// Provider-agnostic seam. Set SHIPPING_PROVIDER to "shippo" | "easypost" |
-// "shopify" and the matching API key; fill in the provider call below. Deploy:
-//   supabase functions deploy create-shipment
-//   supabase secrets set SHIPPING_PROVIDER=shippo SHIPPO_API_KEY=... \
-//                        SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...
+// Wired to two Australia Post APIs:
+//   • PAC (Postage Assessment Calculation) — domestic Parcel Post rate
+//       GET https://digitalapi.auspost.com.au/postage/parcel/domestic/calculate.json
+//       header: AUTH-KEY: <AUSPOST_PAC_KEY>   service_code: AUS_PARCEL_REGULAR
+//   • Shipping & Tracking API — create a shipment + buy a label
+//       POST https://digitalapi.auspost.com.au/shipping/v1/shipments
+//       Basic auth base64("<AUSPOST_API_KEY>:<AUSPOST_API_PASSWORD>")
+//       header: Account-Number: <AUSPOST_ACCOUNT_NUMBER>
 //
-// It runs with the service-role key so it can write shipments regardless of RLS.
-// Given a commit id + destination address it: (1) asks the provider for a label,
-// (2) inserts/updates the shipment row with carrier + tracking. Until a provider
-// is wired it returns a stubbed tracking number so the flow is exercised.
+// Deploy:  supabase functions deploy create-shipment
+// Secrets: supabase secrets set \
+//   AUSPOST_PAC_KEY=... AUSPOST_API_KEY=... AUSPOST_API_PASSWORD=... \
+//   AUSPOST_ACCOUNT_NUMBER=... AUSPOST_FROM_POSTCODE=6000 \
+//   AUSPOST_FROM_NAME="Maison Obsidian" AUSPOST_FROM_LINE1="1 Atelier Ln" \
+//   AUSPOST_FROM_SUBURB=Perth AUSPOST_FROM_STATE=WA \
+//   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...
+//
+// Runs with the service-role key so it can write shipments past RLS. Given a
+// commit id + destination it rates Parcel Post, buys a label, and records the
+// shipment with the AusPost article id as the tracking number. If the AusPost
+// creds aren't set it falls back to a stubbed article id so the flow still runs.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const PAC_BASE = "https://digitalapi.auspost.com.au/postage/parcel/domestic";
+const SHIP_BASE = "https://digitalapi.auspost.com.au/shipping/v1";
+const PARCEL_POST = "AUS_PARCEL_REGULAR"; // PAC service code for Parcel Post
 
 interface Address {
   name: string;
   line1: string;
-  city: string;
-  region: string;
-  postal: string;
-  country: string;
+  suburb: string;
+  state: string;
+  postcode: string;
 }
 interface Payload {
   commitId: string;
   shipTo: Address;
+  weightKg?: number;
+  length?: number; // cm
+  width?: number;
+  height?: number;
 }
 
-const provider = Deno.env.get("SHIPPING_PROVIDER") ?? "manual";
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const env = (k: string) => Deno.env.get(k);
+const supabaseUrl = env("SUPABASE_URL");
+const serviceKey = env("SUPABASE_SERVICE_ROLE_KEY");
 
-interface Label {
-  carrier: string;
-  service: string;
-  trackingNumber: string;
-  trackingUrl: string;
+function trackingUrl(article: string): string {
+  return `https://auspost.com.au/mypost/track/details/${article}`;
 }
 
-async function buyLabel(_shipTo: Address): Promise<Label> {
-  // TODO: implement per provider, e.g.
-  //   shippo:   POST https://api.goshippo.com/shipments + /transactions
-  //   easypost: POST https://api.easypost.com/v2/shipments then .buy()
-  //   shopify:  Admin API fulfillment + tracking on the order
-  // Return the carrier + tracking from the provider response.
-  const stub = `1Z${Math.random().toString(36).slice(2, 12).toUpperCase()}`;
-  return {
-    carrier: "USPS",
-    service: "Priority",
-    trackingNumber: stub,
-    trackingUrl: `https://tools.usps.com/go/TrackConfirmAction?tLabels=${stub}`,
+// Domestic Parcel Post rate (AUD). Returns null if PAC isn't configured.
+async function parcelPostRate(to: Address, dims: Required<Pick<Payload, "weightKg" | "length" | "width" | "height">>): Promise<number | null> {
+  const key = env("AUSPOST_PAC_KEY");
+  const from = env("AUSPOST_FROM_POSTCODE");
+  if (!key || !from) return null;
+  const qs = new URLSearchParams({
+    from_postcode: from,
+    to_postcode: to.postcode,
+    length: String(dims.length),
+    width: String(dims.width),
+    height: String(dims.height),
+    weight: String(dims.weightKg),
+    service_code: PARCEL_POST,
+  });
+  const res = await fetch(`${PAC_BASE}/calculate.json?${qs}`, { headers: { "AUTH-KEY": key } });
+  if (!res.ok) throw new Error(`PAC ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const price = Number(data?.postage_result?.total_cost);
+  return Number.isFinite(price) ? price : null;
+}
+
+// Create a shipment + label via the Shipping API. Returns the article id.
+async function createParcelPostLabel(to: Address, dims: Required<Pick<Payload, "weightKg">>): Promise<{ article: string; costAud: number | null }> {
+  const apiKey = env("AUSPOST_API_KEY");
+  const apiPass = env("AUSPOST_API_PASSWORD");
+  const account = env("AUSPOST_ACCOUNT_NUMBER");
+  // Fall back to a stub article id until the merchant account is wired.
+  if (!apiKey || !apiPass || !account) {
+    return { article: `MO${Math.random().toString().slice(2, 12)}`, costAud: null };
+  }
+  const auth = btoa(`${apiKey}:${apiPass}`);
+  const body = {
+    shipments: [
+      {
+        from: {
+          name: env("AUSPOST_FROM_NAME") ?? "Maison Obsidian",
+          lines: [env("AUSPOST_FROM_LINE1") ?? ""],
+          suburb: env("AUSPOST_FROM_SUBURB") ?? "",
+          state: env("AUSPOST_FROM_STATE") ?? "",
+          postcode: env("AUSPOST_FROM_POSTCODE") ?? "",
+        },
+        to: {
+          name: to.name,
+          lines: [to.line1],
+          suburb: to.suburb,
+          state: to.state,
+          postcode: to.postcode,
+        },
+        items: [
+          {
+            // Parcel Post product; set your account's product_id in the portal.
+            product_id: env("AUSPOST_PRODUCT_ID") ?? "T28",
+            item_reference: "maison-obsidian",
+            weight: dims.weightKg,
+            authority_to_leave: false,
+          },
+        ],
+      },
+    ],
   };
+  const res = await fetch(`${SHIP_BASE}/shipments`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Account-Number": account,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`AusPost shipments ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const item = data?.shipments?.[0]?.items?.[0];
+  const article = item?.tracking_details?.article_id ?? item?.article_id;
+  if (!article) throw new Error("no article id returned");
+  return { article, costAud: null };
 }
 
 Deno.serve(async (req) => {
@@ -58,7 +135,7 @@ Deno.serve(async (req) => {
     return Response.json({ error: "create-shipment is not configured" }, { status: 501 });
   }
 
-  const { commitId, shipTo } = (await req.json()) as Payload;
+  const { commitId, shipTo, weightKg = 0.25, length = 15, width = 10, height = 8 } = (await req.json()) as Payload;
   const db = createClient(supabaseUrl, serviceKey);
 
   const { data: commit, error: cErr } = await db
@@ -68,11 +145,14 @@ Deno.serve(async (req) => {
     .single();
   if (cErr || !commit) return Response.json({ error: "unknown commit" }, { status: 404 });
 
-  let label: Label;
+  let article: string;
+  let rateAud: number | null = null;
   try {
-    label = await buyLabel(shipTo);
+    rateAud = await parcelPostRate(shipTo, { weightKg, length, width, height }).catch(() => null);
+    const label = await createParcelPostLabel(shipTo, { weightKg });
+    article = label.article;
   } catch (e) {
-    return Response.json({ error: `label failed: ${String(e)}` }, { status: 502 });
+    return Response.json({ error: `AusPost: ${String(e)}` }, { status: 502 });
   }
 
   const { data, error } = await db
@@ -81,11 +161,11 @@ Deno.serve(async (req) => {
       commit_id: commit.id,
       user_id: commit.user_id,
       fragrance_id: commit.fragrance_id,
-      provider,
-      carrier: label.carrier,
-      service: label.service,
-      tracking_number: label.trackingNumber,
-      tracking_url: label.trackingUrl,
+      provider: "auspost",
+      carrier: "Australia Post",
+      service: "Parcel Post",
+      tracking_number: article,
+      tracking_url: trackingUrl(article),
       ship_to: shipTo,
       status: "label_created",
     })
@@ -93,5 +173,13 @@ Deno.serve(async (req) => {
     .single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
-  return Response.json({ ok: true, shipmentId: data.id, provider, ...label });
+  return Response.json({
+    ok: true,
+    shipmentId: data.id,
+    carrier: "Australia Post",
+    service: "Parcel Post",
+    trackingNumber: article,
+    trackingUrl: trackingUrl(article),
+    rateAud,
+  });
 });

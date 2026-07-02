@@ -54,9 +54,10 @@ Faithful to the redesign comp:
   manage per-size inventory (with low-stock flags), plus a fulfillment queue that
   turns commits into shipments.
 - **Shipping / fulfillment** — a Supabase-native `shipments` model; admins create
-  shipments (carrier + tracking), and each customer sees status + tracking on their
-  reservations. A `create-shipment` Edge Function is the provider seam
-  (Shopify / Shippo / EasyPost).
+  shipments (carrier + tracking), and each customer sees status + a tracking link on
+  their reservations. Fulfillment defaults to **Australia Post Parcel Post**, and the
+  `create-shipment` Edge Function is wired to the Australia Post PAC (rates) and
+  Shipping & Tracking (labels) APIs.
 - **Hero** — atmospheric landing with the four brand stats (30% · 4wk · 20 · DXB).
 - **The Vault** — catalogue with **All / For Him / For Her** tabs and two layouts a
   floating switch toggles between: **Gallery** (liquid-swatch cards) and **Ledger**
@@ -102,7 +103,7 @@ supabase/
 │   └── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
-    └── create-shipment/   Edge Function: buy a label via a shipping provider
+    └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
 ```
 
 ### The batch model
@@ -141,9 +142,14 @@ table writes stay closed by RLS; every mutation goes through a guarded RPC.
 
 `0004_shipments.sql` adds a `shipments` table (status, carrier, tracking, `ship_to`,
 provider) with RLS so customers read their own and admins read all, plus
-`admin_create_shipment(...)` and `admin_set_shipment_status(...)`. The
-`create-shipment` Edge Function is the provider seam — set `SHIPPING_PROVIDER` +
-API key and fill in the Shippo/EasyPost/Shopify call to buy real labels.
+`admin_create_shipment(...)` and `admin_set_shipment_status(...)`.
+
+Fulfillment uses **Australia Post Parcel Post**. The `create-shipment` Edge Function
+rates the parcel via the Australia Post PAC API (`service_code=AUS_PARCEL_REGULAR`)
+and buys a label via the Shipping & Tracking API, storing the article id as the
+tracking number and linking to `auspost.com.au/mypost/track`. Set the `AUSPOST_*`
+secrets (see `.env.example`); without them it falls back to a stub article id so the
+flow still runs. The commit engine is untouched — this is fulfillment only.
 
 The **Admin Console** (`#/admin`) surfaces all of this: a Catalogue tab (add / edit /
 remove, inline per-size stock with low-stock flags) and a Fulfillment tab (commits →
