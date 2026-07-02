@@ -1,15 +1,24 @@
-import { type CSSProperties, useEffect, useState, useSyncExternalStore } from "react";
+import { type CSSProperties, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { type Fragrance, GOLD, money } from "../lib/data";
 import {
   adminUpsertFragrance,
   adminDeleteFragrance,
   adminSetStock,
+  adminSetOil,
   adminCreateShipment,
   auspostTrackingUrl,
   fetchAllCommits,
+  fetchCommitSizeCounts,
   demoFulfil,
   type AdminCommitRow,
 } from "../lib/admin";
+
+// Outstanding commitments per size, keyed by fragrance id.
+type SizeCounts = Record<string, { 10: number; 30: number; 50: number }>;
+
+function emptyCounts(): { 10: number; 30: number; 50: number } {
+  return { 10: 0, 30: 0, 50: 0 };
+}
 import { demoShipments, subscribeShipments } from "../lib/catalogue";
 
 interface AdminConsoleProps {
@@ -42,6 +51,7 @@ const BLANK: Fragrance = {
   stock30: 0,
   stock50: 0,
   lowStock: 5,
+  oilMl: 0,
 };
 
 const label: CSSProperties = {
@@ -126,7 +136,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
       </div>
 
       {tab === "catalogue" ? (
-        <Catalogue fragrances={fragrances} configured={configured} onReload={onReload} />
+        <Catalogue fragrances={fragrances} configured={configured} onReload={onReload} demoCommits={demoCommits} />
       ) : (
         <Fulfillment fragrances={fragrances} configured={configured} demoCommits={demoCommits} />
       )}
@@ -138,17 +148,51 @@ function Catalogue({
   fragrances,
   configured,
   onReload,
+  demoCommits,
 }: {
   fragrances: Fragrance[];
   configured: boolean;
   onReload: () => void;
+  demoCommits: AdminCommitRow[];
 }) {
   const [editing, setEditing] = useState<Fragrance | null>(null);
   const [busy, setBusy] = useState(false);
+  const [remoteCounts, setRemoteCounts] = useState<SizeCounts | null>(null);
+
+  // Demo: aggregate the local commits by fragrance + size.
+  const demoCounts = useMemo<SizeCounts>(() => {
+    const acc: SizeCounts = {};
+    for (const c of demoCommits) {
+      const bucket = (acc[c.fragrance_id] ??= emptyCounts());
+      if (c.size_ml === 10 || c.size_ml === 30 || c.size_ml === 50) bucket[c.size_ml] += 1;
+    }
+    return acc;
+  }, [demoCommits]);
+
+  // Configured: pull outstanding counts per size from the DB.
+  useEffect(() => {
+    if (!configured) return;
+    let active = true;
+    void fetchCommitSizeCounts().then((rows) => {
+      if (!active || !rows) return;
+      const acc: SizeCounts = {};
+      for (const r of rows) {
+        const bucket = (acc[r.fragrance_id] ??= emptyCounts());
+        if (r.size_ml === 10 || r.size_ml === 30 || r.size_ml === 50) bucket[r.size_ml] += Number(r.outstanding);
+      }
+      setRemoteCounts(acc);
+    });
+    return () => {
+      active = false;
+    };
+  }, [configured, fragrances]);
+
+  const counts = configured ? remoteCounts ?? {} : demoCounts;
 
   const save = async (f: Fragrance) => {
     setBusy(true);
-    await adminUpsertFragrance(f);
+    const id = await adminUpsertFragrance(f);
+    if (id) await adminSetOil(id, f.oilMl ?? 0);
     if (configured) onReload();
     setBusy(false);
     setEditing(null);
@@ -175,7 +219,15 @@ function Catalogue({
 
       <div style={{ display: "grid", gap: 10, marginTop: editing ? 24 : 0 }}>
         {fragrances.map((f) => (
-          <Row key={f.id} f={f} configured={configured} onEdit={() => setEditing({ ...f })} onDelete={() => remove(f.id, f.name)} onReload={onReload} />
+          <Row
+            key={f.id}
+            f={f}
+            counts={counts[f.id] ?? emptyCounts()}
+            configured={configured}
+            onEdit={() => setEditing({ ...f })}
+            onDelete={() => remove(f.id, f.name)}
+            onReload={onReload}
+          />
         ))}
       </div>
     </div>
@@ -184,12 +236,14 @@ function Catalogue({
 
 function Row({
   f,
+  counts,
   configured,
   onEdit,
   onDelete,
   onReload,
 }: {
   f: Fragrance;
+  counts: { 10: number; 30: number; 50: number };
   configured: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -198,13 +252,23 @@ function Row({
   const [s10, setS10] = useState(f.stock10 ?? 0);
   const [s30, setS30] = useState(f.stock30 ?? 0);
   const [s50, setS50] = useState(f.stock50 ?? 0);
+  const [oil, setOil] = useState(f.oilMl ?? 0);
   const low = f.lowStock ?? 5;
-  const dirty = s10 !== (f.stock10 ?? 0) || s30 !== (f.stock30 ?? 0) || s50 !== (f.stock50 ?? 0);
+  const dirty =
+    s10 !== (f.stock10 ?? 0) ||
+    s30 !== (f.stock30 ?? 0) ||
+    s50 !== (f.stock50 ?? 0) ||
+    oil !== (f.oilMl ?? 0);
 
   const saveStock = async () => {
     await adminSetStock(f.id, s10, s30, s50);
+    if (oil !== (f.oilMl ?? 0)) await adminSetOil(f.id, oil);
     if (configured) onReload();
   };
+
+  // Oil demanded by outstanding commitments, per size.
+  const oilNeeded = counts[10] * 10 + counts[30] * 30 + counts[50] * 50;
+  const covered = oil >= oilNeeded;
 
   const stockBox = (v: number, set: (n: number) => void, size: string) => (
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -247,12 +311,35 @@ function Row({
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+      {/* Commitments by size + oil coverage */}
+      <div style={{ minWidth: 190 }}>
+        <div style={{ ...label, fontSize: 8 }}>Commitments by size ({f.committed}/{f.moq} batch)</div>
+        <div style={{ marginTop: 5, display: "flex", gap: 12, fontFamily: "'Space Mono',monospace", fontSize: 12, color: "#f3ecdc" }}>
+          <span>10 · {counts[10]}</span>
+          <span>30 · {counts[30]}</span>
+          <span>50 · {counts[50]}</span>
+        </div>
+        <div style={{ marginTop: 6, fontFamily: "'Space Mono',monospace", fontSize: 11, color: covered ? "#8bb98a" : "#d98a6a" }}>
+          {oilNeeded} ml needed / {oil} ml oil{covered ? " · covered" : ` · short ${oilNeeded - oil} ml`}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ ...label, fontSize: 8 }}>Oil (ml)</span>
+          <input
+            type="number"
+            min={0}
+            value={oil}
+            onChange={(e) => setOil(Math.max(0, Number(e.target.value)))}
+            aria-label={`${f.name} oil on hand (ml)`}
+            style={{ ...field, width: 78, height: 34 }}
+          />
+        </label>
         {stockBox(s10, setS10, "10ml")}
         {stockBox(s30, setS30, "30ml")}
         {stockBox(s50, setS50, "50ml")}
         <button onClick={saveStock} disabled={!dirty} style={{ ...btnGhost, height: 34, opacity: dirty ? 1 : 0.4 }}>
-          Save Stock
+          Save
         </button>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
