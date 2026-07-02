@@ -117,7 +117,8 @@ supabase/
 │   ├── 0003_admin_inventory.sql admins + is_admin(), stock columns, fragrance CRUD RPCs
 │   ├── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
 │   ├── 0005_chat.sql            concierge transcripts + log_chat_message RPC, RLS
-│   └── 0006_oil_inventory.sql   oil_ml + admin_set_oil; commit_size_counts (per-size demand)
+│   ├── 0006_oil_inventory.sql   oil_ml + admin_set_oil; commit_size_counts (per-size demand)
+│   └── 0007_reconcile_committed.sql  committed recomputed from real rows; batch = per-size sum
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -163,6 +164,14 @@ are filled into 10/30/50 ml on demand) set via `admin_set_oil(id, ml)`, and a
 size. The Catalogue tab uses these to show commitments per size (`10 · n / 30 · n /
 50 · n`) and an oil-coverage line — implied demand (`10·q₁₀ + 30·q₃₀ + 50·q₅₀` ml)
 against oil on hand — flagged `covered` or `short N ml`.
+
+`0007_reconcile_committed.sql` makes the batch progress number and the per-size panel
+agree. Both now derive from real rows in `commits`: the sync trigger counts a spot as
+held only while a commit is `authorized`/`captured` (releasing or voiding frees it),
+and the migration recomputes `fragrances.committed` from those rows — discarding the
+static launch numbers seeded in `0002`. So `committed` always equals the sum of the
+per-size counts. (Before this, the seed pre-set e.g. `committed = 21` with no backing
+commit rows, so the batch bar read 21/30 while every per-size count showed 0.)
 
 `0004_shipments.sql` adds a `shipments` table (status, carrier, tracking, `ship_to`,
 provider) with RLS so customers read their own and admins read all, plus
