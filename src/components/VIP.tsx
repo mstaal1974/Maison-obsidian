@@ -2,6 +2,7 @@ import { GOLD } from "../lib/data";
 
 interface VIPProps {
   vip: boolean;
+  signedIn: boolean;
   onJoin: () => void;
 }
 
@@ -11,7 +12,7 @@ const PERKS = [
   { title: "→ Free engraving", body: "Complimentary on every bottle, always." },
 ];
 
-export default function VIP({ vip, onJoin }: VIPProps) {
+export default function VIP({ vip, signedIn, onJoin }: VIPProps) {
   return (
     <section id="mo-vip" style={{ maxWidth: 1340, margin: "0 auto", padding: "84px 32px" }}>
       <div
@@ -53,23 +54,43 @@ export default function VIP({ vip, onJoin }: VIPProps) {
               every order. Members shape what the lab pours next.
             </p>
             <div style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 18 }}>
-              <button
-                onClick={onJoin}
-                style={{
-                  background: vip ? GOLD : "transparent",
-                  color: vip ? "#0b0b0d" : GOLD,
-                  border: "1px solid #c9a961",
-                  cursor: "pointer",
-                  height: 48,
-                  padding: "0 28px",
-                  fontSize: 11,
-                  letterSpacing: "0.24em",
-                  textTransform: "uppercase",
-                  fontWeight: 600,
-                }}
-              >
-                {vip ? "✓ You're a Member" : "Join the VIP Club"}
-              </button>
+              {vip ? (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    background: GOLD,
+                    color: "#0b0b0d",
+                    height: 48,
+                    padding: "0 28px",
+                    fontSize: 11,
+                    letterSpacing: "0.24em",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                  }}
+                >
+                  ✓ You're a Member
+                </span>
+              ) : (
+                <button
+                  onClick={onJoin}
+                  style={{
+                    background: "transparent",
+                    color: GOLD,
+                    border: "1px solid #c9a961",
+                    cursor: "pointer",
+                    height: 48,
+                    padding: "0 28px",
+                    fontSize: 11,
+                    letterSpacing: "0.24em",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {signedIn ? "Join the VIP Club" : "Sign In to Join"}
+                </button>
+              )}
               <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "rgba(243,236,220,0.45)" }}>
                 $120 / year
               </span>

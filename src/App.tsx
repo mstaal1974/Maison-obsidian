@@ -1,5 +1,23 @@
-import { useState, useEffect, useCallback } from "react";
-import { type Fragrance, type Filter, FRAGS, pad } from "./lib/data";
+import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from "react";
+import { type Fragrance, type Filter, pad } from "./lib/data";
+import {
+  useFragrances,
+  recordCommit,
+  enrollVip,
+  isVipSubscriber,
+  fetchMyCommits,
+  fetchMyShipments,
+  type CommitRow,
+  type ShipmentRow,
+} from "./lib/store";
+import { useAuth } from "./lib/auth";
+import { useIsAdmin, type AdminCommitRow } from "./lib/admin";
+import { demoShipments, subscribeShipments } from "./lib/catalogue";
+import { authorizePayment } from "./lib/stripe";
+import AuthModal from "./components/AuthModal";
+import MyReservations, { type Reservation } from "./components/MyReservations";
+import AdminConsole from "./components/AdminConsole";
+import ChatWidget from "./components/ChatWidget";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Vault from "./components/Vault";
@@ -10,10 +28,12 @@ import CommitDrawer from "./components/CommitDrawer";
 import Footer from "./components/Footer";
 import LayoutSwitch from "./components/LayoutSwitch";
 
-type View = "home" | "product";
+type View = "home" | "product" | "account" | "admin";
 type Direction = "gallery" | "ledger";
 interface CommitRecord {
   label: string | null;
+  sizeMl?: number;
+  chargeCents?: number;
 }
 
 const STORAGE_KEY = "mo:commits";
@@ -42,9 +62,25 @@ export default function App() {
   const [lastCommittedId, setLastCommittedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [vip, setVip] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
+  const { fragrances, reload } = useFragrances();
+  const auth = useAuth();
+  const isAdmin = useIsAdmin(auth.user);
   const showInspiration = true;
+
+  // Reflect VIP membership from the backend for a signed-in user (sign-out
+  // resets vip in the handler below). Demo membership is tracked locally.
+  useEffect(() => {
+    if (!auth.user?.id) return; // signed out or demo user — nothing to fetch
+    let active = true;
+    void isVipSubscriber(auth.user.id).then((isVip) => {
+      if (active && isVip) setVip(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [auth.user]);
 
   // ── Hash routing: keep view/slug in sync with the URL ──────────────────────
   useEffect(() => {
@@ -53,6 +89,12 @@ export default function App() {
       if (s) {
         setSlug(s);
         setView("product");
+      } else if (window.location.hash === "#/account") {
+        setView("account");
+        setSlug(null);
+      } else if (window.location.hash === "#/admin") {
+        setView("admin");
+        setSlug(null);
       } else {
         setView("home");
         setSlug(null);
@@ -103,20 +145,132 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const selected = view === "product" && slug ? FRAGS.find((f) => f.slug === slug) ?? null : null;
-  const lastCommit = lastCommittedId ? FRAGS.find((f) => f.id === lastCommittedId) ?? null : null;
+  const goAccount = useCallback(() => {
+    window.location.hash = "#/account";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const goAdmin = useCallback(() => {
+    window.location.hash = "#/admin";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const selected = view === "product" && slug ? fragrances.find((f) => f.slug === slug) ?? null : null;
+  const lastCommit = lastCommittedId ? fragrances.find((f) => f.id === lastCommittedId) ?? null : null;
 
   const commitSelected = useCallback(
-    (engraving: string | null) => {
+    (engraving: string | null, sizeMl: number, chargeCents: number) => {
       if (!selected) return;
       const locked = !!selected.vipOnly && !vip;
       if (locked || committed[selected.id]) return;
-      setCommitted((prev) => ({ ...prev, [selected.id]: { label: engraving } }));
+      // Optimistic UI first, then authorize the hold + persist the commit.
+      setCommitted((prev) => ({ ...prev, [selected.id]: { label: engraving, sizeMl, chargeCents } }));
       setLastCommittedId(selected.id);
       setDrawerOpen(true);
+      void (async () => {
+        const { paymentIntentId } = await authorizePayment(selected.id, chargeCents);
+        await recordCommit(selected.id, engraving, sizeMl, chargeCents, paymentIntentId);
+      })();
     },
     [selected, vip, committed],
   );
+
+  // ── Account: the signed-in user's reservations ─────────────────────────────
+  const [remoteCommits, setRemoteCommits] = useState<CommitRow[] | null>(null);
+  const usingRemote = auth.configured && !!auth.user?.id;
+
+  useEffect(() => {
+    if (view !== "account" || !usingRemote || !auth.user?.id) return;
+    let active = true;
+    void fetchMyCommits(auth.user.id).then((rows) => {
+      if (active) setRemoteCommits(rows);
+    });
+    return () => {
+      active = false;
+    };
+  }, [view, usingRemote, auth.user?.id, committed]);
+
+  // Shipments to surface on each reservation.
+  const [remoteShipments, setRemoteShipments] = useState<ShipmentRow[] | null>(null);
+  const demoShip = useSyncExternalStore(subscribeShipments, demoShipments);
+
+  useEffect(() => {
+    if (view !== "account" || !usingRemote || !auth.user?.id) return;
+    let active = true;
+    void fetchMyShipments(auth.user.id).then((rows) => {
+      if (active) setRemoteShipments(rows);
+    });
+    return () => {
+      active = false;
+    };
+  }, [view, usingRemote, auth.user?.id, committed]);
+
+  const shipmentFor = useCallback(
+    (fragranceId: string): Partial<Reservation> => {
+      if (usingRemote) {
+        const s = (remoteShipments ?? []).find((x) => x.fragrance_id === fragranceId);
+        return s
+          ? { shipmentStatus: s.status, carrier: s.carrier ?? undefined, tracking: s.tracking_number ?? undefined, trackingUrl: s.tracking_url ?? undefined }
+          : {};
+      }
+      const d = demoShip[fragranceId];
+      return d ? { shipmentStatus: d.status, carrier: d.carrier, tracking: d.trackingNumber, trackingUrl: d.trackingUrl } : {};
+    },
+    [usingRemote, remoteShipments, demoShip],
+  );
+
+  const reservations: Reservation[] = useMemo(() => {
+    if (usingRemote) {
+      return (remoteCommits ?? [])
+        .map((row): Reservation | null => {
+          const frag = fragrances.find((f) => f.id === row.fragrance_id);
+          if (!frag) return null;
+          return {
+            frag,
+            sizeMl: row.size_ml,
+            chargeCents: row.charge_cents ?? undefined,
+            engraving: row.engraving,
+            status: row.status,
+            effectiveCommitted: effective(frag),
+            ...shipmentFor(frag.id),
+          };
+        })
+        .filter((r): r is Reservation => r !== null);
+    }
+    // Demo / offline — build from the local commit map.
+    return Object.entries(committed)
+      .map(([id, rec]): Reservation | null => {
+        const frag = fragrances.find((f) => f.id === id);
+        if (!frag) return null;
+        return {
+          frag,
+          sizeMl: rec.sizeMl,
+          chargeCents: rec.chargeCents,
+          engraving: rec.label,
+          status: "authorized",
+          effectiveCommitted: effective(frag),
+          ...shipmentFor(frag.id),
+        };
+      })
+      .filter((r): r is Reservation => r !== null);
+  }, [usingRemote, remoteCommits, committed, fragrances, effective, shipmentFor]);
+
+  // Commits passed to the admin fulfillment tab in demo mode.
+  const demoAdminCommits: AdminCommitRow[] = useMemo(
+    () =>
+      Object.entries(committed).map(([id, rec]) => ({
+        id,
+        fragrance_id: id,
+        size_ml: rec.sizeMl ?? 50,
+        charge_cents: rec.chargeCents ?? null,
+        engraving: rec.label,
+        status: "authorized",
+        created_at: "",
+      })),
+    [committed],
+  );
+
+  const reservationsLoading = usingRemote && view === "account" && remoteCommits === null;
 
   const commitCount = pad(Object.keys(committed).length);
   const hasCommits = Object.keys(committed).length > 0;
@@ -125,19 +279,27 @@ export default function App() {
     <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
       <Header
         commitCount={commitCount}
-        accountLabel={signedIn ? "Account" : "Sign In"}
+        userEmail={auth.user?.email ?? null}
         onBackHome={backHome}
         onGoVault={() => go("mo-vault")}
         onGoMethod={() => go("mo-method")}
         onGoVip={() => go("mo-vip")}
         onOpenDrawer={() => setDrawerOpen(true)}
-        onSignIn={() => setSignedIn((v) => !v)}
+        onSignIn={() => setAuthOpen(true)}
+        onSignOut={() => {
+          setVip(false);
+          void auth.signOut();
+        }}
+        onGoAccount={goAccount}
+        onGoAdmin={goAdmin}
+        isAdmin={isAdmin}
       />
 
       {view === "home" && (
         <main data-screen-label="Home">
           <Hero onGoVault={() => go("mo-vault")} onGoMethod={() => go("mo-method")} />
           <Vault
+            fragrances={fragrances}
             filter={filter}
             direction={direction}
             vip={vip}
@@ -147,7 +309,18 @@ export default function App() {
             onOpen={openProduct}
           />
           <Method />
-          <VIP vip={vip} onJoin={() => setVip(true)} />
+          <VIP
+            vip={vip}
+            signedIn={!!auth.user}
+            onJoin={() => {
+              if (!auth.user) {
+                setAuthOpen(true);
+                return;
+              }
+              setVip(true);
+              void enrollVip(auth.user.email);
+            }}
+          />
         </main>
       )}
 
@@ -191,6 +364,32 @@ export default function App() {
         </main>
       )}
 
+      {view === "account" && (
+        <MyReservations
+          reservations={reservations}
+          loading={reservationsLoading}
+          onOpen={openProduct}
+          onBackToVault={() => {
+            backHome();
+            setTimeout(() => go("mo-vault"), 60);
+          }}
+        />
+      )}
+
+      {view === "admin" &&
+        (isAdmin ? (
+          <AdminConsole fragrances={fragrances} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} />
+        ) : (
+          <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
+            <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 44, color: "#f3ecdc" }}>
+              Admins only.
+            </h1>
+            <p style={{ marginTop: 12, fontSize: 13, color: "rgba(243,236,220,0.5)" }}>
+              Sign in with an admin account to manage the atelier.
+            </p>
+          </main>
+        ))}
+
       <Footer />
 
       {drawerOpen && (
@@ -198,6 +397,8 @@ export default function App() {
           lastCommit={lastCommit}
           effectiveCommitted={lastCommit ? effective(lastCommit) : 0}
           engraving={lastCommit && committed[lastCommit.id] ? committed[lastCommit.id].label : null}
+          sizeMl={lastCommit && committed[lastCommit.id] ? committed[lastCommit.id].sizeMl : undefined}
+          chargeCents={lastCommit && committed[lastCommit.id] ? committed[lastCommit.id].chargeCents : undefined}
           hasCommits={hasCommits}
           showInspiration={showInspiration}
           onClose={() => setDrawerOpen(false)}
@@ -216,6 +417,18 @@ export default function App() {
           onLedger={() => setDirection("ledger")}
         />
       )}
+
+      {authOpen && (
+        <AuthModal
+          configured={auth.configured}
+          onClose={() => setAuthOpen(false)}
+          signInEmail={auth.signInEmail}
+          signUpEmail={auth.signUpEmail}
+          signInGoogle={auth.signInGoogle}
+        />
+      )}
+
+      <ChatWidget fragrances={fragrances} onOpenProduct={openProduct} />
     </div>
   );
 }

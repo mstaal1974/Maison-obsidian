@@ -8,8 +8,8 @@ interface ProductDetailProps {
   showInspiration: boolean;
   committedHere: boolean;
   onBack: () => void;
-  /** Called with the engraving text (or null) when the customer commits. */
-  onCommit: (engraving: string | null) => void;
+  /** Called with the engraving, chosen size (ml) and price held (cents) on commit. */
+  onCommit: (engraving: string | null, sizeMl: number, chargeCents: number) => void;
 }
 
 export default function ProductDetail({
@@ -21,9 +21,17 @@ export default function ProductDetail({
   onBack,
   onCommit,
 }: ProductDetailProps) {
-  // Engraving is scoped to this product view; App remounts via `key={slug}`.
+  // Engraving + size are scoped to this product view; App remounts via `key={slug}`.
   const [engraveOn, setEngraveOn] = useState(false);
   const [engraveLabel, setEngraveLabel] = useState("");
+  const [sizeMl, setSizeMl] = useState<10 | 30 | 50>(50);
+
+  const sizes: { ml: 10 | 30 | 50; cents: number }[] = [
+    { ml: 10, cents: frag.price10 },
+    { ml: 30, cents: frag.price30 },
+    { ml: 50, cents: frag.price },
+  ];
+  const selectedPrice = sizes.find((s) => s.ml === sizeMl)?.cents ?? frag.price;
 
   const onToggleEngrave = () => setEngraveOn((v) => !v);
   const onLabel = (value: string) => {
@@ -47,7 +55,7 @@ export default function ProductDetail({
     ? "VIP Members Only"
     : committedHere
       ? "✓ Committed — card authorized"
-      : `Commit to this Batch · ${money(frag.price)}`;
+      : `Commit to this Batch · ${money(selectedPrice)}`;
 
   const cell: CSSProperties = { padding: "18px 20px" };
   const cellLabel: CSSProperties = {
@@ -235,11 +243,60 @@ export default function ProductDetail({
             </div>
             <div style={{ ...cell, borderLeft: "1px solid #1f1f27" }}>
               <div style={cellLabel}>Volume</div>
-              <div style={cellValue}>50 ml</div>
+              <div style={cellValue}>{sizeMl} ml</div>
             </div>
             <div style={{ ...cell, borderLeft: "1px solid #1f1f27" }}>
               <div style={cellLabel}>Price</div>
-              <div style={cellValue}>{money(frag.price)}</div>
+              <div style={cellValue}>{money(selectedPrice)}</div>
+            </div>
+          </div>
+
+          {/* SIZE SELECTOR */}
+          <div style={{ marginTop: 22 }}>
+            <div
+              style={{
+                fontFamily: "'Space Mono',monospace",
+                fontSize: 10,
+                letterSpacing: "0.26em",
+                textTransform: "uppercase",
+                color: "rgba(243,236,220,0.5)",
+                marginBottom: 12,
+              }}
+            >
+              Select Size
+            </div>
+            <div role="radiogroup" aria-label="Bottle size" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+              {sizes.map((s) => {
+                const active = s.ml === sizeMl;
+                return (
+                  <button
+                    key={s.ml}
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setSizeMl(s.ml)}
+                    className="mo-pill"
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 6,
+                      padding: "14px 16px",
+                      cursor: "pointer",
+                      background: active ? "rgba(201,169,97,0.08)" : "none",
+                      border: active ? "1px solid #c9a961" : "1px solid #1f1f27",
+                      color: "#f3ecdc",
+                      textAlign: "left",
+                    }}
+                  >
+                    <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: active ? "#c9a961" : "#f3ecdc" }}>
+                      {s.ml} ml
+                    </span>
+                    <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: "rgba(243,236,220,0.6)" }}>
+                      {money(s.cents)}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -396,7 +453,7 @@ export default function ProductDetail({
 
             <button
               className="mo-softhover"
-              onClick={() => onCommit(hasEngraving ? previewLabel : null)}
+              onClick={() => onCommit(hasEngraving ? previewLabel : null, sizeMl, selectedPrice)}
               disabled={locked || committedHere}
               style={{
                 marginTop: 24,
