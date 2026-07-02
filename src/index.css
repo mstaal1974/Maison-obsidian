@@ -1,0 +1,180 @@
+/* ─── Maison Obsidian — base styles ──────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #0b0b0d;
+  color: #f3ecdc;
+  font-family: "Hanken Grotesk", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #c9a961;
+  color: #0b0b0d;
+}
+
+/* Film-grain overlay layered above the whole page */
+.mo-grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>");
+}
+
+/* Hidden scrollbar (used inside the commit drawer) */
+.mo-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+@keyframes moRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes moDrawer {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes moFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mo-rise {
+  animation: moRise 0.6s ease both;
+}
+
+/* ─── Hover states (ported from the design's style-hover attributes) ──────── */
+
+.mo-navlink {
+  transition: color 0.18s ease;
+}
+.mo-navlink:hover {
+  color: #c9a961 !important;
+}
+
+.mo-cta {
+  transition: background 0.18s ease;
+}
+.mo-cta:hover {
+  background: #d8bd7c !important;
+}
+
+.mo-ghost {
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+.mo-ghost:hover {
+  color: #c9a961 !important;
+  border-color: #c9a961 !important;
+}
+
+.mo-pill {
+  transition: border-color 0.18s ease;
+}
+.mo-pill:hover {
+  border-color: rgba(201, 169, 97, 0.5) !important;
+}
+
+.mo-card {
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.mo-card:hover {
+  border-color: rgba(201, 169, 97, 0.45) !important;
+}
+
+.mo-row {
+  transition: background 0.18s ease;
+}
+.mo-row:hover {
+  background: #101015 !important;
+}
+
+.mo-softhover {
+  transition: opacity 0.18s ease;
+}
+.mo-softhover:hover {
+  opacity: 0.92 !important;
+}
+
+.mo-link {
+  transition: color 0.18s ease;
+  cursor: pointer;
+}
+.mo-link:hover {
+  color: #c9a961 !important;
+}
+
+/* Placeholder colour inside the engraving input */
+.mo-engrave-input::placeholder {
+  color: rgba(243, 236, 220, 0.32);
+}
+
+/* ─── Responsive: the design is a desktop comp; degrade gracefully ────────── */
+
+@media (max-width: 1000px) {
+  .mo-hero-grid,
+  .mo-pdp-grid,
+  .mo-vip-grid {
+    grid-template-columns: 1fr !important;
+    gap: 40px !important;
+  }
+  .mo-vault-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .mo-footer-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .mo-vault-grid,
+  .mo-method-grid,
+  .mo-footer-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .mo-method-grid > div {
+    border-left: 0 !important;
+    padding-left: 0 !important;
+    border-top: 1px solid #1f1f27;
+  }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .mo-rise,
+  .mo-grain::before {
+    animation: none;
+  }
+}

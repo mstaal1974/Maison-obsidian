@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
 
 # Environment files (contain secrets — set these in the Vercel dashboard instead)
 .env
