@@ -54,12 +54,13 @@ order:
 | `0004_shipments.sql` | `shipments`; admin fulfillment RPCs; admin read policy on commits |
 | `0005_chat.sql` | `chat_messages` + `log_chat_message` RPC (concierge transcripts) |
 | `0006_oil_inventory.sql` | `oil_ml` column + `admin_set_oil` RPC (raw oil on hand); `commit_size_counts` RPC (outstanding commitments per size, for oil-demand coverage) |
+| `0007_reconcile_committed.sql` | Recomputes `fragrances.committed` from real commit rows (discards the static launch numbers seeded in 0002) and makes the sync trigger count only `authorized`/`captured`, so the batch bar always equals the per-size panel |
 
 ### Option A — SQL Editor (simplest, always works)
 
 1. Dashboard → **SQL Editor → New query**.
 2. Open `supabase/migrations/0001_init.sql`, paste the whole file, **Run**.
-3. Repeat for `0002` → `0006`, **in order**. Each should report success.
+3. Repeat for `0002` → `0007`, **in order**. Each should report success.
    (You'll see a few `NOTICE ... does not exist, skipping` lines — harmless; they
    come from the idempotent `drop ... if exists` guards.)
 

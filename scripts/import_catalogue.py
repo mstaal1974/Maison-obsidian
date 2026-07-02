@@ -76,7 +76,7 @@ for i, r in enumerate(rows):
     gender = "masculine" if n in MASC else "feminine" if n in FEM else "unisex"
     liquid, accent = pick_color(" ".join([story] + top + heart + base))
     moq = MOQ_CYCLE[i % len(MOQ_CYCLE)]
-    committed = (i * 7 + 3) % (moq + 1)  # deterministic demo fill (0..moq)
+    committed = 0  # start empty; real commits drive the count (see migration 0007)
     headline = [x[0] for x in (top, heart, base) if x]
     tagline = ", ".join(headline) + "." if headline else story[:60]
     frags.append({
