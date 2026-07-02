@@ -44,6 +44,12 @@ Faithful to the redesign comp:
 - **Authentication** — real Supabase Auth: email/password + Google OAuth via an
   `AuthModal`; commits and VIP enrolment are tied to the signed-in user. Falls back
   to a local demo user when Supabase isn't configured.
+- **My Reservations** (`#/account`) — the signed-in user's commits from the
+  `commits` table (RLS-scoped), each with size, price held, engraving and a status
+  badge; falls back to local commits in the demo.
+- **Payments** — authorize-later Stripe: each commit authorizes a hold and records
+  a `payment_intent_id`; a `capture-batch` Edge Function captures the holds when the
+  batch is met (or releases them if it closes short).
 - **Hero** — atmospheric landing with the four brand stats (30% · 4wk · 20 · DXB).
 - **The Vault** — catalogue with **All / For Him / For Her** tabs and two layouts a
   floating switch toggles between: **Gallery** (liquid-swatch cards) and **Ledger**
@@ -72,16 +78,19 @@ src/
 │   ├── data.ts            Fragrance type, seed catalogue, design tokens, helpers
 │   ├── supabase.ts        Null-safe Supabase client + row types
 │   ├── auth.ts            useAuth() — Supabase Auth (email + Google) w/ demo fallback
-│   └── store.ts           useFragrances() + recordCommit() — live data w/ seed fallback
+│   ├── stripe.ts          authorizePayment() — authorize-later hold (stub + real seam)
+│   └── store.ts           useFragrances() + recordCommit() + fetchMyCommits()
 └── components/
     ├── Header.tsx  Hero.tsx  Vault.tsx  FragranceCard.tsx
     ├── Method.tsx  VIP.tsx   ProductDetail.tsx  CommitDrawer.tsx
-    ├── AuthModal.tsx  Footer.tsx  LayoutSwitch.tsx  Logo.tsx
+    ├── AuthModal.tsx  MyReservations.tsx  Footer.tsx  LayoutSwitch.tsx  Logo.tsx
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
-└── migrations/
-    ├── 0001_init.sql      Schema, committed-sync trigger, commit_to_batch RPC, RLS
-    └── 0002_seed.sql      Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
+├── migrations/
+│   ├── 0001_init.sql      Schema, committed-sync trigger, commit_to_batch RPC, RLS
+│   └── 0002_seed.sql      Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
+└── functions/
+    └── capture-batch/     Edge Function: capture/release held intents on batch met
 ```
 
 ### The batch model
@@ -127,6 +136,27 @@ signed-in user, so returning members are recognised on next sign-in.
 To enable **Google** sign-in: Supabase → Authentication → Providers → Google (add a
 Google OAuth client id/secret), then add your app origin(s) to Authentication → URL
 Configuration → Redirect URLs. Email/password needs no extra setup.
+
+### Payments (Stripe, authorize-later)
+
+The batch model holds a card at commit time and only charges when the batch is met:
+
+1. **Authorize** — `src/lib/stripe.ts` `authorizePayment()` POSTs to
+   `VITE_STRIPE_AUTHORIZE_URL`, a serverless route that runs
+   `stripe.paymentIntents.create({ amount, currency, capture_method: "manual", … })`
+   and returns the intent id. The id is stored on the commit (`payment_intent_id`).
+   Until that endpoint exists it returns a `pi_stub_*` id so the flow is exercised.
+2. **Capture / release** — `supabase/functions/capture-batch` is an Edge Function
+   (service-role) that, for a fragrance, captures every `authorized` commit's intent
+   and marks it `captured` once `committed >= moq` — or cancels the holds and marks
+   them `released` if the batch closes short (the trigger frees those spots). Deploy
+   with `supabase functions deploy capture-batch` and set `STRIPE_SECRET_KEY` +
+   `SUPABASE_SERVICE_ROLE_KEY` via `supabase secrets set`; trigger it from an admin
+   action or scheduled job.
+
+> Live Stripe isn't exercised in this environment — the client authorize is stubbed
+> and the Edge Function is wired to the real Stripe/Supabase SDKs but ships as a
+> deployable stub. The rest (intent id on every commit, status lifecycle) is real.
 
 ### Catalogue data
 

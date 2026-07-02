@@ -68,6 +68,7 @@ export async function recordCommit(
   engraving: string | null,
   sizeMl: number,
   chargeCents: number,
+  paymentIntentId: string | null,
 ): Promise<void> {
   if (!supabase) return;
   try {
@@ -76,9 +77,38 @@ export async function recordCommit(
       p_engraving: engraving,
       p_size_ml: sizeMl,
       p_charge_cents: chargeCents,
+      p_payment_intent_id: paymentIntentId,
     });
   } catch {
     /* offline / RLS / network — optimistic UI already reflects the commit */
+  }
+}
+
+export interface CommitRow {
+  fragrance_id: string;
+  engraving: string | null;
+  size_ml: number;
+  charge_cents: number | null;
+  status: "authorized" | "captured" | "released" | "void";
+  created_at: string;
+}
+
+/**
+ * Fetches the signed-in user's commits (RLS restricts rows to their own).
+ * Returns null when Supabase isn't configured so callers use local state.
+ */
+export async function fetchMyCommits(userId: string): Promise<CommitRow[] | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase
+      .from("commits")
+      .select("fragrance_id, engraving, size_ml, charge_cents, status, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) return null;
+    return (data ?? []) as CommitRow[];
+  } catch {
+    return null;
   }
 }
 

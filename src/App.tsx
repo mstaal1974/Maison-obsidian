@@ -1,8 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { type Fragrance, type Filter, pad } from "./lib/data";
-import { useFragrances, recordCommit, enrollVip, isVipSubscriber } from "./lib/store";
+import {
+  useFragrances,
+  recordCommit,
+  enrollVip,
+  isVipSubscriber,
+  fetchMyCommits,
+  type CommitRow,
+} from "./lib/store";
 import { useAuth } from "./lib/auth";
+import { authorizePayment } from "./lib/stripe";
 import AuthModal from "./components/AuthModal";
+import MyReservations, { type Reservation } from "./components/MyReservations";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Vault from "./components/Vault";
@@ -13,7 +22,7 @@ import CommitDrawer from "./components/CommitDrawer";
 import Footer from "./components/Footer";
 import LayoutSwitch from "./components/LayoutSwitch";
 
-type View = "home" | "product";
+type View = "home" | "product" | "account";
 type Direction = "gallery" | "ledger";
 interface CommitRecord {
   label: string | null;
@@ -73,6 +82,9 @@ export default function App() {
       if (s) {
         setSlug(s);
         setView("product");
+      } else if (window.location.hash === "#/account") {
+        setView("account");
+        setSlug(null);
       } else {
         setView("home");
         setSlug(null);
@@ -123,6 +135,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const goAccount = useCallback(() => {
+    window.location.hash = "#/account";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const selected = view === "product" && slug ? fragrances.find((f) => f.slug === slug) ?? null : null;
   const lastCommit = lastCommittedId ? fragrances.find((f) => f.id === lastCommittedId) ?? null : null;
 
@@ -131,14 +148,68 @@ export default function App() {
       if (!selected) return;
       const locked = !!selected.vipOnly && !vip;
       if (locked || committed[selected.id]) return;
+      // Optimistic UI first, then authorize the hold + persist the commit.
       setCommitted((prev) => ({ ...prev, [selected.id]: { label: engraving, sizeMl, chargeCents } }));
       setLastCommittedId(selected.id);
       setDrawerOpen(true);
-      // Persist to the backend when configured (optimistic UI already updated).
-      void recordCommit(selected.id, engraving, sizeMl, chargeCents);
+      void (async () => {
+        const { paymentIntentId } = await authorizePayment(selected.id, chargeCents);
+        await recordCommit(selected.id, engraving, sizeMl, chargeCents, paymentIntentId);
+      })();
     },
     [selected, vip, committed],
   );
+
+  // ── Account: the signed-in user's reservations ─────────────────────────────
+  const [remoteCommits, setRemoteCommits] = useState<CommitRow[] | null>(null);
+  const usingRemote = auth.configured && !!auth.user?.id;
+
+  useEffect(() => {
+    if (view !== "account" || !usingRemote || !auth.user?.id) return;
+    let active = true;
+    void fetchMyCommits(auth.user.id).then((rows) => {
+      if (active) setRemoteCommits(rows);
+    });
+    return () => {
+      active = false;
+    };
+  }, [view, usingRemote, auth.user?.id, committed]);
+
+  const reservations: Reservation[] = useMemo(() => {
+    if (usingRemote) {
+      return (remoteCommits ?? [])
+        .map((row): Reservation | null => {
+          const frag = fragrances.find((f) => f.id === row.fragrance_id);
+          if (!frag) return null;
+          return {
+            frag,
+            sizeMl: row.size_ml,
+            chargeCents: row.charge_cents ?? undefined,
+            engraving: row.engraving,
+            status: row.status,
+            effectiveCommitted: effective(frag),
+          };
+        })
+        .filter((r): r is Reservation => r !== null);
+    }
+    // Demo / offline — build from the local commit map.
+    return Object.entries(committed)
+      .map(([id, rec]): Reservation | null => {
+        const frag = fragrances.find((f) => f.id === id);
+        if (!frag) return null;
+        return {
+          frag,
+          sizeMl: rec.sizeMl,
+          chargeCents: rec.chargeCents,
+          engraving: rec.label,
+          status: "authorized",
+          effectiveCommitted: effective(frag),
+        };
+      })
+      .filter((r): r is Reservation => r !== null);
+  }, [usingRemote, remoteCommits, committed, fragrances, effective]);
+
+  const reservationsLoading = usingRemote && view === "account" && remoteCommits === null;
 
   const commitCount = pad(Object.keys(committed).length);
   const hasCommits = Object.keys(committed).length > 0;
@@ -158,6 +229,7 @@ export default function App() {
           setVip(false);
           void auth.signOut();
         }}
+        onGoAccount={goAccount}
       />
 
       {view === "home" && (
@@ -227,6 +299,18 @@ export default function App() {
             Enter the Vault
           </button>
         </main>
+      )}
+
+      {view === "account" && (
+        <MyReservations
+          reservations={reservations}
+          loading={reservationsLoading}
+          onOpen={openProduct}
+          onBackToVault={() => {
+            backHome();
+            setTimeout(() => go("mo-vault"), 60);
+          }}
+        />
       )}
 
       <Footer />

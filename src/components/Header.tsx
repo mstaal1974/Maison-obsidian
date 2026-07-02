@@ -11,6 +11,7 @@ interface HeaderProps {
   onOpenDrawer: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
+  onGoAccount: () => void;
 }
 
 const navLink: CSSProperties = {
@@ -34,6 +35,7 @@ export default function Header({
   onOpenDrawer,
   onSignIn,
   onSignOut,
+  onGoAccount,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   return (
@@ -169,6 +171,28 @@ export default function Header({
                       Signed in as
                     </div>
                     <div style={{ marginTop: 6, fontSize: 13, color: "#f3ecdc", wordBreak: "break-all" }}>{userEmail}</div>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onGoAccount();
+                      }}
+                      className="mo-ghost"
+                      style={{
+                        marginTop: 16,
+                        width: "100%",
+                        background: "none",
+                        border: "1px solid #1f1f27",
+                        cursor: "pointer",
+                        height: 38,
+                        color: "rgba(243,236,220,0.75)",
+                        fontSize: 10,
+                        letterSpacing: "0.24em",
+                        textTransform: "uppercase",
+                        fontWeight: 600,
+                      }}
+                    >
+                      My Reservations
+                    </button>
                     <button
                       onClick={() => {
                         setMenuOpen(false);
