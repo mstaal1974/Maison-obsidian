@@ -1,7 +1,8 @@
-import { type Fragrance, type Filter, FRAGS, GOLD, shade, money, pad, matches } from "../lib/data";
+import { type Fragrance, type Filter, GOLD, shade, money, pad, matches } from "../lib/data";
 import FragranceCard from "./FragranceCard";
 
 interface VaultProps {
+  fragrances: Fragrance[];
   filter: Filter;
   direction: "gallery" | "ledger";
   vip: boolean;
@@ -18,6 +19,7 @@ const TABS: { id: Filter; label: string; eyebrow: string }[] = [
 ];
 
 export default function Vault({
+  fragrances,
   filter,
   direction,
   vip,
@@ -26,7 +28,7 @@ export default function Vault({
   onFilter,
   onOpen,
 }: VaultProps) {
-  const visible = FRAGS.filter((f) => matches(f, filter));
+  const visible = fragrances.filter((f) => matches(f, filter));
 
   return (
     <section id="mo-vault" style={{ maxWidth: 1340, margin: "0 auto", padding: "84px 32px 30px" }}>
@@ -83,7 +85,7 @@ export default function Vault({
         <div role="tablist" style={{ display: "flex", border: "1px solid #1f1f27" }}>
           {TABS.map((t) => {
             const active = filter === t.id;
-            const count = pad(FRAGS.filter((f) => matches(f, t.id)).length);
+            const count = pad(fragrances.filter((f) => matches(f, t.id)).length);
             return (
               <button
                 key={t.id}
@@ -127,18 +129,20 @@ export default function Vault({
           ))}
         </div>
       ) : (
-        <Ledger visible={visible} showInspiration={showInspiration} effective={effective} onOpen={onOpen} />
+        <Ledger all={fragrances} visible={visible} showInspiration={showInspiration} effective={effective} onOpen={onOpen} />
       )}
     </section>
   );
 }
 
 function Ledger({
+  all,
   visible,
   showInspiration,
   effective,
   onOpen,
 }: {
+  all: Fragrance[];
   visible: Fragrance[];
   showInspiration: boolean;
   effective: (f: Fragrance) => number;
@@ -172,7 +176,7 @@ function Ledger({
         const eff = effective(f);
         const pct = Math.min(100, Math.round((eff / f.moq) * 100));
         const met = eff >= f.moq;
-        const idx = pad(FRAGS.indexOf(f) + 1);
+        const idx = pad(all.indexOf(f) + 1);
         return (
           <button
             key={f.id}

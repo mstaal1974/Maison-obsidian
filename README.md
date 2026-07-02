@@ -27,9 +27,11 @@ npm run preview  # serve the production build
 npm run lint     # eslint
 ```
 
-No backend is required — the catalogue, batch counters, gender filters, engraving
-preview, commit flow, VIP enrolment and commit drawer all run client-side against
-the seed data in `src/lib/data.ts`. Commits persist to `localStorage`.
+No backend is required to demo the app — the catalogue, batch counters, gender
+filters, engraving preview, commit flow, VIP enrolment and commit drawer all run
+client-side against the seed data in `src/lib/data.ts`, and commits persist to
+`localStorage`. Point it at a Supabase project (below) and the same UI reads and
+writes live data instead, with the seed as an automatic fallback.
 
 ---
 
@@ -62,12 +64,18 @@ src/
 ├── index.css              Base tokens, grain overlay, keyframes, hover states, breakpoints
 ├── App.tsx                State + hash-routing shell (home ⇄ product), commit persistence
 ├── lib/
-│   └── data.ts            Fragrance type, seed catalogue, design tokens, helpers
+│   ├── data.ts            Fragrance type, seed catalogue, design tokens, helpers
+│   ├── supabase.ts        Null-safe Supabase client + row types
+│   └── store.ts           useFragrances() + recordCommit() — live data w/ seed fallback
 └── components/
     ├── Header.tsx  Hero.tsx  Vault.tsx  FragranceCard.tsx
     ├── Method.tsx  VIP.tsx   ProductDetail.tsx  CommitDrawer.tsx
     ├── Footer.tsx  LayoutSwitch.tsx  Logo.tsx
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
+supabase/
+└── migrations/
+    ├── 0001_init.sql      Schema, committed-sync trigger, commit_to_batch RPC, RLS
+    └── 0002_seed.sql      Seed catalogue (mirrors src/lib/data.ts)
 ```
 
 ### The batch model
@@ -78,8 +86,43 @@ opens the drawer. When `committed >= moq` the card/PDP show **Batch Met**. In a
 production build this is where the authorize-later Stripe intent would be captured
 and the admin notified.
 
+## Database (Supabase)
+
+The backend is three tables plus a trigger, an RPC, and Row-Level Security, defined
+as ordered migrations under `supabase/migrations/`:
+
+| Object | Purpose |
+| --- | --- |
+| `fragrances` | Catalogue; columns mirror the `Fragrance` type 1:1. Public read. |
+| `commits` | Batch reservations (engraving, `authorized`/`captured`/`released`/`void`, optional `payment_intent_id`). Anyone may insert; users read their own. |
+| `subscribers` | General list + `vip` tier (gates VIP-only batches). |
+| `sync_fragrance_committed()` trigger | Keeps `fragrances.committed` in step as commits are inserted / released. |
+| `commit_to_batch(fragrance_id, engraving, payment_intent_id)` | `SECURITY DEFINER` RPC that inserts a commit and returns `(committed, moq, met)` atomically; rejects VIP-only batches unless the caller is a VIP subscriber. |
+
+The batch model: a fragrance pours only once `committed >= moq`. Each commit
+**authorizes, never charges** — capture the held Stripe intents once the batch is met
+(and release them if it closes short). See the SQL comments for the production wiring.
+
+### Applying the migrations
+
+```bash
+# Supabase CLI (from the project root)
+supabase db push
+# …or paste each file into the SQL editor in the Supabase dashboard, in order.
+```
+
+Then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see `.env.example`).
+`src/lib/store.ts` loads live rows on mount — including up-to-date `committed`
+counts — and records commits via the `commit_to_batch` RPC; if the vars are absent
+or a request fails, it silently falls back to the seed catalogue so the app never
+breaks. The anon key is browser-safe: RLS constrains every read and write.
+
+> The migrations were validated end-to-end against PostgreSQL 16 — schema, seed,
+> the committed-sync trigger, the VIP gate (both allow and reject), RPC return
+> values, and idempotent re-seeding all verified.
+
 ### Stack
 
-Vite + React 19 + TypeScript. The design is a desktop HTML/CSS comp, recreated with
-inline style objects (for pixel fidelity) plus a small CSS layer for fonts,
-animations, hover states and responsive fallbacks.
+Vite + React 19 + TypeScript, `@supabase/supabase-js` for data. The design is a
+desktop HTML/CSS comp, recreated with inline style objects (for pixel fidelity) plus
+a small CSS layer for fonts, animations, hover states and responsive fallbacks.

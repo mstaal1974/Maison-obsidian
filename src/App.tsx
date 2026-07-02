@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { type Fragrance, type Filter, FRAGS, pad } from "./lib/data";
+import { type Fragrance, type Filter, pad } from "./lib/data";
+import { useFragrances, recordCommit } from "./lib/store";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Vault from "./components/Vault";
@@ -44,6 +45,7 @@ export default function App() {
   const [vip, setVip] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
 
+  const { fragrances } = useFragrances();
   const showInspiration = true;
 
   // ── Hash routing: keep view/slug in sync with the URL ──────────────────────
@@ -103,8 +105,8 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const selected = view === "product" && slug ? FRAGS.find((f) => f.slug === slug) ?? null : null;
-  const lastCommit = lastCommittedId ? FRAGS.find((f) => f.id === lastCommittedId) ?? null : null;
+  const selected = view === "product" && slug ? fragrances.find((f) => f.slug === slug) ?? null : null;
+  const lastCommit = lastCommittedId ? fragrances.find((f) => f.id === lastCommittedId) ?? null : null;
 
   const commitSelected = useCallback(
     (engraving: string | null) => {
@@ -114,6 +116,8 @@ export default function App() {
       setCommitted((prev) => ({ ...prev, [selected.id]: { label: engraving } }));
       setLastCommittedId(selected.id);
       setDrawerOpen(true);
+      // Persist to the backend when configured (optimistic UI already updated).
+      void recordCommit(selected.id, engraving);
     },
     [selected, vip, committed],
   );
@@ -138,6 +142,7 @@ export default function App() {
         <main data-screen-label="Home">
           <Hero onGoVault={() => go("mo-vault")} onGoMethod={() => go("mo-method")} />
           <Vault
+            fragrances={fragrances}
             filter={filter}
             direction={direction}
             vip={vip}
