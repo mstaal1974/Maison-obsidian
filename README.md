@@ -40,7 +40,10 @@ writes live data instead, with the seed as an automatic fallback.
 Faithful to the redesign comp:
 
 - **Header** — sticky, blurred; The Vault / The Method / VIP Club nav; commit
-  counter; Sign In ↔ Account toggle.
+  counter; Sign In (auth modal) ↔ Account menu with the signed-in email + Sign Out.
+- **Authentication** — real Supabase Auth: email/password + Google OAuth via an
+  `AuthModal`; commits and VIP enrolment are tied to the signed-in user. Falls back
+  to a local demo user when Supabase isn't configured.
 - **Hero** — atmospheric landing with the four brand stats (30% · 4wk · 20 · DXB).
 - **The Vault** — catalogue with **All / For Him / For Her** tabs and two layouts a
   floating switch toggles between: **Gallery** (liquid-swatch cards) and **Ledger**
@@ -68,11 +71,12 @@ src/
 ├── lib/
 │   ├── data.ts            Fragrance type, seed catalogue, design tokens, helpers
 │   ├── supabase.ts        Null-safe Supabase client + row types
+│   ├── auth.ts            useAuth() — Supabase Auth (email + Google) w/ demo fallback
 │   └── store.ts           useFragrances() + recordCommit() — live data w/ seed fallback
 └── components/
     ├── Header.tsx  Hero.tsx  Vault.tsx  FragranceCard.tsx
     ├── Method.tsx  VIP.tsx   ProductDetail.tsx  CommitDrawer.tsx
-    ├── Footer.tsx  LayoutSwitch.tsx  Logo.tsx
+    ├── AuthModal.tsx  Footer.tsx  LayoutSwitch.tsx  Logo.tsx
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
 └── migrations/
@@ -106,11 +110,23 @@ The batch model: a fragrance pours only once `committed >= moq`. Each commit
 **authorizes, never charges** — capture the held Stripe intents once the batch is met
 (and release them if it closes short). See the SQL comments for the production wiring.
 
-VIP note: `enroll_subscriber` records the VIP by email, while the DB-side VIP gate in
-`commit_to_batch` is *auth*-based (it checks `subscribers.user_id = auth.uid()`). The
-demo has no auth, so the UI unlocks VIP batches client-side on enrolment; in
-production, wiring Supabase Auth ties the subscriber row to the signed-in user and the
-gate enforces it server-side.
+### Authentication
+
+`src/lib/auth.ts`'s `useAuth()` wraps Supabase Auth — `signInWithPassword`, `signUp`,
+and `signInWithOAuth({ provider: 'google' })` — and tracks the live session via
+`onAuthStateChange`. The `<AuthModal>` exposes email/password (sign in + sign up) and
+a Google button. When Supabase isn't configured it falls back to a local demo user so
+the whole flow stays testable offline.
+
+Because requests now carry the user's JWT, the server enforces ownership end-to-end:
+`commit_to_batch` stamps `user_id = auth.uid()` on every commit, and the VIP gate
+(`subscribers.user_id = auth.uid()` with `tier = 'vip'`) is real — a signed-in VIP
+passes, everyone else is rejected. `enroll_subscriber` ties the subscriber row to the
+signed-in user, so returning members are recognised on next sign-in.
+
+To enable **Google** sign-in: Supabase → Authentication → Providers → Google (add a
+Google OAuth client id/secret), then add your app origin(s) to Authentication → URL
+Configuration → Redirect URLs. Email/password needs no extra setup.
 
 ### Catalogue data
 

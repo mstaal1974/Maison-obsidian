@@ -1,15 +1,16 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 import Logo from "./Logo";
 
 interface HeaderProps {
   commitCount: string;
-  accountLabel: string;
+  userEmail: string | null;
   onBackHome: () => void;
   onGoVault: () => void;
   onGoMethod: () => void;
   onGoVip: () => void;
   onOpenDrawer: () => void;
   onSignIn: () => void;
+  onSignOut: () => void;
 }
 
 const navLink: CSSProperties = {
@@ -25,14 +26,16 @@ const navLink: CSSProperties = {
 
 export default function Header({
   commitCount,
-  accountLabel,
+  userEmail,
   onBackHome,
   onGoVault,
   onGoMethod,
   onGoVip,
   onOpenDrawer,
   onSignIn,
+  onSignOut,
 }: HeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header
       style={{
@@ -127,21 +130,88 @@ export default function Header({
             </svg>
             <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: "#f3ecdc" }}>{commitCount}</span>
           </button>
-          <button
-            onClick={onSignIn}
-            style={{
-              background: "none",
-              border: 0,
-              cursor: "pointer",
-              color: "#c9a961",
-              fontSize: 11,
-              letterSpacing: "0.24em",
-              textTransform: "uppercase",
-              fontWeight: 600,
-            }}
-          >
-            {accountLabel}
-          </button>
+          {userEmail ? (
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                style={{
+                  background: "none",
+                  border: 0,
+                  cursor: "pointer",
+                  color: "#c9a961",
+                  fontSize: 11,
+                  letterSpacing: "0.24em",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                }}
+              >
+                Account
+              </button>
+              {menuOpen && (
+                <>
+                  <div onClick={() => setMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                  <div
+                    role="menu"
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 14px)",
+                      right: 0,
+                      zIndex: 41,
+                      minWidth: 220,
+                      background: "#0d0d11",
+                      border: "1px solid #1f1f27",
+                      padding: 16,
+                    }}
+                  >
+                    <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(243,236,220,0.4)" }}>
+                      Signed in as
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#f3ecdc", wordBreak: "break-all" }}>{userEmail}</div>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onSignOut();
+                      }}
+                      className="mo-ghost"
+                      style={{
+                        marginTop: 16,
+                        width: "100%",
+                        background: "none",
+                        border: "1px solid #1f1f27",
+                        cursor: "pointer",
+                        height: 38,
+                        color: "rgba(243,236,220,0.75)",
+                        fontSize: 10,
+                        letterSpacing: "0.24em",
+                        textTransform: "uppercase",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={onSignIn}
+              style={{
+                background: "none",
+                border: 0,
+                cursor: "pointer",
+                color: "#c9a961",
+                fontSize: 11,
+                letterSpacing: "0.24em",
+                textTransform: "uppercase",
+                fontWeight: 600,
+              }}
+            >
+              Sign In
+            </button>
+          )}
         </div>
       </div>
     </header>

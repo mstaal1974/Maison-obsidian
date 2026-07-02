@@ -83,6 +83,25 @@ export async function recordCommit(
 }
 
 /**
+ * Returns true if the signed-in user already holds a VIP subscription. No-ops
+ * to false when Supabase isn't configured (demo membership is tracked locally).
+ */
+export async function isVipSubscriber(userId: string): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase
+      .from("subscribers")
+      .select("tier")
+      .eq("user_id", userId)
+      .eq("tier", "vip")
+      .maybeSingle();
+    return !error && !!data;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Enrols an email address in the VIP club via the `enroll_subscriber` RPC.
  * No-ops (returns true) when Supabase isn't configured so the demo still
  * unlocks locally; returns false only when a configured backend rejects it.

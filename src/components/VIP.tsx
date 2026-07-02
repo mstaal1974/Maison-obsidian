@@ -1,12 +1,10 @@
-import { useState } from "react";
 import { GOLD } from "../lib/data";
 
 interface VIPProps {
   vip: boolean;
-  onJoin: (email: string) => void;
+  signedIn: boolean;
+  onJoin: () => void;
 }
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const PERKS = [
   { title: "→ Early access", body: "Open VIP-only batches before public release." },
@@ -14,19 +12,7 @@ const PERKS = [
   { title: "→ Free engraving", body: "Complimentary on every bottle, always." },
 ];
 
-export default function VIP({ vip, onJoin }: VIPProps) {
-  const [email, setEmail] = useState("");
-  const [touched, setTouched] = useState(false);
-  const valid = EMAIL_RE.test(email.trim());
-
-  const submit = () => {
-    if (!valid) {
-      setTouched(true);
-      return;
-    }
-    onJoin(email.trim());
-  };
-
+export default function VIP({ vip, signedIn, onJoin }: VIPProps) {
   return (
     <section id="mo-vip" style={{ maxWidth: 1340, margin: "0 auto", padding: "84px 32px" }}>
       <div
@@ -67,8 +53,8 @@ export default function VIP({ vip, onJoin }: VIPProps) {
               Early access to locked batches, first claim on re-pours of sold-out scents, and a complimentary engraving on
               every order. Members shape what the lab pours next.
             </p>
-            {vip ? (
-              <div style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 18 }}>
+            <div style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 18 }}>
+              {vip ? (
                 <span
                   style={{
                     display: "inline-flex",
@@ -85,72 +71,30 @@ export default function VIP({ vip, onJoin }: VIPProps) {
                 >
                   ✓ You're a Member
                 </span>
-                <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "rgba(243,236,220,0.45)" }}>
-                  $120 / year
-                </span>
-              </div>
-            ) : (
-              <>
-                <div style={{ marginTop: 30, display: "flex", alignItems: "stretch", gap: 12, flexWrap: "wrap" }}>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onBlur={() => setTouched(true)}
-                    onKeyDown={(e) => e.key === "Enter" && submit()}
-                    placeholder="you@example.com"
-                    aria-label="Email for VIP enrolment"
-                    className="mo-engrave-input"
-                    style={{
-                      flex: "1 1 220px",
-                      minWidth: 0,
-                      background: "none",
-                      border: "1px solid #1f1f27",
-                      outline: "none",
-                      height: 48,
-                      padding: "0 16px",
-                      color: "#f3ecdc",
-                      fontFamily: "'Space Mono',monospace",
-                      fontSize: 13,
-                    }}
-                  />
-                  <button
-                    onClick={submit}
-                    style={{
-                      background: "transparent",
-                      color: GOLD,
-                      border: "1px solid #c9a961",
-                      cursor: "pointer",
-                      height: 48,
-                      padding: "0 28px",
-                      fontSize: 11,
-                      letterSpacing: "0.24em",
-                      textTransform: "uppercase",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Join the VIP Club
-                  </button>
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      fontFamily: "'Space Mono',monospace",
-                      fontSize: 11,
-                      color: "rgba(243,236,220,0.45)",
-                    }}
-                  >
-                    $120 / year
-                  </span>
-                </div>
-                {touched && !valid && (
-                  <div style={{ marginTop: 10, fontSize: 11.5, color: "#d98a6a" }}>
-                    Please enter a valid email address.
-                  </div>
-                )}
-              </>
-            )}
+              ) : (
+                <button
+                  onClick={onJoin}
+                  style={{
+                    background: "transparent",
+                    color: GOLD,
+                    border: "1px solid #c9a961",
+                    cursor: "pointer",
+                    height: 48,
+                    padding: "0 28px",
+                    fontSize: 11,
+                    letterSpacing: "0.24em",
+                    textTransform: "uppercase",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {signedIn ? "Join the VIP Club" : "Sign In to Join"}
+                </button>
+              )}
+              <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "rgba(243,236,220,0.45)" }}>
+                $120 / year
+              </span>
+            </div>
           </div>
           <div style={{ display: "grid", gap: 1, background: "#1f1f27", border: "1px solid #1f1f27" }}>
             {PERKS.map((p) => (

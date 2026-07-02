@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { type Fragrance, type Filter, pad } from "./lib/data";
-import { useFragrances, recordCommit, enrollVip } from "./lib/store";
+import { useFragrances, recordCommit, enrollVip, isVipSubscriber } from "./lib/store";
+import { useAuth } from "./lib/auth";
+import AuthModal from "./components/AuthModal";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Vault from "./components/Vault";
@@ -45,10 +47,24 @@ export default function App() {
   const [lastCommittedId, setLastCommittedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [vip, setVip] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   const { fragrances } = useFragrances();
+  const auth = useAuth();
   const showInspiration = true;
+
+  // Reflect VIP membership from the backend for a signed-in user (sign-out
+  // resets vip in the handler below). Demo membership is tracked locally.
+  useEffect(() => {
+    if (!auth.user?.id) return; // signed out or demo user — nothing to fetch
+    let active = true;
+    void isVipSubscriber(auth.user.id).then((isVip) => {
+      if (active && isVip) setVip(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [auth.user]);
 
   // ── Hash routing: keep view/slug in sync with the URL ──────────────────────
   useEffect(() => {
@@ -131,13 +147,17 @@ export default function App() {
     <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
       <Header
         commitCount={commitCount}
-        accountLabel={signedIn ? "Account" : "Sign In"}
+        userEmail={auth.user?.email ?? null}
         onBackHome={backHome}
         onGoVault={() => go("mo-vault")}
         onGoMethod={() => go("mo-method")}
         onGoVip={() => go("mo-vip")}
         onOpenDrawer={() => setDrawerOpen(true)}
-        onSignIn={() => setSignedIn((v) => !v)}
+        onSignIn={() => setAuthOpen(true)}
+        onSignOut={() => {
+          setVip(false);
+          void auth.signOut();
+        }}
       />
 
       {view === "home" && (
@@ -156,9 +176,14 @@ export default function App() {
           <Method />
           <VIP
             vip={vip}
-            onJoin={(email) => {
+            signedIn={!!auth.user}
+            onJoin={() => {
+              if (!auth.user) {
+                setAuthOpen(true);
+                return;
+              }
               setVip(true);
-              void enrollVip(email);
+              void enrollVip(auth.user.email);
             }}
           />
         </main>
@@ -229,6 +254,16 @@ export default function App() {
           direction={direction}
           onGallery={() => setDirection("gallery")}
           onLedger={() => setDirection("ledger")}
+        />
+      )}
+
+      {authOpen && (
+        <AuthModal
+          configured={auth.configured}
+          onClose={() => setAuthOpen(false)}
+          signInEmail={auth.signInEmail}
+          signUpEmail={auth.signUpEmail}
+          signInGoogle={auth.signInGoogle}
         />
       )}
     </div>
