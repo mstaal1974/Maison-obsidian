@@ -17,6 +17,7 @@ import { authorizePayment } from "./lib/stripe";
 import AuthModal from "./components/AuthModal";
 import MyReservations, { type Reservation } from "./components/MyReservations";
 import AdminConsole from "./components/AdminConsole";
+import ChatWidget from "./components/ChatWidget";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import Vault from "./components/Vault";
@@ -426,6 +427,8 @@ export default function App() {
           signInGoogle={auth.signInGoogle}
         />
       )}
+
+      <ChatWidget fragrances={fragrances} />
     </div>
   );
 }

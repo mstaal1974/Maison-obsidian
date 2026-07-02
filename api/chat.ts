@@ -1,0 +1,102 @@
+// Vercel serverless function — Maison Obsidian concierge, powered by Claude.
+//
+// The Anthropic API key stays server-side (ANTHROPIC_API_KEY in the Vercel
+// project settings) and is never exposed to the browser. The client POSTs the
+// conversation plus a compact live catalogue summary; we prepend a house system
+// prompt and stream Claude's reply back as plain text.
+//
+// Set ANTHROPIC_API_KEY in Vercel → Project → Settings → Environment Variables.
+// Without it the endpoint returns 501 and the client falls back to a local
+// concierge so the demo still answers.
+
+import Anthropic from "@anthropic-ai/sdk";
+
+export const config = { runtime: "nodejs" };
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+const BRAND = `You are the concierge for Maison Obsidian, a boutique batch-atelier fragrance house.
+Voice: warm, precise, quietly luxurious — an in-the-know shop concierge, never pushy. Keep replies short (2–4 sentences unless asked for more). Respond directly with your final answer only; do not include exploratory reasoning.
+
+How the house works:
+- Batch model: each scent is poured only when its batch reaches a minimum (MOQ). Committing to a batch AUTHORIZES the customer's card but never charges it; payment is captured only once the batch is met, and holds are released if it closes short.
+- Sizes & pricing: every fragrance comes in 10 ml, 30 ml, and 50 ml (prices in the catalogue below). 30% extrait concentration.
+- Custom engraving: up to 28 characters on the bottle label, previewed live on the product page.
+- VIP Club ($120/yr): early access to locked batches, re-pour priority, complimentary engraving. Some scents are VIP-only.
+- Shipping: fulfilled via Australia Post Parcel Post once a batch pours; customers see status + tracking under "My Reservations".
+- Accounts: sign in (email or Google) to commit, track reservations, and join VIP.
+
+Guidance: recommend from the catalogue below by notes, inspiration, or gender when asked. If asked something you don't know (order-specific details, stock for a size), say so and point them to the relevant page (the Vault, a product page, or My Reservations). Never invent prices, scents, or policies.`;
+
+function buildSystem(catalogue?: string): string {
+  const cat = catalogue && catalogue.trim().slice(0, 8000);
+  return cat ? `${BRAND}\n\nCurrent catalogue:\n${cat}` : BRAND;
+}
+
+function sanitize(messages: unknown): ChatMessage[] {
+  if (!Array.isArray(messages)) return [];
+  const cleaned = messages
+    .filter(
+      (m): m is ChatMessage =>
+        !!m &&
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string" &&
+        m.content.trim().length > 0,
+    )
+    .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }))
+    .slice(-12);
+  // The Messages API requires the first turn to be from the user.
+  while (cleaned.length && cleaned[0].role !== "user") cleaned.shift();
+  return cleaned;
+}
+
+export default async function handler(req: any, res: any) {
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    res.status(501).json({ error: "Concierge is not configured" });
+    return;
+  }
+
+  const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body ?? {};
+  const messages = sanitize(body.messages);
+  if (messages.length === 0) {
+    res.status(400).json({ error: "No messages" });
+    return;
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+
+  try {
+    const stream = client.messages.stream({
+      model: "claude-opus-4-8",
+      max_tokens: 1024,
+      thinking: { type: "disabled" }, // snappy concierge; system prompt keeps it to a final answer
+      system: buildSystem(body.catalogue),
+      messages,
+    });
+    stream.on("text", (delta: string) => res.write(delta));
+    await stream.finalMessage();
+    res.end();
+  } catch (err) {
+    // If nothing has been written yet, surface an error status; otherwise close.
+    if (!res.headersSent || !res.writableEnded) {
+      try {
+        res.write("");
+      } catch {
+        /* ignore */
+      }
+    }
+    res.end();
+    console.error("chat error:", err);
+  }
+}

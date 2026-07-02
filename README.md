@@ -58,6 +58,11 @@ Faithful to the redesign comp:
   their reservations. Fulfillment defaults to **Australia Post Parcel Post**, and the
   `create-shipment` Edge Function is wired to the Australia Post PAC (rates) and
   Shipping & Tracking (labels) APIs.
+- **Concierge chatbot** — a floating assistant powered by **Claude** (`claude-opus-4-8`)
+  through a server-side `/api/chat` proxy (the key never touches the browser). It streams
+  answers about the house, the batch model, sizes, engraving, VIP and shipping, and
+  recommends from the live catalogue; falls back to a local rule-based concierge when the
+  API key isn't set.
 - **Hero** — atmospheric landing with the four brand stats (30% · 4wk · 20 · DXB).
 - **The Vault** — catalogue with **All / For Him / For Her** tabs and two layouts a
   floating switch toggles between: **Gallery** (liquid-swatch cards) and **Ledger**
@@ -89,11 +94,15 @@ src/
 │   ├── admin.ts           useIsAdmin() + fragrance CRUD / inventory / fulfillment ops
 │   ├── catalogue.ts       In-memory demo stores (catalogue + shipments) for offline
 │   ├── stripe.ts          authorizePayment() — authorize-later hold (stub + real seam)
+│   ├── concierge.ts       Chatbot: catalogue summary, streaming client, offline fallback
 │   └── store.ts           useFragrances() + recordCommit() + fetch{MyCommits,MyShipments}()
 └── components/
     ├── Header.tsx  Hero.tsx  Vault.tsx  FragranceCard.tsx
     ├── Method.tsx  VIP.tsx   ProductDetail.tsx  CommitDrawer.tsx
-    ├── AuthModal.tsx  MyReservations.tsx  AdminConsole.tsx  Footer.tsx  LayoutSwitch.tsx  Logo.tsx
+    ├── AuthModal.tsx  MyReservations.tsx  AdminConsole.tsx  ChatWidget.tsx
+    ├── Footer.tsx  LayoutSwitch.tsx  Logo.tsx
+api/
+└── chat.ts                Vercel serverless proxy → Claude (streams the concierge reply)
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
 ├── migrations/
@@ -198,6 +207,24 @@ The batch model holds a card at commit time and only charges when the batch is m
 > Live Stripe isn't exercised in this environment — the client authorize is stubbed
 > and the Edge Function is wired to the real Stripe/Supabase SDKs but ships as a
 > deployable stub. The rest (intent id on every commit, status lifecycle) is real.
+
+### Concierge chatbot (Claude)
+
+A floating concierge (`ChatWidget`) answers questions about the house and recommends
+scents. It talks to Claude through **`api/chat.ts`**, a Vercel serverless function that
+holds `ANTHROPIC_API_KEY` server-side and streams the reply back as plain text — the key
+never reaches the browser. The client sends the conversation plus a compact **live
+catalogue summary** (`concierge.ts`), and the function prepends a house system prompt
+(brand voice, batch model, sizes, engraving, VIP, Australia Post shipping) and streams
+`claude-opus-4-8`.
+
+Set `ANTHROPIC_API_KEY` in the Vercel project (Settings → Environment Variables). When
+it's absent — or in the offline demo — the widget falls back to a **local rule-based
+concierge** (`localFallbackReply`) so it still answers the common questions.
+
+> Live Claude calls aren't exercised in this environment (no key / no serverless in
+> `vite preview`); the streaming client and the serverless function are written against
+> the official `@anthropic-ai/sdk`, and the offline fallback is what the demo exercises.
 
 ### Catalogue data
 
