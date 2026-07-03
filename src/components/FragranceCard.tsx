@@ -74,7 +74,7 @@ export default function FragranceCard({
             background: "linear-gradient(0deg, rgba(8,8,10,0.7), transparent)",
           }}
         >
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 27, lineHeight: 1.05, color: "#f6efe0" }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 27, fontWeight: 700, lineHeight: 1.05, color: "#f6efe0" }}>
             {frag.name}
           </div>
         </div>
@@ -122,7 +122,7 @@ export default function FragranceCard({
       </div>
       <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
         {showInspiration && (
-          <div style={{ fontSize: 9.5, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(243,236,220,0.4)" }}>
+          <div style={{ fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(243,236,220,0.5)" }}>
             {frag.inspiration}
           </div>
         )}
