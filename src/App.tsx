@@ -63,6 +63,9 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [vip, setVip] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  // A reservation attempted while signed out is parked here and replayed once
+  // the visitor authenticates from the modal.
+  const [pendingCommit, setPendingCommit] = useState<{ engraving: string | null; sizeMl: number; chargeCents: number } | null>(null);
 
   const { fragrances, reload } = useFragrances();
   const auth = useAuth();
@@ -158,7 +161,8 @@ export default function App() {
   const selected = view === "product" && slug ? fragrances.find((f) => f.slug === slug) ?? null : null;
   const lastCommit = lastCommittedId ? fragrances.find((f) => f.id === lastCommittedId) ?? null : null;
 
-  const commitSelected = useCallback(
+  // The actual reservation, once we know the visitor is signed in.
+  const doCommit = useCallback(
     (engraving: string | null, sizeMl: number, chargeCents: number) => {
       if (!selected) return;
       const locked = !!selected.vipOnly && !vip;
@@ -173,6 +177,20 @@ export default function App() {
       })();
     },
     [selected, vip, committed],
+  );
+
+  // Reservations require an account. A signed-out attempt parks the commit and
+  // opens the sign-in / sign-up modal; it replays once they authenticate.
+  const commitSelected = useCallback(
+    (engraving: string | null, sizeMl: number, chargeCents: number) => {
+      if (!auth.user) {
+        setPendingCommit({ engraving, sizeMl, chargeCents });
+        setAuthOpen(true);
+        return;
+      }
+      doCommit(engraving, sizeMl, chargeCents);
+    },
+    [auth.user, doCommit],
   );
 
   // ── Account: the signed-in user's reservations ─────────────────────────────
@@ -421,7 +439,16 @@ export default function App() {
       {authOpen && (
         <AuthModal
           configured={auth.configured}
-          onClose={() => setAuthOpen(false)}
+          reason={pendingCommit ? "reserve" : null}
+          onClose={() => {
+            setAuthOpen(false);
+            setPendingCommit(null);
+          }}
+          onAuthed={() => {
+            const pc = pendingCommit;
+            setPendingCommit(null);
+            if (pc) doCommit(pc.engraving, pc.sizeMl, pc.chargeCents);
+          }}
           signInEmail={auth.signInEmail}
           signUpEmail={auth.signUpEmail}
           signInGoogle={auth.signInGoogle}
