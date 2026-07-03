@@ -1,4 +1,13 @@
-import { type Fragrance, GOLD, shade, money } from "../lib/data";
+import { type Fragrance, GOLD, money } from "../lib/data";
+
+// Gender-coded surround for each tile: navy (masculine), pink (feminine),
+// green (unisex). Muted jewel tones so they read on the near-black backdrop
+// without fighting the gold accent.
+const SURROUND: Record<Fragrance["gender"], string> = {
+  masculine: "#34568b", // navy blue
+  feminine: "#b25f80", // pink
+  unisex: "#3f8168", // green
+};
 
 interface FragranceCardProps {
   frag: Fragrance;
@@ -19,6 +28,7 @@ export default function FragranceCard({
   const met = effectiveCommitted >= frag.moq;
   const locked = !!frag.vipOnly && !vip;
   const cta = locked ? "VIP Members Only" : met ? "Batch Met · Re-pour" : "Commit to Batch →";
+  const surround = SURROUND[frag.gender] ?? "#1f1f27";
 
   return (
     <button
@@ -27,22 +37,25 @@ export default function FragranceCard({
       style={{
         textAlign: "left",
         background: "#101015",
-        border: "1px solid #1f1f27",
+        border: `2px solid ${surround}`,
         cursor: "pointer",
         padding: 0,
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <div style={{ position: "relative", height: 230, overflow: "hidden" }}>
-        <div
+      <div style={{ position: "relative", height: 230, overflow: "hidden", background: "#0e0e12" }}>
+        <img
+          src="/assets/bottle-portrait.webp"
+          alt={`${frag.name} bottle`}
+          loading="lazy"
           style={{
             position: "absolute",
             inset: 0,
-            background: `linear-gradient(158deg, ${shade(frag.liquid, 0.22)} 0%, ${frag.liquid} 46%, ${shade(
-              frag.liquid,
-              -0.5,
-            )} 100%)`,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            objectPosition: "center 30%",
           }}
         />
         <div
@@ -50,18 +63,8 @@ export default function FragranceCard({
           style={{
             position: "absolute",
             inset: 0,
-            background: "radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,0.16), transparent 55%)",
-          }}
-        />
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            left: "34%",
-            top: 0,
-            bottom: 0,
-            width: 14,
-            background: "linear-gradient(90deg, rgba(255,255,255,0.22), transparent)",
+            background:
+              "linear-gradient(0deg, rgba(8,8,10,0.92) 0%, rgba(8,8,10,0.5) 30%, rgba(8,8,10,0.12) 62%, transparent 100%)",
           }}
         />
         <div
@@ -71,7 +74,6 @@ export default function FragranceCard({
             right: 0,
             bottom: 0,
             padding: 20,
-            background: "linear-gradient(0deg, rgba(8,8,10,0.7), transparent)",
           }}
         >
           <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 27, fontWeight: 700, lineHeight: 1.05, color: "#f6efe0" }}>
