@@ -4,7 +4,11 @@ import type { AuthResult } from "../lib/auth";
 
 interface AuthModalProps {
   configured: boolean;
+  /** When set (e.g. "reserve"), the modal explains why sign-in is required. */
+  reason?: string | null;
   onClose: () => void;
+  /** Fired once, after authentication succeeds — before onClose. */
+  onAuthed?: () => void;
   signInEmail: (email: string, password: string) => Promise<AuthResult>;
   signUpEmail: (email: string, password: string) => Promise<AuthResult>;
   signInGoogle: () => Promise<AuthResult>;
@@ -14,12 +18,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AuthModal({
   configured,
+  reason,
   onClose,
+  onAuthed,
   signInEmail,
   signUpEmail,
   signInGoogle,
 }: AuthModalProps) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // A reservation attempt lands new visitors on the sign-up tab by default.
+  const [mode, setMode] = useState<"signin" | "signup">(reason === "reserve" ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +47,7 @@ export default function AuthModal({
       setError(err);
       return;
     }
+    onAuthed?.();
     onClose();
   };
 
@@ -53,7 +61,10 @@ export default function AuthModal({
       return;
     }
     // Real Supabase Google sign-in redirects away; the demo resolves inline.
-    if (!configured) onClose();
+    if (!configured) {
+      onAuthed?.();
+      onClose();
+    }
   };
 
   const tab = (active: boolean): CSSProperties => ({
@@ -134,9 +145,22 @@ export default function AuthModal({
           </button>
         </div>
 
-        <h2 style={{ margin: "14px 0 24px", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
-          {mode === "signin" ? "Welcome back." : "Create your account."}
+        <h2 style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
+          {reason === "reserve"
+            ? mode === "signin"
+              ? "Sign in to reserve."
+              : "Join to reserve."
+            : mode === "signin"
+              ? "Welcome back."
+              : "Create your account."}
         </h2>
+        {reason === "reserve" ? (
+          <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
+            Reservations are held under your account. Sign in or create one to commit to this batch — your bottle picks up right where you left off.
+          </p>
+        ) : (
+          <div style={{ height: 24 }} />
+        )}
 
         <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
           <button onClick={() => { setMode("signin"); setError(null); }} style={tab(mode === "signin")}>
