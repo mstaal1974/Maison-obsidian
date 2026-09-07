@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import type { Fragrance, FormatKey, FormatStatus } from "./data";
+import { bottleImageFor, type Fragrance, type FormatKey, type FormatStatus } from "./data";
 import type { AuthUser } from "./auth";
 import {
   demoUpsertFragrance,
@@ -55,7 +55,8 @@ function toPayload(f: Fragrance): Record<string, unknown> {
     heart: f.heart,
     base: f.base,
     profile: f.profile ?? [],
-    image_url: f.imageUrl ?? null,
+    // The house render is implied by the slug; only persist a real upload.
+    image_url: f.imageUrl && f.imageUrl !== bottleImageFor(f.slug) ? f.imageUrl : null,
     format_prices: f.formatPrices ?? {},
     format_status: f.formatStatus ?? {},
     stock_car: f.stockCar ?? 0,

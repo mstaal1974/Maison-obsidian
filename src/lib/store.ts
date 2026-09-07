@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { type Fragrance, type FormatKey, type FormatStatus, FRAGS } from "./data";
+import { type Fragrance, type FormatKey, type FormatStatus, FRAGS, withBottleImage } from "./data";
 import { supabase, type FragranceRow } from "./supabase";
 import { demoFragrances, subscribeCatalogue } from "./catalogue";
 
 type Source = "seed" | "supabase";
 
 function rowToFragrance(r: FragranceRow): Fragrance {
-  return {
+  return withBottleImage({
     id: r.id,
     slug: r.slug,
     name: r.name,
@@ -37,7 +37,7 @@ function rowToFragrance(r: FragranceRow): Fragrance {
     stockCar: r.stock_car,
     stockWash: r.stock_wash,
     stockMoist: r.stock_moist,
-  };
+  });
 }
 
 /**
