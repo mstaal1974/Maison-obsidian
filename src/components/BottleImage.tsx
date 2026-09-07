@@ -1,8 +1,8 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { bottleBackdrop } from "./adminStyles";
 
 interface BottleImageProps {
-  /** Admin-uploaded transparent PNG; falls back to the stock bottle photo. */
+  /** Transparent PNG render (admin upload or /assets/<slug>.png); falls back to the stock bottle photo. */
   imageUrl?: string;
   fallbackSrc: string;
   alt: string;
@@ -29,7 +29,10 @@ export default function BottleImage({
   objectPosition = "center 30%",
   style,
 }: BottleImageProps) {
-  if (!imageUrl) {
+  // A render that fails to load (no file for this slug yet) drops to the stock
+  // photo. Keyed by URL so a later, different image gets its own attempt.
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!imageUrl || failed === imageUrl) {
     // Stock photography is shot on a light set; a vignette and a touch less
     // brightness sit it into the near-black storefront until real renders land.
     return (
@@ -50,6 +53,7 @@ export default function BottleImage({
         src={imageUrl}
         alt={alt}
         loading="lazy"
+        onError={() => setFailed(imageUrl)}
         style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", padding: "6% 10%", boxSizing: "border-box" }}
       />
     </div>

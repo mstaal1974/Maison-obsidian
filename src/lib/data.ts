@@ -36,8 +36,9 @@ export interface Fragrance {
   stock50?: number;
   lowStock?: number;
   oilMl?: number; // raw oil on hand (ml), filled into bottles on demand
-  // Presentation. `imageUrl` is an admin-uploaded transparent PNG of the bottle
-  // (absent ⇒ stock bottle photography); `profile` is the three-word scent
+  // Presentation. `imageUrl` is a transparent PNG of the bottle: an admin
+  // upload, else the house render at /assets/<slug>.png (see bottleImageFor),
+  // else stock bottle photography. `profile` is the three-word scent
   // descriptor set by the AI conception, e.g. ["Dark", "Resinous", "Woody"].
   imageUrl?: string;
   profile?: string[];
@@ -54,7 +55,22 @@ export interface Fragrance {
 export type FormatKey = "perf10" | "perf30" | "perf50" | "car" | "wash" | "moist" | "ritual";
 export type FormatStatus = "live" | "coming_soon" | "hidden";
 
-export const FRAGS: Fragrance[] = [
+/**
+ * The house bottle render for a fragrance: a transparent PNG named after its
+ * slug in public/assets (e.g. /assets/smoky-obsidian.png). Used whenever no
+ * admin-uploaded image is set; BottleImage falls back to stock photography if
+ * the file is missing, so a new fragrance without a render still displays.
+ */
+export function bottleImageFor(slug: string): string {
+  return `/assets/${slug}.png`;
+}
+
+/** Fills in the house bottle render for a fragrance that has no image set. */
+export function withBottleImage<T extends Pick<Fragrance, "slug" | "imageUrl">>(f: T): T {
+  return f.imageUrl ? f : { ...f, imageUrl: bottleImageFor(f.slug) };
+}
+
+const SEED: Fragrance[] = [
   {
     id: "f1",
     slug: "smoky-obsidian",
@@ -532,6 +548,8 @@ export const FRAGS: Fragrance[] = [
     base: ["Oud", "Leather", "Incense"],
   },
 ];
+
+export const FRAGS: Fragrance[] = SEED.map(withBottleImage);
 
 // ─── Design tokens ───────────────────────────────────────────────────────────
 export const GOLD = "#c9a961";
