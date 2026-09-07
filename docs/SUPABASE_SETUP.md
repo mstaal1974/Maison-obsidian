@@ -206,6 +206,11 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   car / wash / moisturiser stock to `fragrances`, a `format` + `qty` on `commits`, the
   `admin_set_formats` RPC behind the admin **Product Matrix**, and re-creates
   `commit_to_batch` with the two extra arguments. Apply it after `0008`.
+- **Scent requests** — migration `0010_scent_requests.sql` adds the `scent_requests` table
+  and the `request_scent` RPC. When **Find my match** has nothing for what a customer
+  typed (or only nearest profiles), they can request it; the asks land in the admin
+  console's **Requests** tab, grouped with a count, where you mark them sourced or
+  declined. Anonymous visitors can request; only admins can read. Apply it after `0009`.
 - **Bottle images** — migration `0008_ai_conception.sql` creates the public
   `fragrance-images` storage bucket (PNG/WebP, 4 MB) with admin-only writes. Nothing else
   to configure; uploads from the admin console land there and the public URL is stored on

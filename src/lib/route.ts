@@ -16,7 +16,8 @@ export type Route =
 
 export function parseHash(hash: string): Route {
   const h = hash.replace(/^#\/?/, "");
-  const [head, ...rest] = h.split("/");
+  // Split the query string off first so "#/find?q=…" still routes to "find".
+  const [head, ...rest] = h.split("?")[0].split("/");
   const tail = rest.join("/");
   switch (head) {
     case "":
