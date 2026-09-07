@@ -1,4 +1,5 @@
 import { type CSSProperties, useState } from "react";
+import { bottleBackdrop } from "./adminStyles";
 import { type Fragrance, GOLD, money } from "../lib/data";
 
 interface ProductDetailProps {
@@ -125,40 +126,52 @@ export default function ProductDetail({
               style={{
                 position: "absolute",
                 inset: 0,
-                background: `radial-gradient(60% 50% at 50% 62%, ${frag.accent}26, transparent 66%)`,
+                background: frag.imageUrl
+                  ? bottleBackdrop(frag.accent, frag.liquid)
+                  : `radial-gradient(60% 50% at 50% 62%, ${frag.accent}26, transparent 66%)`,
               }}
             />
-            <img
-              src="/assets/bottle-pdp.jpg"
-              alt={`${frag.name} bottle`}
-              style={{ display: "block", width: "100%", height: "auto", position: "relative" }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: "51.5%",
-                top: "60.6%",
-                width: "25%",
-                transform: "translate(-50%,-50%)",
-                textAlign: "center",
-                pointerEvents: "none",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "'Cormorant Garamond',serif",
-                  fontWeight: 500,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.09em",
-                  lineHeight: 1.08,
-                  color: "#c3a263",
-                  fontSize: "clamp(8px,2.6cqw,16px)",
-                  textShadow: "0 1px 1px rgba(0,0,0,0.55),0 0 1px rgba(0,0,0,0.45)",
-                }}
-              >
-                {frag.name}
-              </div>
-            </div>
+            {frag.imageUrl ? (
+              <img
+                src={frag.imageUrl}
+                alt={`${frag.name} bottle`}
+                style={{ display: "block", width: "100%", aspectRatio: "4 / 5", objectFit: "contain", padding: "8% 12%", boxSizing: "border-box", position: "relative" }}
+              />
+            ) : (
+              <>
+                <img
+                  src="/assets/bottle-pdp.jpg"
+                  alt={`${frag.name} bottle`}
+                  style={{ display: "block", width: "100%", height: "auto", position: "relative" }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "51.5%",
+                    top: "60.6%",
+                    width: "25%",
+                    transform: "translate(-50%,-50%)",
+                    textAlign: "center",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "'Cormorant Garamond',serif",
+                      fontWeight: 500,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.09em",
+                      lineHeight: 1.08,
+                      color: "#c3a263",
+                      fontSize: "clamp(8px,2.6cqw,16px)",
+                      textShadow: "0 1px 1px rgba(0,0,0,0.55),0 0 1px rgba(0,0,0,0.45)",
+                    }}
+                  >
+                    {frag.name}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <p
             style={{
@@ -171,7 +184,7 @@ export default function ProductDetail({
               color: "rgba(243,236,220,0.4)",
             }}
           >
-            Live preview · engraving updates as you type
+            {frag.imageUrl ? "Atelier render" : "Live preview · engraving updates as you type"}
           </p>
           {hasEngraving && (
             <div style={{ marginTop: 14, textAlign: "center" }}>

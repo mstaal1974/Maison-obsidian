@@ -36,6 +36,11 @@ export interface Fragrance {
   stock50?: number;
   lowStock?: number;
   oilMl?: number; // raw oil on hand (ml), filled into bottles on demand
+  // Presentation. `imageUrl` is an admin-uploaded transparent PNG of the bottle
+  // (absent ⇒ stock bottle photography); `profile` is the three-word scent
+  // descriptor set by the AI conception, e.g. ["Dark", "Resinous", "Woody"].
+  imageUrl?: string;
+  profile?: string[];
 }
 
 export const FRAGS: Fragrance[] = [

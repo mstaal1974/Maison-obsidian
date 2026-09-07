@@ -53,6 +53,8 @@ function toPayload(f: Fragrance): Record<string, unknown> {
     top: f.top,
     heart: f.heart,
     base: f.base,
+    profile: f.profile ?? [],
+    image_url: f.imageUrl ?? null,
     stock_10ml: f.stock10 ?? 0,
     stock_30ml: f.stock30 ?? 0,
     stock_50ml: f.stock50 ?? 0,

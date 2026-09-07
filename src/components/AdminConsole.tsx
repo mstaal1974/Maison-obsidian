@@ -1,5 +1,8 @@
-import { type CSSProperties, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { type Fragrance, GOLD, money } from "../lib/data";
+import { type CSSProperties, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { type Fragrance, money } from "../lib/data";
+import { inspectPng, uploadFragranceImage } from "../lib/conceive";
+import ConceiveFragrance from "./ConceiveFragrance";
+import { label, field, btnGold, btnGhost, bottleBackdrop } from "./adminStyles";
 import {
   adminUpsertFragrance,
   adminDeleteFragrance,
@@ -52,49 +55,8 @@ const BLANK: Fragrance = {
   stock50: 0,
   lowStock: 5,
   oilMl: 0,
-};
-
-const label: CSSProperties = {
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 9,
-  letterSpacing: "0.2em",
-  textTransform: "uppercase",
-  color: "rgba(243,236,220,0.45)",
-};
-const field: CSSProperties = {
-  width: "100%",
-  background: "none",
-  border: "1px solid #1f1f27",
-  outline: "none",
-  height: 40,
-  padding: "0 12px",
-  color: "#f3ecdc",
-  fontFamily: "'Space Mono',monospace",
-  fontSize: 12,
-};
-const btnGold: CSSProperties = {
-  background: GOLD,
-  color: "#0b0b0d",
-  border: 0,
-  cursor: "pointer",
-  height: 40,
-  padding: "0 20px",
-  fontSize: 10.5,
-  letterSpacing: "0.24em",
-  textTransform: "uppercase",
-  fontWeight: 600,
-};
-const btnGhost: CSSProperties = {
-  background: "none",
-  color: "rgba(243,236,220,0.75)",
-  border: "1px solid #1f1f27",
-  cursor: "pointer",
-  height: 40,
-  padding: "0 18px",
-  fontSize: 10.5,
-  letterSpacing: "0.2em",
-  textTransform: "uppercase",
-  fontWeight: 600,
+  profile: [],
+  imageUrl: undefined,
 };
 
 export default function AdminConsole({ fragrances, configured, onReload, demoCommits }: AdminConsoleProps) {
@@ -156,7 +118,11 @@ function Catalogue({
   demoCommits: AdminCommitRow[];
 }) {
   const [editing, setEditing] = useState<Fragrance | null>(null);
+  // A PNG chosen in the AI panel travels with the draft into the editor.
+  const [editingImage, setEditingImage] = useState<File | null>(null);
+  const [conceiving, setConceiving] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [remoteCounts, setRemoteCounts] = useState<SizeCounts | null>(null);
 
   // Demo: aggregate the local commits by fragrance + size.
@@ -189,13 +155,25 @@ function Catalogue({
 
   const counts = configured ? remoteCounts ?? {} : demoCounts;
 
-  const save = async (f: Fragrance) => {
+  // Saves a fragrance, uploading a freshly chosen bottle PNG first so the row
+  // is written with its final image URL.
+  const save = async (f: Fragrance, image: File | null = null) => {
     setBusy(true);
-    const id = await adminUpsertFragrance(f);
-    if (id) await adminSetOil(id, f.oilMl ?? 0);
-    if (configured) onReload();
-    setBusy(false);
-    setEditing(null);
+    setSaveError(null);
+    try {
+      const imageUrl = image ? await uploadFragranceImage(image, f.slug) : f.imageUrl;
+      const id = await adminUpsertFragrance({ ...f, imageUrl });
+      if (!id) throw new Error("The catalogue rejected the save — check the slug is unique.");
+      await adminSetOil(id, f.oilMl ?? 0);
+      if (configured) onReload();
+      setEditing(null);
+      setEditingImage(null);
+      setConceiving(false);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Save failed.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const remove = async (id: string, name: string) => {
@@ -210,14 +188,62 @@ function Catalogue({
         <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "rgba(243,236,220,0.55)" }}>
           {fragrances.length} fragrances
         </div>
-        <button style={btnGold} onClick={() => setEditing({ ...BLANK })}>
-          + Add Fragrance
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            style={{ ...btnGhost, borderColor: "rgba(201,169,97,0.45)", color: "#c9a961" }}
+            onClick={() => {
+              setConceiving(true);
+              setEditing(null);
+            }}
+          >
+            ✦ Conceive with AI
+          </button>
+          <button
+            style={btnGold}
+            onClick={() => {
+              setEditing({ ...BLANK });
+              setEditingImage(null);
+              setConceiving(false);
+            }}
+          >
+            + Add Fragrance
+          </button>
+        </div>
       </div>
 
-      {editing && <Editor initial={editing} busy={busy} onSave={save} onCancel={() => setEditing(null)} />}
+      {saveError && (
+        <p role="alert" style={{ margin: "0 0 14px", fontSize: 12.5, color: "#d98a6a" }}>
+          {saveError}
+        </p>
+      )}
 
-      <div style={{ display: "grid", gap: 10, marginTop: editing ? 24 : 0 }}>
+      {conceiving && !editing && (
+        <ConceiveFragrance
+          fragrances={fragrances}
+          busy={busy}
+          onAdd={save}
+          onRefine={(draft, image) => {
+            setEditing(draft);
+            setEditingImage(image);
+          }}
+          onClose={() => setConceiving(false)}
+        />
+      )}
+
+      {editing && (
+        <Editor
+          initial={editing}
+          initialImage={editingImage}
+          busy={busy}
+          onSave={save}
+          onCancel={() => {
+            setEditing(null);
+            setEditingImage(null);
+          }}
+        />
+      )}
+
+      <div style={{ display: "grid", gap: 10, marginTop: editing || conceiving ? 24 : 0 }}>
         {fragrances.map((f) => (
           <Row
             key={f.id}
@@ -302,7 +328,15 @@ function Row({
     >
       <div style={{ minWidth: 200, flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ width: 10, height: 28, background: f.liquid, flexShrink: 0 }} />
+          {f.imageUrl ? (
+            <img
+              src={f.imageUrl}
+              alt=""
+              style={{ width: 34, height: 44, objectFit: "contain", background: bottleBackdrop(f.accent, f.liquid), flexShrink: 0 }}
+            />
+          ) : (
+            <span style={{ width: 10, height: 28, background: f.liquid, flexShrink: 0 }} />
+          )}
           <div>
             <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#f3ecdc", lineHeight: 1 }}>{f.name}</div>
             <div style={{ ...label, marginTop: 4 }}>
@@ -356,16 +390,39 @@ function Row({
 
 function Editor({
   initial,
+  initialImage = null,
   busy,
   onSave,
   onCancel,
 }: {
   initial: Fragrance;
+  initialImage?: File | null;
   busy: boolean;
-  onSave: (f: Fragrance) => void;
+  onSave: (f: Fragrance, image: File | null) => void;
   onCancel: () => void;
 }) {
   const [f, setF] = useState<Fragrance>(initial);
+  const [image, setImage] = useState<File | null>(initialImage);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  // Object URL for the preview; revoked when the file changes or we unmount.
+  const preview = useMemo(() => (image ? URL.createObjectURL(image) : null), [image]);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  const pickImage = async (file: File | null) => {
+    if (!file) return;
+    const info = await inspectPng(file);
+    if (!info.ok) {
+      setImageError(info.reason ?? "Invalid PNG.");
+      return;
+    }
+    setImageError(info.transparent ? null : "No alpha channel — a transparent background looks best on the tiles.");
+    setImage(file);
+  };
+  const shownImage = preview ?? f.imageUrl;
   const set = <K extends keyof Fragrance>(k: K, v: Fragrance[K]) => setF((p) => ({ ...p, [k]: v }));
   const dollars = (cents: number) => (cents ? String(cents / 100) : "");
   const notes = (arr: string[]) => arr.join(", ");
@@ -425,6 +482,59 @@ function Editor({
         {cell("Top notes (comma-separated)", <input style={field} value={notes(f.top)} onChange={(e) => set("top", parseNotes(e.target.value))} />)}
         {cell("Heart notes", <input style={field} value={notes(f.heart)} onChange={(e) => set("heart", parseNotes(e.target.value))} />)}
         {cell("Base notes", <input style={field} value={notes(f.base)} onChange={(e) => set("base", parseNotes(e.target.value))} />)}
+        {cell(
+          "Scent profile (three words, comma-separated)",
+          <input style={field} placeholder="Dark, Resinous, Woody" value={notes(f.profile ?? [])} onChange={(e) => set("profile", parseNotes(e.target.value).slice(0, 3))} />,
+        )}
+        <div style={{ display: "flex", gap: 18, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div
+            style={{
+              width: 120,
+              height: 150,
+              flexShrink: 0,
+              background: bottleBackdrop(f.accent, f.liquid),
+              border: "1px solid #1f1f27",
+              overflow: "hidden",
+            }}
+          >
+            {shownImage ? (
+              <img src={shownImage} alt="Bottle" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "8% 12%", boxSizing: "border-box" }} />
+            ) : (
+              <img src="/assets/bottle-portrait.webp" alt="Placeholder bottle" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", opacity: 0.35 }} />
+            )}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minWidth: 220 }}>
+            <span style={label}>Bottle image (transparent PNG)</span>
+            <input ref={fileInput} type="file" accept="image/png" hidden onChange={(e) => void pickImage(e.target.files?.[0] ?? null)} />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" style={{ ...btnGhost, height: 34 }} onClick={() => fileInput.current?.click()}>
+                {shownImage ? "Replace PNG" : "Choose PNG"}
+              </button>
+              {(image || f.imageUrl) && (
+                <button
+                  type="button"
+                  style={{ ...btnGhost, height: 34, color: "#d98a6a" }}
+                  onClick={() => {
+                    setImage(null);
+                    set("imageUrl", undefined);
+                    setImageError(null);
+                    if (fileInput.current) fileInput.current.value = "";
+                  }}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <span style={{ fontSize: 11.5, lineHeight: 1.5, color: imageError ? "#d98a6a" : "rgba(243,236,220,0.45)" }}>
+              {imageError ??
+                (image
+                  ? `${image.name} — uploads when you save.`
+                  : f.imageUrl
+                    ? "Current render kept — replace or remove it here."
+                    : "Without an image the placeholder bottle photography is shown.")}
+            </span>
+          </div>
+        </div>
         <div style={grid}>
           {cell("Stock 10ml", <input type="number" style={field} value={f.stock10 ?? 0} onChange={(e) => set("stock10", Math.max(0, Number(e.target.value)))} />)}
           {cell("Stock 30ml", <input type="number" style={field} value={f.stock30 ?? 0} onChange={(e) => set("stock30", Math.max(0, Number(e.target.value)))} />)}
@@ -436,7 +546,7 @@ function Editor({
         </label>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-        <button style={{ ...btnGold, opacity: valid && !busy ? 1 : 0.5 }} disabled={!valid || busy} onClick={() => onSave(f)}>
+        <button style={{ ...btnGold, opacity: valid && !busy ? 1 : 0.5 }} disabled={!valid || busy} onClick={() => onSave(f, image)}>
           {busy ? "Saving…" : "Save"}
         </button>
         <button style={btnGhost} onClick={onCancel}>

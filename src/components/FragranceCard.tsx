@@ -1,4 +1,5 @@
 import { type Fragrance, GOLD, money } from "../lib/data";
+import BottleImage from "./BottleImage";
 
 // Gender-coded surround for each tile: navy (masculine), pink (feminine),
 // green (unisex). Muted jewel tones so they read on the near-black backdrop
@@ -45,18 +46,13 @@ export default function FragranceCard({
       }}
     >
       <div style={{ position: "relative", height: 230, overflow: "hidden", background: "#0e0e12" }}>
-        <img
-          src="/assets/bottle-portrait.webp"
+        <BottleImage
+          imageUrl={frag.imageUrl}
+          fallbackSrc="/assets/bottle-portrait.webp"
           alt={`${frag.name} bottle`}
-          loading="lazy"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: "center 30%",
-          }}
+          accent={frag.accent}
+          liquid={frag.liquid}
+          style={{ position: "absolute", inset: 0 }}
         />
         <div
           aria-hidden

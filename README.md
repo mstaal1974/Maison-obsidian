@@ -55,6 +55,11 @@ Faithful to the redesign comp:
 - **Payments** — authorize-later Stripe: each commit authorizes a hold and records
   a `payment_intent_id`; a `capture-batch` Edge Function captures the holds when the
   batch is met (or releases them if it closes short).
+- **AI fragrance conception** (admin) — type a reference fragrance and Claude proposes
+  the Maison Obsidian name (**Brand Conception**), writes tagline, story and packaging
+  copy (**Copywriting**), and deconstructs the scent into top / heart / base notes
+  (**Olfactory Breakdown**). Attach a transparent bottle PNG (or keep the placeholder)
+  and add the product in one click; everything lands in the regular editor for tweaks.
 - **Admin console** (`#/admin`, admins only) — add / edit / remove fragrances and
   manage per-size inventory (with low-stock flags), track raw oil on hand against
   per-size commitment demand, plus a fulfillment queue that turns commits into
@@ -100,15 +105,18 @@ src/
 │   ├── admin.ts           useIsAdmin() + fragrance CRUD / inventory / fulfillment ops
 │   ├── catalogue.ts       In-memory demo stores (catalogue + shipments) for offline
 │   ├── stripe.ts          authorizePayment() — authorize-later hold (stub + real seam)
+│   ├── conceive.ts        AI conception client, PNG inspection, bottle image upload
 │   ├── concierge.ts       Chatbot: catalogue summary, streaming client, offline fallback
 │   └── store.ts           useFragrances() + recordCommit() + fetch{MyCommits,MyShipments}()
 └── components/
     ├── Header.tsx  Hero.tsx  Vault.tsx  FragranceCard.tsx
     ├── Method.tsx  VIP.tsx   ProductDetail.tsx  CommitDrawer.tsx
     ├── AuthModal.tsx  MyReservations.tsx  AdminConsole.tsx  ChatWidget.tsx
+    ├── ConceiveFragrance.tsx  BottleImage.tsx  adminStyles.ts
     ├── Footer.tsx  LayoutSwitch.tsx  Logo.tsx
 api/
-└── chat.ts                Vercel serverless proxy → Claude (streams the concierge reply)
+├── chat.ts                Vercel serverless proxy → Claude (streams the concierge reply)
+└── conceive.ts            Vercel serverless → Claude structured output (AI fragrance conception)
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
 ├── migrations/
@@ -118,7 +126,8 @@ supabase/
 │   ├── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
 │   ├── 0005_chat.sql            concierge transcripts + log_chat_message RPC, RLS
 │   ├── 0006_oil_inventory.sql   oil_ml + admin_set_oil; commit_size_counts (per-size demand)
-│   └── 0007_reconcile_committed.sql  committed recomputed from real rows; batch = per-size sum
+│   ├── 0007_reconcile_committed.sql  committed recomputed from real rows; batch = per-size sum
+│   └── 0008_ai_conception.sql   image_url + profile columns, fragrance-images bucket, upsert RPC
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -232,6 +241,40 @@ The batch model holds a card at commit time and only charges when the batch is m
 > Live Stripe isn't exercised in this environment — the client authorize is stubbed
 > and the Edge Function is wired to the real Stripe/Supabase SDKs but ships as a
 > deployable stub. The rest (intent id on every commit, status lifecycle) is real.
+
+### AI fragrance conception (admin)
+
+**Conceive with AI** in the admin console's Catalogue tab turns a reference fragrance
+name into a ready-to-publish catalogue entry. `ConceiveFragrance` POSTs the reference
+(plus an optional brief and the existing house names, so nothing collides) to
+**`api/conceive.ts`**, which asks `claude-opus-5` for a JSON conception constrained by a
+**structured-output schema** — house name + three alternates, three-word scent profile,
+family, gender positioning, "Inspired by Brand - Fragrance" attribution, tagline,
+one-line story, 60–90 words of packaging copy, top / heart / base notes, juice and
+accent colours, and experience tags. The result renders as three panels:
+
+1. **Brand Conception** — editable name, alternates as one-click chips, profile,
+   family / gender, attribution.
+2. **Copywriting** — tagline, story, packaging copy.
+3. **Olfactory Breakdown** — top / heart / base chips, colour swatches, experience tags.
+
+Below them a drop zone takes a **transparent PNG** of the bottle (validated by header:
+signature, dimensions, alpha channel / tRNS; 4 MB cap). **Add to catalogue** uploads the
+PNG to the public `fragrance-images` bucket (`0008_ai_conception.sql`; admins-only
+writes via `is_admin()`), then upserts the fragrance with `image_url` and `profile`.
+Prices default to the catalogue medians and stock starts at zero. **Refine in editor**
+opens the same draft (PNG included) in the regular editor, which also gained the image
+field and the profile field for existing scents.
+
+Uploaded renders replace the stock photography on the Vault tile and the product page,
+sitting on a backdrop tinted with the scent's liquid and accent colours (`BottleImage`).
+Without an image the placeholder bottle photography is used as before.
+
+Guard rails: when Supabase is configured the endpoint requires a Supabase access
+token that passes `is_admin()` (401/403 otherwise); it's rate-limited to 10/min per IP;
+refusals return 422 and are surfaced in the panel. It needs `ANTHROPIC_API_KEY` on the
+server — in the offline demo (Vite alone, no serverless) the panel explains that and
+the manual **+ Add Fragrance** path still works, with the PNG inlined as a data URL.
 
 ### Concierge chatbot (Claude)
 
