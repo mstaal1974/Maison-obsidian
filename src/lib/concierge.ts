@@ -1,5 +1,6 @@
 import { type Fragrance, type Filter, matches, money } from "./data";
 import { supabase } from "./supabase";
+import { formatPrice, formatStatus } from "./formats";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -64,7 +65,8 @@ export function catalogueSummary(frags: Fragrance[]): string {
       (f) =>
         `- ${f.name} (${f.inspiration}; ${f.gender}${f.vipOnly ? "; VIP-only" : ""}): ${f.tagline} ` +
         `Notes — top ${f.top.join("/")}, heart ${f.heart.join("/")}, base ${f.base.join("/")}. ` +
-        `10ml ${money(f.price10)} · 30ml ${money(f.price30)} · 50ml ${money(f.price)}.`,
+        `10ml ${money(f.price10)} · 30ml ${money(f.price30)} · 50ml ${money(f.price)} · car diffuser ${money(formatPrice(f, "car"))}` +
+        (formatStatus(f, "wash") === "live" ? ` · body wash ${money(formatPrice(f, "wash"))} · moisturiser ${money(formatPrice(f, "moist"))}.` : " · body care coming soon."),
     )
     .join("\n");
 }

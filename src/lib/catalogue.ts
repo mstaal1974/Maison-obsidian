@@ -37,6 +37,11 @@ export function demoSetStock(id: string, s10?: number, s30?: number, s50?: numbe
   emitCat();
 }
 
+export function demoPatchFragrance(id: string, patch: (f: Fragrance) => Fragrance): void {
+  demoCat = demoCat.map((x) => (x.id === id ? patch(x) : x));
+  emitCat();
+}
+
 export function demoSetOil(id: string, oilMl: number): void {
   demoCat = demoCat.map((x) => (x.id === id ? { ...x, oilMl } : x));
   emitCat();

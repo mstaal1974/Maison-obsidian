@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import type { Fragrance } from "./data";
+import type { Fragrance, FormatKey, FormatStatus } from "./data";
 import type { AuthUser } from "./auth";
 import {
   demoUpsertFragrance,
@@ -8,6 +8,7 @@ import {
   demoSetStock,
   demoSetOil,
   demoSetShipment,
+  demoPatchFragrance,
   type DemoShipment,
 } from "./catalogue";
 
@@ -53,6 +54,13 @@ function toPayload(f: Fragrance): Record<string, unknown> {
     top: f.top,
     heart: f.heart,
     base: f.base,
+    profile: f.profile ?? [],
+    image_url: f.imageUrl ?? null,
+    format_prices: f.formatPrices ?? {},
+    format_status: f.formatStatus ?? {},
+    stock_car: f.stockCar ?? 0,
+    stock_wash: f.stockWash ?? 0,
+    stock_moist: f.stockMoist ?? 0,
     stock_10ml: f.stock10 ?? 0,
     stock_30ml: f.stock30 ?? 0,
     stock_50ml: f.stock50 ?? 0,
@@ -108,11 +116,57 @@ export async function adminSetStock(
   return !error;
 }
 
+// ─── Product matrix: per-format price / status / stock ───────────────────────
+
+export interface FormatPatch {
+  prices?: Partial<Record<FormatKey, number | null>>; // null clears an override
+  status?: Partial<Record<FormatKey, FormatStatus>>;
+  stock?: { car?: number; wash?: number; moist?: number };
+}
+
+/** Patches one fragrance's format matrix (merge semantics on the JSON maps). */
+export async function adminSetFormats(id: string, patch: FormatPatch): Promise<boolean> {
+  if (!supabase) {
+    demoPatchFragrance(id, (f) => {
+      const prices = { ...(f.formatPrices ?? {}) };
+      for (const [k, v] of Object.entries(patch.prices ?? {})) {
+        if (v == null) delete prices[k as FormatKey];
+        else prices[k as FormatKey] = v;
+      }
+      return {
+        ...f,
+        formatPrices: prices,
+        formatStatus: { ...(f.formatStatus ?? {}), ...(patch.status ?? {}) },
+        stockCar: patch.stock?.car ?? f.stockCar,
+        stockWash: patch.stock?.wash ?? f.stockWash,
+        stockMoist: patch.stock?.moist ?? f.stockMoist,
+      };
+    });
+    return true;
+  }
+  const { error } = await supabase.rpc("admin_set_formats", {
+    p_id: id,
+    p_prices: patch.prices ?? {},
+    p_status: patch.status ?? {},
+    p_stock_car: patch.stock?.car ?? null,
+    p_stock_wash: patch.stock?.wash ?? null,
+    p_stock_moist: patch.stock?.moist ?? null,
+  });
+  return !error;
+}
+
+/** Applies the same patch to every fragrance (bulk actions in the matrix). */
+export async function adminSetFormatsAll(ids: string[], patch: FormatPatch): Promise<boolean> {
+  const results = await Promise.all(ids.map((id) => adminSetFormats(id, patch)));
+  return results.every(Boolean);
+}
+
 // ─── Fulfillment ─────────────────────────────────────────────────────────────
 
 export interface AdminCommitRow {
   id: string;
   fragrance_id: string;
+  format?: string | null;
   size_ml: number;
   charge_cents: number | null;
   engraving: string | null;
@@ -126,7 +180,7 @@ export async function fetchAllCommits(): Promise<AdminCommitRow[] | null> {
   try {
     const { data, error } = await supabase
       .from("commits")
-      .select("id, fragrance_id, size_ml, charge_cents, engraving, status, created_at")
+      .select("id, fragrance_id, format, size_ml, charge_cents, engraving, status, created_at")
       .order("created_at", { ascending: false });
     if (error) return null;
     return (data ?? []) as AdminCommitRow[];

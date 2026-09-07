@@ -196,8 +196,20 @@ tracking / no real capture), so nothing breaks while you wire the real accounts.
 
 Two integrations live **outside** Supabase — listed here so the picture is complete:
 
-- **Concierge (Claude)** — set `ANTHROPIC_API_KEY` in the **Vercel** project (server-side,
-  not `VITE_`). Powers `/api/chat`. Without it the widget uses its local fallback.
+- **Concierge + AI conception (Claude)** — set `ANTHROPIC_API_KEY` in the **Vercel** project
+  (server-side, not `VITE_`). Powers `/api/chat` and `/api/conceive` (the admin console's
+  **Conceive with AI**). Without it the widget uses its local fallback and the conception
+  panel reports that it isn't configured. `/api/conceive` checks the caller against
+  `is_admin()` using `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (already in the Vercel
+  project) — or `SUPABASE_URL` / `SUPABASE_ANON_KEY` if you prefer server-only names.
+- **Formats** — migration `0009_formats.sql` adds the per-format price/status maps and
+  car / wash / moisturiser stock to `fragrances`, a `format` + `qty` on `commits`, the
+  `admin_set_formats` RPC behind the admin **Product Matrix**, and re-creates
+  `commit_to_batch` with the two extra arguments. Apply it after `0008`.
+- **Bottle images** — migration `0008_ai_conception.sql` creates the public
+  `fragrance-images` storage bucket (PNG/WebP, 4 MB) with admin-only writes. Nothing else
+  to configure; uploads from the admin console land there and the public URL is stored on
+  `fragrances.image_url`.
 - **Stripe authorize endpoint** — set `VITE_STRIPE_AUTHORIZE_URL` (frontend) to a
   serverless route that creates a `capture_method: "manual"` PaymentIntent and returns
   `{ paymentIntentId }`. Until then commits record a `pi_stub_*` id.
@@ -243,7 +255,8 @@ See [`.env.example`](../.env.example) for the full annotated list.
 | `VITE_SUPABASE_URL` | Frontend (Vite/Vercel) | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Frontend | Browser-safe anon key (RLS-guarded) |
 | `VITE_STRIPE_AUTHORIZE_URL` | Frontend | Serverless endpoint that mints manual-capture PaymentIntents (optional) |
-| `ANTHROPIC_API_KEY` | Vercel serverless | Concierge (`/api/chat`) — server-side only |
+| `ANTHROPIC_API_KEY` | Vercel serverless | Concierge (`/api/chat`) + AI conception (`/api/conceive`) — server-side only |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Vercel serverless (optional) | Admin check for `/api/conceive`; falls back to the `VITE_` pair |
 | `STRIPE_SECRET_KEY` | Supabase Edge secret | `capture-batch` — capture/cancel intents |
 | `AUSPOST_PAC_KEY` | Supabase Edge secret | Parcel Post rate lookups |
 | `AUSPOST_API_KEY` / `AUSPOST_API_PASSWORD` / `AUSPOST_ACCOUNT_NUMBER` / `AUSPOST_PRODUCT_ID` | Supabase Edge secret | Parcel Post label creation |

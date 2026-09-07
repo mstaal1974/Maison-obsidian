@@ -42,7 +42,52 @@ live data instead, with the seed as an automatic fallback.
 
 ## What's implemented
 
-Faithful to the redesign comp:
+**One fragrance. Multiple ways to experience it.** The fragrance is the master
+product; every way of buying it — 10 ml Discovery, 30 ml Everyday Pour, 50 ml
+Signature Pour, Car Diffuser, Body Wash, Moisturiser, the Complete Ritual set —
+is a *format* (SKU) of that fragrance, not a separate listing.
+
+- **Navigation** — `SHOP` (mega-menu: shop by fragrance / shop by format) ·
+  `FRAGRANCES` · `DISCOVERY` · `CAR` · `BODY & SETS` · `FIND YOUR SCENT`, plus a
+  persistent search icon and **Your bag (n)**. Gender is a filter, not the
+  architecture.
+- **Homepage** — hero (*Wear it. Live it. Take it with you.*), the four ranges
+  (Discover / Wear / Drive / Ritual), **Find your fragrance** (type a scent you
+  love → your Maison Obsidian match with a % score), **Shop by mood** chips with
+  horizontal scent cards, and the Obsidian Drive / Obsidian Ritual banners.
+- **Fragrance world** (`#/fragrance/:slug`) — gallery, name → profile → "Inspired
+  by the scent profile of …" (brand hierarchy reversed), experience icons,
+  **Choose your format** in four groups (Wear it / Drive with it / Live in it /
+  Complete the ritual) with *Coming soon · Notify me* for unlaunched formats,
+  qty + Add to bag, engraving, the notes band, *Also available in …* and *You
+  may also like*.
+- **Quick view** — the format drawer ("How would you like it?") from any card, so
+  nobody walks through five product pages to compare ways in.
+- **Bag** — format-level lines, Drive cross-sell ("Love X? Take it with you"),
+  *Reserve & authorise* checkout: each line becomes a commit (card authorised,
+  never charged, until the batch pours).
+- **Discovery** — 10 ml singles and the **Build your 5** Discovery Box.
+- **Collections** — `#/shop`, `#/shop/:facet` (him / her / unisex / mood / format),
+  `#/fragrances`, `#/car`, `#/body`, with gender · mood · format filter chips.
+- **Admin product matrix** — fragrance × format grid: stock, launch status
+  (live / coming soon / hidden) and price per cell, with bulk actions (enable car
+  diffuser for all, mark / launch the body range, change a format's price for all).
+  Bundles are intelligent: the Ritual's availability is the min of its parts.
+
+### Imagery from the design comp
+
+The layouts reference the comp's photography by path; until those files are
+dropped into `public/assets/` the stock bottle shots stand in (vignetted to sit
+on the dark theme). Add these to match the comp exactly:
+
+| Path | Used by |
+| --- | --- |
+| `assets/hero-lineup.jpg` | Homepage hero — 50 ml, 30 ml, discovery, car diffuser, wash, moisturiser |
+| `assets/tile-discover.jpg` / `tile-wear.jpg` / `tile-drive.jpg` / `tile-ritual.jpg` | "Choose your Obsidian" tiles |
+| `assets/banner-drive.jpg` / `banner-ritual.jpg` | Drive / Ritual banners and the Car / Body page headers |
+| per-fragrance transparent PNG | Uploaded from the admin console (tiles, product page, bag) |
+
+Earlier foundations, still in place:
 
 - **Header** — sticky, blurred; The Vault / The Method / VIP Club nav; commit
   counter; Sign In (auth modal) ↔ Account menu with the signed-in email + Sign Out.
@@ -55,6 +100,11 @@ Faithful to the redesign comp:
 - **Payments** — authorize-later Stripe: each commit authorizes a hold and records
   a `payment_intent_id`; a `capture-batch` Edge Function captures the holds when the
   batch is met (or releases them if it closes short).
+- **AI fragrance conception** (admin) — type a reference fragrance and Claude proposes
+  the Maison Obsidian name (**Brand Conception**), writes tagline, story and packaging
+  copy (**Copywriting**), and deconstructs the scent into top / heart / base notes
+  (**Olfactory Breakdown**). Attach a transparent bottle PNG (or keep the placeholder)
+  and add the product in one click; everything lands in the regular editor for tweaks.
 - **Admin console** (`#/admin`, admins only) — add / edit / remove fragrances and
   manage per-size inventory (with low-stock flags), track raw oil on hand against
   per-size commitment demand, plus a fulfillment queue that turns commits into
@@ -70,19 +120,10 @@ Faithful to the redesign comp:
   recommends from the live catalogue; falls back to a local rule-based concierge when the
   API key isn't set.
 - **Hero** — atmospheric landing with the four brand stats (30% · 4wk · 20 · DXB).
-- **The Vault** — catalogue with **All / For Him / For Her** tabs and two layouts a
-  floating switch toggles between: **Gallery** (liquid-swatch cards) and **Ledger**
-  (dense table). Each entry shows live `committed / moq` progress and VIP / Batch-Met
-  badges.
-- **Product detail** — hash-routed at `#/fragrance/:slug`; story, composition
-  (top / heart / base), stats, a **10 / 30 / 50 ml size selector** that drives the
-  volume, price and commit total, the **Custom Engraving engine** with a live label
-  preview, and the batch progress + *Commit to this Batch* CTA.
-- **The Method** — the four movements (Source → Macerate → Commit → Pour).
+- **The Method** — the four movements (Source → Macerate → Commit → Pour), now on
+  the `#/about` page with the range nomenclature and the VIP Club.
 - **VIP Club** — email enrolment that writes to the `subscribers` table (via the
   `enroll_subscriber` RPC) and unlocks VIP-only batches.
-- **Commit drawer** — slide-out confirming the reserved batch, chosen size + price,
-  engraving, and the authorize-not-charge promise.
 - **Footer** + film-grain overlay, responsive breakpoints, and reduced-motion support.
 
 ## Architecture
@@ -100,15 +141,23 @@ src/
 │   ├── admin.ts           useIsAdmin() + fragrance CRUD / inventory / fulfillment ops
 │   ├── catalogue.ts       In-memory demo stores (catalogue + shipments) for offline
 │   ├── stripe.ts          authorizePayment() — authorize-later hold (stub + real seam)
+│   ├── conceive.ts        AI conception client, PNG inspection, bottle image upload
+│   ├── formats.ts         Format/SKU model, moods, experience tags, find-my-match scoring
+│   ├── bag.ts             Bag lines, orders, Discovery Box picks (localStorage store)
+│   ├── route.ts           Hash router + path helpers
 │   ├── concierge.ts       Chatbot: catalogue summary, streaming client, offline fallback
 │   └── store.ts           useFragrances() + recordCommit() + fetch{MyCommits,MyShipments}()
 └── components/
-    ├── Header.tsx  Hero.tsx  Vault.tsx  FragranceCard.tsx
-    ├── Method.tsx  VIP.tsx   ProductDetail.tsx  CommitDrawer.tsx
+    ├── Header.tsx  Hero.tsx  ChooseObsidian.tsx  FindYourScent.tsx  MoodShop.tsx  RangeBanners.tsx
+    ├── Collection.tsx  Discovery.tsx  About.tsx  FragranceCard.tsx  ScentCard.tsx
+    ├── ProductDetail.tsx  QuickView.tsx  BagDrawer.tsx  FormatMatrix.tsx
+    ├── Method.tsx  VIP.tsx  ui.tsx  styles.ts
     ├── AuthModal.tsx  MyReservations.tsx  AdminConsole.tsx  ChatWidget.tsx
+    ├── ConceiveFragrance.tsx  BottleImage.tsx  adminStyles.ts
     ├── Footer.tsx  LayoutSwitch.tsx  Logo.tsx
 api/
-└── chat.ts                Vercel serverless proxy → Claude (streams the concierge reply)
+├── chat.ts                Vercel serverless proxy → Claude (streams the concierge reply)
+└── conceive.ts            Vercel serverless → Claude structured output (AI fragrance conception)
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
 ├── migrations/
@@ -118,7 +167,9 @@ supabase/
 │   ├── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
 │   ├── 0005_chat.sql            concierge transcripts + log_chat_message RPC, RLS
 │   ├── 0006_oil_inventory.sql   oil_ml + admin_set_oil; commit_size_counts (per-size demand)
-│   └── 0007_reconcile_committed.sql  committed recomputed from real rows; batch = per-size sum
+│   ├── 0007_reconcile_committed.sql  committed recomputed from real rows; batch = per-size sum
+│   ├── 0008_ai_conception.sql   image_url + profile columns, fragrance-images bucket, upsert RPC
+│   └── 0009_formats.sql         format_prices/format_status + car/wash/moist stock, commits.format, admin_set_formats
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -232,6 +283,40 @@ The batch model holds a card at commit time and only charges when the batch is m
 > Live Stripe isn't exercised in this environment — the client authorize is stubbed
 > and the Edge Function is wired to the real Stripe/Supabase SDKs but ships as a
 > deployable stub. The rest (intent id on every commit, status lifecycle) is real.
+
+### AI fragrance conception (admin)
+
+**Conceive with AI** in the admin console's Catalogue tab turns a reference fragrance
+name into a ready-to-publish catalogue entry. `ConceiveFragrance` POSTs the reference
+(plus an optional brief and the existing house names, so nothing collides) to
+**`api/conceive.ts`**, which asks `claude-opus-5` for a JSON conception constrained by a
+**structured-output schema** — house name + three alternates, three-word scent profile,
+family, gender positioning, "Inspired by Brand - Fragrance" attribution, tagline,
+one-line story, 60–90 words of packaging copy, top / heart / base notes, juice and
+accent colours, and experience tags. The result renders as three panels:
+
+1. **Brand Conception** — editable name, alternates as one-click chips, profile,
+   family / gender, attribution.
+2. **Copywriting** — tagline, story, packaging copy.
+3. **Olfactory Breakdown** — top / heart / base chips, colour swatches, experience tags.
+
+Below them a drop zone takes a **transparent PNG** of the bottle (validated by header:
+signature, dimensions, alpha channel / tRNS; 4 MB cap). **Add to catalogue** uploads the
+PNG to the public `fragrance-images` bucket (`0008_ai_conception.sql`; admins-only
+writes via `is_admin()`), then upserts the fragrance with `image_url` and `profile`.
+Prices default to the catalogue medians and stock starts at zero. **Refine in editor**
+opens the same draft (PNG included) in the regular editor, which also gained the image
+field and the profile field for existing scents.
+
+Uploaded renders replace the stock photography on the Vault tile and the product page,
+sitting on a backdrop tinted with the scent's liquid and accent colours (`BottleImage`).
+Without an image the placeholder bottle photography is used as before.
+
+Guard rails: when Supabase is configured the endpoint requires a Supabase access
+token that passes `is_admin()` (401/403 otherwise); it's rate-limited to 10/min per IP;
+refusals return 422 and are surfaced in the panel. It needs `ANTHROPIC_API_KEY` on the
+server — in the offline demo (Vite alone, no serverless) the panel explains that and
+the manual **+ Add Fragrance** path still works, with the PNG inlined as a data URL.
 
 ### Concierge chatbot (Claude)
 

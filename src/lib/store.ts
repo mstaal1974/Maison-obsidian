@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { type Fragrance, FRAGS } from "./data";
+import { type Fragrance, type FormatKey, type FormatStatus, FRAGS } from "./data";
 import { supabase, type FragranceRow } from "./supabase";
 import { demoFragrances, subscribeCatalogue } from "./catalogue";
 
@@ -30,6 +30,13 @@ function rowToFragrance(r: FragranceRow): Fragrance {
     stock50: r.stock_50ml,
     lowStock: r.low_stock_threshold,
     oilMl: r.oil_ml,
+    imageUrl: r.image_url ?? undefined,
+    profile: r.profile ?? [],
+    formatPrices: (r.format_prices ?? undefined) as Partial<Record<FormatKey, number>> | undefined,
+    formatStatus: (r.format_status ?? undefined) as Partial<Record<FormatKey, FormatStatus>> | undefined,
+    stockCar: r.stock_car,
+    stockWash: r.stock_wash,
+    stockMoist: r.stock_moist,
   };
 }
 
@@ -78,6 +85,8 @@ export async function recordCommit(
   sizeMl: number,
   chargeCents: number,
   paymentIntentId: string | null,
+  format: FormatKey = "perf50",
+  qty = 1,
 ): Promise<void> {
   if (!supabase) return;
   try {
@@ -87,6 +96,8 @@ export async function recordCommit(
       p_size_ml: sizeMl,
       p_charge_cents: chargeCents,
       p_payment_intent_id: paymentIntentId,
+      p_format: format,
+      p_qty: qty,
     });
   } catch {
     /* offline / RLS / network — optimistic UI already reflects the commit */
@@ -96,6 +107,7 @@ export async function recordCommit(
 export interface CommitRow {
   fragrance_id: string;
   engraving: string | null;
+  format?: string | null;
   size_ml: number;
   charge_cents: number | null;
   status: "authorized" | "captured" | "released" | "void";
@@ -111,7 +123,7 @@ export async function fetchMyCommits(userId: string): Promise<CommitRow[] | null
   try {
     const { data, error } = await supabase
       .from("commits")
-      .select("fragrance_id, engraving, size_ml, charge_cents, status, created_at")
+      .select("fragrance_id, engraving, format, size_ml, charge_cents, status, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) return null;

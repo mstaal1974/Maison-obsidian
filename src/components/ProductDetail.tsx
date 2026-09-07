@@ -1,487 +1,319 @@
-import { type CSSProperties, useState } from "react";
-import { type Fragrance, GOLD, money } from "../lib/data";
+import { useMemo, useState } from "react";
+import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
+import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceLine, experienceOf, relatedTo, type Sku } from "../lib/formats";
+import { navigate, paths } from "../lib/route";
+import BottleImage from "./BottleImage";
+import FragranceCard from "./FragranceCard";
+import { bottleBackdrop } from "./adminStyles";
+import { Arrow, Container, Icon, IconBadge, SideCaption, Chip } from "./ui";
+import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
 interface ProductDetailProps {
   frag: Fragrance;
-  effectiveCommitted: number;
+  fragrances: Fragrance[];
   vip: boolean;
-  showInspiration: boolean;
-  committedHere: boolean;
-  onBack: () => void;
-  /** Called with the engraving, chosen size (ml) and price held (cents) on commit. */
-  onCommit: (engraving: string | null, sizeMl: number, chargeCents: number) => void;
+  effectiveCommitted: number;
+  onAdd: (f: Fragrance, key: FormatKey, qty: number, engraving: string | null) => void;
+  onQuickView: (f: Fragrance, format?: FormatKey) => void;
 }
 
-export default function ProductDetail({
-  frag,
-  effectiveCommitted,
-  vip,
-  showInspiration,
-  committedHere,
-  onBack,
-  onCommit,
-}: ProductDetailProps) {
-  // Engraving + size are scoped to this product view; App remounts via `key={slug}`.
+const ORDER: FormatGroup[] = ["wear", "drive", "live", "ritual"];
+const ENGRAVE_MAX = 28;
+
+/**
+ * The fragrance's world. One page per scent; the customer chooses how to
+ * experience it — Wear it / Drive with it / Live in it / Complete the ritual —
+ * and reads the notes and the story underneath.
+ */
+export default function ProductDetail({ frag, fragrances, vip, effectiveCommitted, onAdd, onQuickView }: ProductDetailProps) {
+  const [key, setKey] = useState<FormatKey>("perf50");
+  const [qty, setQty] = useState(1);
   const [engraveOn, setEngraveOn] = useState(false);
-  const [engraveLabel, setEngraveLabel] = useState("");
-  const [sizeMl, setSizeMl] = useState<10 | 30 | 50>(50);
-
-  const sizes: { ml: 10 | 30 | 50; cents: number }[] = [
-    { ml: 10, cents: frag.price10 },
-    { ml: 30, cents: frag.price30 },
-    { ml: 50, cents: frag.price },
-  ];
-  const selectedPrice = sizes.find((s) => s.ml === sizeMl)?.cents ?? frag.price;
-
-  const onToggleEngrave = () => setEngraveOn((v) => !v);
-  const onLabel = (value: string) => {
-    setEngraveLabel(value.slice(0, 28));
-    setEngraveOn(true);
-  };
-
-  const pct = Math.min(100, Math.round((effectiveCommitted / frag.moq) * 100));
-  const met = effectiveCommitted >= frag.moq;
+  const [engraving, setEngraving] = useState("");
+  const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
+  const [shot, setShot] = useState(0);
+  const chosen = skuOf(frag, key);
   const locked = !!frag.vipOnly && !vip;
-  const previewLabel = engraveOn ? engraveLabel.trim() : "";
-  const hasEngraving = previewLabel.length > 0;
+  const profile = profileOf(frag);
+  const related = useMemo(() => relatedTo(frag, fragrances, 4), [frag, fragrances]);
 
-  const batchNote = met
-    ? "Batch met — the lab is open, bottles are filling now."
-    : `${frag.moq - effectiveCommitted} more commits until this batch pours.`;
+  const gallery = [
+    { kind: "bottle" as const, label: "Bottle" },
+    { kind: "img" as const, src: "/assets/bottle-pdp.jpg", label: "Detail" },
+    { kind: "img" as const, src: "/assets/bottle-square.jpg", label: "Texture" },
+    { kind: "img" as const, src: "/assets/bottle-pair.png", label: "Scene" },
+  ];
 
-  const commitBg = locked || committedHere ? "#1f1f27" : GOLD;
-  const commitColor = locked || committedHere ? "rgba(243,236,220,0.5)" : "#0b0b0d";
-  const commitLabel = locked
-    ? "VIP Members Only"
-    : committedHere
-      ? "✓ Committed — card authorized"
-      : `Commit to this Batch · ${money(selectedPrice)}`;
+  const canEngrave = chosen.def.group === "wear";
+  const finalEngraving = canEngrave && engraveOn ? engraving.trim().slice(0, ENGRAVE_MAX) || null : null;
 
-  const cell: CSSProperties = { padding: "18px 20px" };
-  const cellLabel: CSSProperties = {
-    fontSize: 9.5,
-    letterSpacing: "0.2em",
-    textTransform: "uppercase",
-    color: "rgba(243,236,220,0.45)",
-  };
-  const cellValue: CSSProperties = {
-    marginTop: 7,
-    fontFamily: "'Space Mono',monospace",
-    fontSize: 16,
-    color: "#c9a961",
-  };
-
-  const compRow = (last = false): CSSProperties => ({
-    display: "grid",
-    gridTemplateColumns: "90px 1fr",
-    gap: 16,
-    padding: "14px 0",
-    borderTop: "1px solid #1f1f27",
-    borderBottom: last ? "1px solid #1f1f27" : undefined,
-  });
-
-  return (
-    <main data-screen-label="Product" style={{ maxWidth: 1340, margin: "0 auto", padding: "36px 32px 90px" }}>
+  const option = (s: Sku) => {
+    const active = s.key === key;
+    const soon = s.status === "coming_soon";
+    const glyphH = s.def.group === "wear" ? (s.key === "perf10" ? 34 : s.key === "perf30" ? 44 : 54) : 46;
+    return (
       <button
-        className="mo-ghost"
-        onClick={onBack}
+        key={s.key}
+        onClick={() => (soon ? setNotified((n) => new Set(n).add(s.key)) : setKey(s.key))}
+        aria-pressed={active}
+        title={s.availability}
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 9,
-          background: "none",
-          border: 0,
+          background: active ? "rgba(201,169,97,0.08)" : "none",
+          border: `1px solid ${active ? GOLD : "transparent"}`,
+          padding: "8px 6px 6px",
           cursor: "pointer",
-          color: "rgba(243,236,220,0.6)",
-          fontSize: 11,
-          letterSpacing: "0.24em",
-          textTransform: "uppercase",
-          fontWeight: 500,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6,
+          minWidth: 70,
+          maxWidth: 96,
+          color: CREAM,
+          opacity: soon ? 0.7 : 1,
         }}
       >
-        <svg width="15" height="11" viewBox="0 0 15 11" fill="none" aria-hidden>
-          <path d="M14 5.5H1M6 1L1 5.5 6 10" stroke="currentColor" strokeWidth="1.3" />
-        </svg>
-        Back to the Vault
-      </button>
-
-      <div
-        style={{ marginTop: 30, display: "grid", gridTemplateColumns: "0.92fr 1.08fr", gap: 72 }}
-        className="mo-pdp-grid"
-      >
-        {/* BOTTLE */}
-        <div>
-          <div
-            style={{
-              position: "relative",
-              border: "1px solid #1f1f27",
-              background: "#0e0e12",
-              overflow: "hidden",
-              containerType: "inline-size",
-            }}
-          >
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: `radial-gradient(60% 50% at 50% 62%, ${frag.accent}26, transparent 66%)`,
-              }}
-            />
-            <img
-              src="/assets/bottle-pdp.jpg"
-              alt={`${frag.name} bottle`}
-              style={{ display: "block", width: "100%", height: "auto", position: "relative" }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: "51.5%",
-                top: "60.6%",
-                width: "25%",
-                transform: "translate(-50%,-50%)",
-                textAlign: "center",
-                pointerEvents: "none",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "'Cormorant Garamond',serif",
-                  fontWeight: 500,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.09em",
-                  lineHeight: 1.08,
-                  color: "#c3a263",
-                  fontSize: "clamp(8px,2.6cqw,16px)",
-                  textShadow: "0 1px 1px rgba(0,0,0,0.55),0 0 1px rgba(0,0,0,0.45)",
-                }}
-              >
-                {frag.name}
-              </div>
-            </div>
-          </div>
-          <p
-            style={{
-              margin: "14px 0 0",
-              textAlign: "center",
-              fontFamily: "'Space Mono',monospace",
-              fontSize: 9.5,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "rgba(243,236,220,0.4)",
-            }}
-          >
-            Live preview · engraving updates as you type
-          </p>
-          {hasEngraving && (
-            <div style={{ marginTop: 14, textAlign: "center" }}>
-              <span
-                style={{
-                  display: "inline-block",
-                  border: "1px solid rgba(201,169,97,0.4)",
-                  background: "rgba(201,169,97,0.05)",
-                  padding: "9px 20px",
-                  fontFamily: "'Cormorant Garamond',serif",
-                  fontStyle: "italic",
-                  fontSize: 19,
-                  color: "#c9a961",
-                }}
-              >
-                “{previewLabel}”
-              </span>
-              <div
-                style={{
-                  marginTop: 8,
-                  fontFamily: "'Space Mono',monospace",
-                  fontSize: 8.5,
-                  letterSpacing: "0.2em",
-                  textTransform: "uppercase",
-                  color: "rgba(243,236,220,0.4)",
-                }}
-              >
-                Engraved on your bottle
-              </div>
-            </div>
+        <span style={{ height: 58, display: "flex", alignItems: "flex-end" }}>
+          {s.def.group === "wear" ? (
+            <span style={{ width: 18 + (glyphH - 34) / 2, height: glyphH, background: `linear-gradient(180deg, #2b2b33 0 18%, ${frag.liquid} 18%)`, border: "1px solid rgba(243,236,220,0.35)", display: "block" }} />
+          ) : s.def.group === "drive" ? (
+            <span style={{ width: 20, height: 46, display: "block", background: `linear-gradient(180deg, transparent 0 25%, #6b4a2b 25% 45%, ${frag.liquid}cc 45%)`, border: "1px solid rgba(243,236,220,0.35)", borderTop: 0 }} />
+          ) : s.def.group === "live" ? (
+            <span style={{ width: 20, height: 50, display: "block", background: `linear-gradient(180deg, #2b2b33 0 12%, #16161c 12%)`, border: "1px solid rgba(243,236,220,0.35)", borderRadius: "3px 3px 0 0" }} />
+          ) : (
+            <span style={{ width: 54, height: 40, display: "block", background: "#16161c", border: "1px solid rgba(243,236,220,0.35)" }} />
           )}
+        </span>
+        <span style={{ fontSize: 11.5, lineHeight: 1.25, textAlign: "center", maxWidth: 88 }}>{s.def.group === "wear" ? (s.key === "perf10" ? "10ml Discovery" : s.def.label) : s.def.label}</span>
+        <span style={{ fontFamily: MONO, fontSize: 10.5, color: soon ? GOLD : "rgba(243,236,220,0.85)" }}>
+          {soon ? (notified.has(s.key) ? "Notified ✓" : "Notify me") : (
+            <>
+              {s.compareAt && <s style={{ marginRight: 6, color: "rgba(243,236,220,0.4)" }}>{money(s.compareAt)}</s>}
+              {money(s.price)}
+            </>
+          )}
+        </span>
+      </button>
+    );
+  };
+
+  const alsoAvailable = (["car", "wash", "moist", "ritual"] as FormatKey[]).map((k) => skuOf(frag, k)).filter((s) => s.status !== "hidden");
+
+  return (
+    <main data-screen-label="Product">
+      {/* ── Top: gallery + details ── */}
+      <div className="mo-pdp-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid #1f1f27" }}>
+        {/* GALLERY */}
+        <div style={{ borderRight: "1px solid #1f1f27", padding: "18px 24px 22px 32px" }}>
+          <div style={{ position: "relative", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27", minHeight: 420 }}>
+            {gallery[shot].kind === "bottle" ? (
+              <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={440} objectPosition="center 40%" />
+            ) : (
+              <img src={gallery[shot].src} alt={`${frag.name} — ${gallery[shot].label}`} style={{ display: "block", width: "100%", height: 440, objectFit: "cover" }} />
+            )}
+            <SideCaption lines={[...profile, "—", "A bolder", "you"]} style={{ position: "absolute", left: 18, top: 20, background: "rgba(11,11,13,0.55)", padding: "10px 12px", backdropFilter: "blur(2px)" }} />
+          </div>
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+            {gallery.map((g, i) => (
+              <button key={g.label} onClick={() => setShot(i)} aria-label={g.label} aria-pressed={shot === i} style={{ padding: 0, border: `1px solid ${shot === i ? GOLD : "#1f1f27"}`, background: "#0e0e12", cursor: "pointer", height: 96, overflow: "hidden" }}>
+                {g.kind === "bottle" ? (
+                  <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={94} />
+                ) : (
+                  <img src={g.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                )}
+              </button>
+            ))}
+            <button aria-label="Play video" style={{ border: "1px solid #1f1f27", background: "#0e0e12", color: GOLD, cursor: "pointer", height: 96, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <span style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid rgba(201,169,97,0.7)", display: "grid", placeItems: "center" }}><Icon name="play" size={14} /></span>
+              <span style={{ ...micro, fontSize: 7.5, color: CREAM }}>Play video</span>
+            </button>
+          </div>
         </div>
 
         {/* DETAILS */}
-        <div>
-          {showInspiration && (
-            <div
-              style={{
-                fontFamily: "'Space Mono',monospace",
-                fontSize: 10,
-                letterSpacing: "0.26em",
-                textTransform: "uppercase",
-                color: "rgba(201,169,97,0.85)",
-              }}
-            >
-              {frag.inspiration}
-            </div>
-          )}
-          <h1
-            style={{
-              margin: "12px 0 0",
-              fontFamily: "'Cormorant Garamond',serif",
-              fontWeight: 300,
-              fontSize: 62,
-              lineHeight: 1.0,
-              color: "#f3ecdc",
-            }}
-          >
-            {frag.name}
-          </h1>
-          <p style={{ margin: "22px 0 0", maxWidth: 520, fontSize: 15, lineHeight: 1.75, color: "rgba(243,236,220,0.64)" }}>
-            {frag.story}
-          </p>
+        <div style={{ padding: "18px 32px 26px 30px", display: "grid", gridTemplateColumns: "1fr auto", gap: 24 }}>
+          <div>
+            <nav aria-label="Breadcrumb" style={{ ...micro, fontSize: 8.5, display: "flex", gap: 6 }}>
+              <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5 }} onClick={() => navigate(paths.home)}>Home</button> /
+              <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5 }} onClick={() => navigate(paths.fragrances)}>Fragrances</button> /
+              <span style={{ color: "rgba(243,236,220,0.8)" }}>{frag.name}</span>
+            </nav>
+            <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 54, lineHeight: 1, color: CREAM }}>{frag.name}</h1>
+            <div style={{ ...micro, color: GOLD, marginTop: 10, letterSpacing: "0.34em" }}>{profile.join(" · ")}</div>
+            <p style={{ margin: "14px 0 0", fontFamily: SERIF, fontSize: 18, color: "rgba(243,236,220,0.85)" }}>{referenceLine(frag)}</p>
+            <p style={{ margin: "10px 0 0", fontFamily: SERIF, fontSize: 17.5, lineHeight: 1.45, color: "rgba(243,236,220,0.78)", maxWidth: 620 }}>{frag.story}</p>
 
-          <div style={{ marginTop: 30, display: "grid", gridTemplateColumns: "repeat(3,1fr)", border: "1px solid #1f1f27" }}>
-            <div style={cell}>
-              <div style={cellLabel}>Concentration</div>
-              <div style={cellValue}>30% Extrait</div>
+            <div style={{ display: "flex", gap: 34, marginTop: 20, flexWrap: "wrap" }}>
+              {experienceOf(frag).map((e) => (
+                <IconBadge key={e.label} name={e.icon} label={e.label} />
+              ))}
             </div>
-            <div style={{ ...cell, borderLeft: "1px solid #1f1f27" }}>
-              <div style={cellLabel}>Volume</div>
-              <div style={cellValue}>{sizeMl} ml</div>
-            </div>
-            <div style={{ ...cell, borderLeft: "1px solid #1f1f27" }}>
-              <div style={cellLabel}>Price</div>
-              <div style={cellValue}>{money(selectedPrice)}</div>
-            </div>
-          </div>
 
-          {/* SIZE SELECTOR */}
-          <div style={{ marginTop: 22 }}>
-            <div
-              style={{
-                fontFamily: "'Space Mono',monospace",
-                fontSize: 10,
-                letterSpacing: "0.26em",
-                textTransform: "uppercase",
-                color: "rgba(243,236,220,0.5)",
-                marginBottom: 12,
-              }}
-            >
-              Select Size
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 26 }}>
+              <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 24, color: CREAM }}>Choose your format</h2>
+              <button style={btnLink} onClick={() => navigate(paths.about)}>Size guide <Arrow size={10} /></button>
             </div>
-            <div role="radiogroup" aria-label="Bottle size" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
-              {sizes.map((s) => {
-                const active = s.ml === sizeMl;
+            <div className="mo-formats-grid" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "auto auto auto auto", gap: 10 }}>
+              {ORDER.map((g) => {
+                const list = skusInGroup(frag, g);
+                if (!list.length) return null;
                 return (
-                  <button
-                    key={s.ml}
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => setSizeMl(s.ml)}
-                    className="mo-pill"
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      gap: 6,
-                      padding: "14px 16px",
-                      cursor: "pointer",
-                      background: active ? "rgba(201,169,97,0.08)" : "none",
-                      border: active ? "1px solid #c9a961" : "1px solid #1f1f27",
-                      color: "#f3ecdc",
-                      textAlign: "left",
-                    }}
-                  >
-                    <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: active ? "#c9a961" : "#f3ecdc" }}>
-                      {s.ml} ml
-                    </span>
-                    <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 12, color: "rgba(243,236,220,0.6)" }}>
-                      {money(s.cents)}
-                    </span>
-                  </button>
+                  <div key={g} style={{ border: "1px solid #1f1f27", padding: "12px 12px 10px" }}>
+                    <div style={{ ...micro, color: CREAM, fontSize: 9 }}>{GROUPS[g].title}</div>
+                    <div style={{ ...micro, fontSize: 7.5, marginTop: 3 }}>{GROUPS[g].sub}</div>
+                    <div style={{ display: "flex", gap: 4, marginTop: 8 }}>{list.map(option)}</div>
+                  </div>
                 );
               })}
             </div>
-          </div>
 
-          {/* COMPOSITION */}
-          <div style={{ marginTop: 34 }}>
-            <div
-              style={{
-                fontFamily: "'Space Mono',monospace",
-                fontSize: 10,
-                letterSpacing: "0.26em",
-                textTransform: "uppercase",
-                color: "rgba(243,236,220,0.5)",
-              }}
-            >
-              Composition
-            </div>
-            <div style={{ marginTop: 14 }}>
-              {(
-                [
-                  ["Top", frag.top],
-                  ["Heart", frag.heart],
-                  ["Base", frag.base],
-                ] as const
-              ).map(([label, notes], i, arr) => (
-                <div key={label} style={compRow(i === arr.length - 1)}>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontStyle: "italic", fontSize: 15, color: "rgba(243,236,220,0.6)" }}>
-                    {label}
-                  </div>
-                  <div style={{ fontSize: 13.5, color: "#f3ecdc", lineHeight: 1.7 }}>{notes.join("  ·  ")}</div>
+            {/* Summary + add */}
+            <div style={{ marginTop: 18, borderTop: "1px solid #1f1f27", paddingTop: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 220 }}>
+                <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={54} style={{ width: 44, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontFamily: SERIF, fontSize: 17, color: CREAM, lineHeight: 1 }}>{frag.name}</div>
+                  <div style={{ fontSize: 11.5, color: "rgba(243,236,220,0.6)", marginTop: 3 }}>{chosen.def.name}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 13, color: CREAM, marginTop: 3 }}>{money(chosen.price)}</div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ENGRAVING ENGINE */}
-          <div style={{ marginTop: 30, border: "1px solid #1f1f27", background: "rgba(20,20,26,0.4)", padding: 26 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 18 }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#c9a961" }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-                    <path
-                      d="M7 1l1.5 4L13 6.5 8.5 8 7 13 5.5 8 1 6.5 5.5 5z"
-                      stroke="#c9a961"
-                      strokeWidth="1.1"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase" }}>
-                    Custom Engraving
-                  </span>
-                </div>
-                <h3 style={{ margin: "12px 0 0", fontFamily: "'Cormorant Garamond',serif", fontSize: 23, color: "#f3ecdc" }}>
-                  Engrave a name, a date, a secret.
-                </h3>
-                <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "rgba(243,236,220,0.52)" }}>
-                  Hand-set onto the label panel. Up to 28 characters.
-                </p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", border: "1px solid #1f1f27", height: 44, marginLeft: "auto" }}>
+                <button aria-label="Decrease quantity" onClick={() => setQty((q) => Math.max(1, q - 1))} style={{ width: 36, height: "100%", background: "none", border: 0, color: CREAM, cursor: "pointer" }}>−</button>
+                <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM, minWidth: 20, textAlign: "center" }}>{qty}</span>
+                <button aria-label="Increase quantity" onClick={() => setQty((q) => Math.min(9, q + 1))} style={{ width: 36, height: "100%", background: "none", border: 0, color: CREAM, cursor: "pointer" }}>+</button>
               </div>
               <button
-                onClick={onToggleEngrave}
-                aria-pressed={engraveOn}
-                style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 9, background: "none", border: 0, cursor: "pointer" }}
+                className="mo-cta"
+                style={{ ...btnGold, height: 44, padding: "0 30px", opacity: chosen.buyable && !locked ? 1 : 0.5 }}
+                disabled={!chosen.buyable || locked}
+                onClick={() => onAdd(frag, key, qty, finalEngraving)}
               >
-                <span
-                  style={{
-                    position: "relative",
-                    width: 38,
-                    height: 20,
-                    background: engraveOn ? GOLD : "#1f1f27",
-                    transition: "background 0.2s",
-                    display: "inline-block",
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 2,
-                      left: 2,
-                      width: 16,
-                      height: 16,
-                      background: "#f3ecdc",
-                      transform: engraveOn ? "translateX(18px)" : "translateX(0)",
-                      transition: "transform 0.2s",
-                      display: "block",
-                    }}
-                  />
-                </span>
-                <span style={{ fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(243,236,220,0.7)" }}>
-                  {engraveOn ? "On" : "Off"}
-                </span>
+                <Icon name="bag" size={14} color="#0b0b0d" /> {locked ? "VIP members only" : chosen.buyable ? "Add to bag" : chosen.status === "coming_soon" ? "Coming soon" : "Sold out"}
+              </button>
+              <button aria-label="Save to wishlist" style={{ width: 44, height: 44, border: "1px solid rgba(201,169,97,0.5)", background: "none", cursor: "pointer", display: "grid", placeItems: "center" }}>
+                <Icon name="heart" size={16} />
               </button>
             </div>
-            <div style={{ marginTop: 20 }}>
-              <input
-                className="mo-engrave-input"
-                type="text"
-                value={engraveLabel}
-                onChange={(e) => onLabel(e.target.value)}
-                maxLength={28}
-                placeholder="e.g. Happy Birthday, John"
-                style={{
-                  width: "100%",
-                  background: "none",
-                  border: 0,
-                  borderBottom: "1px solid #1f1f27",
-                  outline: "none",
-                  padding: "11px 0",
-                  color: "#f3ecdc",
-                  fontFamily: "'Cormorant Garamond',serif",
-                  fontSize: 18,
-                }}
-              />
-              <div
-                style={{
-                  marginTop: 9,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  fontFamily: "'Space Mono',monospace",
-                  fontSize: 9.5,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: "rgba(243,236,220,0.42)",
-                }}
-              >
-                <span>{engraveOn ? "Preview is live →" : "Toggle on to engrave"}</span>
-                <span>{engraveLabel.length} / 28</span>
-              </div>
-            </div>
-          </div>
-
-          {/* BATCH + COMMIT */}
-          <div style={{ marginTop: 30 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                fontFamily: "'Space Mono',monospace",
-                fontSize: 11,
-                letterSpacing: "0.06em",
-                color: "rgba(243,236,220,0.6)",
-              }}
-            >
-              <span>
-                BATCH PROGRESS — {effectiveCommitted} / {frag.moq} committed
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 10, flexWrap: "wrap", ...micro, fontSize: 8.5 }}>
+              <span style={{ color: chosen.status === "live" && (chosen.stock > 0 || chosen.def.group === "wear") ? "#8bb98a" : GOLD }}>
+                ● {chosen.availability}
+                {chosen.def.group === "wear" && chosen.stock === 0 && chosen.status === "live" ? ` · ${effectiveCommitted}/${frag.moq} committed` : ""}
               </span>
-              <span style={{ color: "#c9a961" }}>{pct}%</span>
+              <span style={{ display: "flex", gap: 18 }}>
+                <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100</span>
+                <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
+              </span>
             </div>
-            <div style={{ marginTop: 10, height: 3, background: "#1f1f27" }}>
-              <div style={{ height: "100%", width: `${pct}%`, background: GOLD, transition: "width 0.5s ease" }} />
-            </div>
-            <div style={{ marginTop: 8, fontSize: 11.5, color: "rgba(243,236,220,0.5)" }}>{batchNote}</div>
 
-            <button
-              className="mo-softhover"
-              onClick={() => onCommit(hasEngraving ? previewLabel : null, sizeMl, selectedPrice)}
-              disabled={locked || committedHere}
-              style={{
-                marginTop: 24,
-                width: "100%",
-                height: 58,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 11,
-                border: 0,
-                cursor: locked || committedHere ? "default" : "pointer",
-                fontSize: 11,
-                letterSpacing: "0.28em",
-                textTransform: "uppercase",
-                fontWeight: 600,
-                background: commitBg,
-                color: commitColor,
-              }}
-            >
-              {commitLabel}
-            </button>
-            <p style={{ margin: "16px 0 0", fontSize: 11.5, lineHeight: 1.65, color: "rgba(243,236,220,0.5)" }}>
-              Your card is <span style={{ color: "#c9a961" }}>authorized, never charged</span> today. We capture only when
-              the batch reaches {frag.moq} commits. If it closes short, the hold is released — no questions asked.
-            </p>
+            {canEngrave && (
+              <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", ...micro, color: CREAM }}>
+                  <input type="checkbox" checked={engraveOn} onChange={(e) => setEngraveOn(e.target.checked)} /> Custom engraving
+                </label>
+                {engraveOn && (
+                  <>
+                    <input
+                      className="mo-engrave-input"
+                      value={engraving}
+                      maxLength={ENGRAVE_MAX}
+                      onChange={(e) => setEngraving(e.target.value)}
+                      placeholder="e.g. Happy Birthday, John"
+                      aria-label="Engraving text"
+                      style={{ flex: 1, minWidth: 220, background: "none", border: 0, borderBottom: "1px solid rgba(201,169,97,0.5)", outline: "none", color: CREAM, fontFamily: SERIF, fontSize: 18, padding: "4px 0" }}
+                    />
+                    <span style={{ ...micro, fontSize: 8 }}>{engraving.length} / {ENGRAVE_MAX}</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+          <SideCaption lines={["Iconic", "scents", "—", "A bolder", "you"]} style={{ paddingTop: 30, borderLeft: "1px solid #1f1f27", paddingLeft: 18 }} />
         </div>
       </div>
+
+      {/* ── Fragrance notes ── */}
+      <section aria-label="Fragrance notes" style={{ borderBottom: "1px solid #1f1f27", background: "#0d0d11" }}>
+        <Container style={{ padding: "22px 32px" }}>
+          <div className="mo-notes-grid" style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr 1fr auto", gap: 22, alignItems: "center" }}>
+            <div style={{ borderRight: "1px solid #1f1f27", paddingRight: 22 }}>
+              <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 32, color: CREAM }}>Fragrance notes</h2>
+              <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.6, color: "rgba(243,236,220,0.6)" }}>{frag.tagline} A composition of rare elements, balanced to perfection.</p>
+            </div>
+            {([
+              ["Top notes", frag.top, `linear-gradient(135deg, ${frag.accent}66, #1a1410)`],
+              ["Heart notes", frag.heart, `linear-gradient(135deg, ${frag.liquid}, #2c1a0c)`],
+              ["Base notes", frag.base, "linear-gradient(135deg, #3b2a18, #0e0e12)"],
+            ] as const).map(([title, notes, bg]) => (
+              <div key={title} style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: 16, alignItems: "center" }}>
+                <span aria-hidden style={{ height: 88, background: bg, border: "1px solid #1f1f27" }} />
+                <div>
+                  <div style={{ ...micro, color: CREAM, fontSize: 9 }}>{title}</div>
+                  <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", fontSize: 13.5, lineHeight: 1.5, color: "rgba(243,236,220,0.85)" }}>
+                    {notes.map((n) => <li key={n}>{n}</li>)}
+                  </ul>
+                </div>
+              </div>
+            ))}
+            <SideCaption lines={["Depth", "in every", "layer"]} style={{ borderLeft: "1px solid #1f1f27", paddingLeft: 22 }} />
+          </div>
+        </Container>
+      </section>
+
+      {/* ── Also available in ── */}
+      {alsoAvailable.length > 0 && (
+        <section aria-label={`Also available in ${frag.name}`} style={{ borderBottom: "1px solid #1f1f27" }}>
+          <Container style={{ padding: "22px 32px 24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 28, color: CREAM }}>Also available in {frag.name}</h2>
+              <button style={btnLink} onClick={() => onQuickView(frag)}>View all formats <Arrow size={10} /></button>
+            </div>
+            <div className="mo-also-grid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: `repeat(${alsoAvailable.length}, 1fr)`, gap: 12 }}>
+              {alsoAvailable.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => { setKey(s.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 14, alignItems: "center", border: "1px solid #1f1f27", background: "#101015", padding: 0, textAlign: "left", cursor: "pointer", color: CREAM, minHeight: 116 }}
+                >
+                  <span style={{ height: "100%", background: bottleBackdrop(frag.accent, frag.liquid), display: "grid", placeItems: "center", borderRight: "1px solid #1f1f27" }}>
+                    <span style={{ width: s.def.group === "ritual" ? 64 : 22, height: s.def.group === "ritual" ? 46 : 54, background: s.def.group === "drive" ? `linear-gradient(180deg, #6b4a2b 0 30%, ${frag.liquid}cc 30%)` : "#16161c", border: "1px solid rgba(243,236,220,0.35)" }} />
+                  </span>
+                  <span style={{ padding: "12px 14px 12px 0" }}>
+                    <span style={{ display: "block", fontFamily: SERIF, fontSize: 21 }}>{s.def.label}</span>
+                    <span style={{ display: "block", fontSize: 12, color: "rgba(243,236,220,0.6)", marginTop: 3 }}>
+                      {s.key === "car" ? "Drive the scent with you." : s.key === "wash" ? "Cleanse with character." : s.key === "moist" ? "Hydrate and layer." : "Four ways to live it."}
+                    </span>
+                    <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                      <span style={{ fontFamily: MONO, fontSize: 12 }}>
+                        {s.status === "coming_soon" ? <Chip tone="gold" style={{ height: 22 }}>Coming soon</Chip> : (
+                          <>
+                            {money(s.price)}
+                            {s.compareAt && <s style={{ marginLeft: 8, color: "rgba(243,236,220,0.4)" }}>{money(s.compareAt)}</s>}
+                          </>
+                        )}
+                      </span>
+                      <span style={{ width: 26, height: 26, borderRadius: "50%", border: "1px solid rgba(201,169,97,0.7)", display: "grid", placeItems: "center", color: GOLD }}><Arrow size={10} /></span>
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </Container>
+        </section>
+      )}
+
+      {/* ── You may also like ── */}
+      <section aria-label="You may also like">
+        <Container style={{ padding: "22px 32px 60px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 28, color: CREAM }}>You may also like</h2>
+            <button style={btnLink} onClick={() => navigate(paths.fragrances)}>Explore more fragrances <Arrow size={10} /></button>
+          </div>
+          <div className="mo-vault-grid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            {related.map((r) => (
+              <FragranceCard key={r.id} frag={r} vip={vip} onQuickView={onQuickView} />
+            ))}
+          </div>
+        </Container>
+      </section>
     </main>
   );
 }
