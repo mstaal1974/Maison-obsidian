@@ -5,6 +5,7 @@ import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import { bottleBackdrop } from "./adminStyles";
+import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow, Container, Icon, IconBadge, SideCaption, Chip } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
@@ -50,7 +51,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
   const option = (s: Sku) => {
     const active = s.key === key;
     const soon = s.status === "coming_soon";
-    const glyphH = s.def.group === "wear" ? (s.key === "perf10" ? 34 : s.key === "perf30" ? 44 : 54) : 46;
+    const wide = s.key === "ritual";
     return (
       <button
         key={s.key}
@@ -58,37 +59,30 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
         aria-pressed={active}
         title={s.availability}
         style={{
-          background: active ? "rgba(201,169,97,0.08)" : "none",
+          background: "none",
           border: `1px solid ${active ? GOLD : "transparent"}`,
-          padding: "8px 6px 6px",
+          padding: wide ? "8px 10px 6px" : "8px 4px 6px",
           cursor: "pointer",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 6,
-          minWidth: 70,
-          maxWidth: 96,
+          gap: 8,
+          minWidth: wide ? 150 : 64,
           color: CREAM,
-          opacity: soon ? 0.7 : 1,
+          opacity: soon ? 0.75 : 1,
         }}
       >
-        <span style={{ height: 58, display: "flex", alignItems: "flex-end" }}>
-          {s.def.group === "wear" ? (
-            <span style={{ width: 18 + (glyphH - 34) / 2, height: glyphH, background: `linear-gradient(180deg, #2b2b33 0 18%, ${frag.liquid} 18%)`, border: "1px solid rgba(243,236,220,0.35)", display: "block" }} />
-          ) : s.def.group === "drive" ? (
-            <span style={{ width: 20, height: 46, display: "block", background: `linear-gradient(180deg, transparent 0 25%, #6b4a2b 25% 45%, ${frag.liquid}cc 45%)`, border: "1px solid rgba(243,236,220,0.35)", borderTop: 0 }} />
-          ) : s.def.group === "live" ? (
-            <span style={{ width: 20, height: 50, display: "block", background: `linear-gradient(180deg, #2b2b33 0 12%, #16161c 12%)`, border: "1px solid rgba(243,236,220,0.35)", borderRadius: "3px 3px 0 0" }} />
-          ) : (
-            <span style={{ width: 54, height: 40, display: "block", background: "#16161c", border: "1px solid rgba(243,236,220,0.35)" }} />
-          )}
+        <span style={{ height: 84, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          <FormatGlyph formatKey={s.key} liquid={frag.liquid} height={s.key === "perf10" ? 68 : s.key === "perf30" ? 72 : s.key === "ritual" ? 70 : 84} />
         </span>
-        <span style={{ fontSize: 11.5, lineHeight: 1.25, textAlign: "center", maxWidth: 88 }}>{s.def.group === "wear" ? (s.key === "perf10" ? "10ml Discovery" : s.def.label) : s.def.label}</span>
-        <span style={{ fontFamily: MONO, fontSize: 10.5, color: soon ? GOLD : "rgba(243,236,220,0.85)" }}>
+        <span style={{ fontSize: 11.5, lineHeight: 1.25, textAlign: "center", letterSpacing: "0.03em", maxWidth: wide ? 170 : 80 }}>
+          {s.key === "perf10" ? <>10ml<br />Discovery</> : s.key === "ritual" ? <>The Complete Ritual<br />(4 Pieces)</> : s.def.label}
+        </span>
+        <span style={{ fontFamily: MONO, fontSize: 10.5, color: soon ? GOLD : "rgba(243,236,220,0.9)", letterSpacing: "0.02em" }}>
           {soon ? (notified.has(s.key) ? "Notified ✓" : "Notify me") : (
             <>
-              {s.compareAt && <s style={{ marginRight: 6, color: "rgba(243,236,220,0.4)" }}>{money(s.compareAt)}</s>}
               {money(s.price)}
+              {s.compareAt && <s style={{ marginLeft: 8, color: "rgba(243,236,220,0.4)" }}>{money(s.compareAt)}</s>}
             </>
           )}
         </span>
@@ -101,7 +95,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
   return (
     <main data-screen-label="Product">
       {/* ── Top: gallery + details ── */}
-      <div className="mo-pdp-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid #1f1f27" }}>
+      <div className="mo-pdp-grid" style={{ display: "grid", gridTemplateColumns: "0.72fr 1.28fr", borderBottom: "1px solid #1f1f27" }}>
         {/* GALLERY */}
         <div style={{ borderRight: "1px solid #1f1f27", padding: "18px 24px 22px 32px" }}>
           <div style={{ position: "relative", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27", minHeight: 420 }}>
@@ -130,8 +124,8 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
         </div>
 
         {/* DETAILS */}
-        <div style={{ padding: "18px 32px 26px 30px", display: "grid", gridTemplateColumns: "1fr auto", gap: 24 }}>
-          <div>
+        <div style={{ padding: "18px 32px 26px 30px", display: "grid", gridTemplateColumns: "1fr auto", gap: 18 }}>
+          <div style={{ minWidth: 0 }}>
             <nav aria-label="Breadcrumb" style={{ ...micro, fontSize: 8.5, display: "flex", gap: 6 }}>
               <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5 }} onClick={() => navigate(paths.home)}>Home</button> /
               <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5 }} onClick={() => navigate(paths.fragrances)}>Fragrances</button> /
@@ -152,15 +146,15 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
               <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 24, color: CREAM }}>Choose your format</h2>
               <button style={btnLink} onClick={() => navigate(paths.about)}>Size guide <Arrow size={10} /></button>
             </div>
-            <div className="mo-formats-grid" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "auto auto auto auto", gap: 10 }}>
+            <div className="mo-formats-grid" style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
               {ORDER.map((g) => {
                 const list = skusInGroup(frag, g);
                 if (!list.length) return null;
                 return (
-                  <div key={g} style={{ border: "1px solid #1f1f27", padding: "12px 12px 10px" }}>
-                    <div style={{ ...micro, color: CREAM, fontSize: 9 }}>{GROUPS[g].title}</div>
-                    <div style={{ ...micro, fontSize: 7.5, marginTop: 3 }}>{GROUPS[g].sub}</div>
-                    <div style={{ display: "flex", gap: 4, marginTop: 8 }}>{list.map(option)}</div>
+                  <div key={g} style={{ border: "1px solid #2a2a33", padding: "12px 10px 10px", background: "#0c0c10", flex: "0 0 auto" }}>
+                    <div style={{ fontFamily: SERIF, fontSize: 13.5, letterSpacing: "0.1em", textTransform: "uppercase", color: CREAM, whiteSpace: "nowrap" }}>{GROUPS[g].title}</div>
+                    <div style={{ ...micro, fontSize: 8, marginTop: 3, color: "rgba(243,236,220,0.6)" }}>{GROUPS[g].sub}</div>
+                    <div style={{ display: "flex", gap: 4, marginTop: 8, justifyContent: "center" }}>{list.map(option)}</div>
                   </div>
                 );
               })}
@@ -169,27 +163,29 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
             {/* Summary + add */}
             <div style={{ marginTop: 18, borderTop: "1px solid #1f1f27", paddingTop: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 220 }}>
-                <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={54} style={{ width: 44, flexShrink: 0 }} />
+                <span style={{ width: 62, height: 78, flexShrink: 0, display: "grid", placeItems: "center", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27" }}>
+                  {frag.imageUrl ? <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={76} /> : <FormatGlyph formatKey={key} liquid={frag.liquid} height={64} />}
+                </span>
                 <div>
-                  <div style={{ fontFamily: SERIF, fontSize: 17, color: CREAM, lineHeight: 1 }}>{frag.name}</div>
-                  <div style={{ fontSize: 11.5, color: "rgba(243,236,220,0.6)", marginTop: 3 }}>{chosen.def.name}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 13, color: CREAM, marginTop: 3 }}>{money(chosen.price)}</div>
+                  <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1 }}>{frag.name}</div>
+                  <div style={{ fontSize: 12.5, color: "rgba(243,236,220,0.6)", marginTop: 4, letterSpacing: "0.04em" }}>{chosen.def.name}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 14, color: CREAM, marginTop: 4 }}>{money(chosen.price)}</div>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", border: "1px solid #1f1f27", height: 44, marginLeft: "auto" }}>
-                <button aria-label="Decrease quantity" onClick={() => setQty((q) => Math.max(1, q - 1))} style={{ width: 36, height: "100%", background: "none", border: 0, color: CREAM, cursor: "pointer" }}>−</button>
-                <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM, minWidth: 20, textAlign: "center" }}>{qty}</span>
-                <button aria-label="Increase quantity" onClick={() => setQty((q) => Math.min(9, q + 1))} style={{ width: 36, height: "100%", background: "none", border: 0, color: CREAM, cursor: "pointer" }}>+</button>
+              <div style={{ display: "flex", alignItems: "center", border: "1px solid #2a2a33", height: 52, marginLeft: "auto" }}>
+                <button aria-label="Decrease quantity" onClick={() => setQty((q) => Math.max(1, q - 1))} style={{ width: 44, height: "100%", background: "none", border: 0, color: CREAM, cursor: "pointer", fontSize: 18 }}>−</button>
+                <span style={{ fontFamily: MONO, fontSize: 14, color: CREAM, minWidth: 28, textAlign: "center" }}>{qty}</span>
+                <button aria-label="Increase quantity" onClick={() => setQty((q) => Math.min(9, q + 1))} style={{ width: 44, height: "100%", background: "none", border: 0, color: CREAM, cursor: "pointer", fontSize: 18 }}>+</button>
               </div>
               <button
                 className="mo-cta"
-                style={{ ...btnGold, height: 44, padding: "0 30px", opacity: chosen.buyable && !locked ? 1 : 0.5 }}
+                style={{ ...btnGold, height: 52, padding: "0 56px", fontSize: 12.5, letterSpacing: "0.28em", opacity: chosen.buyable && !locked ? 1 : 0.5 }}
                 disabled={!chosen.buyable || locked}
                 onClick={() => onAdd(frag, key, qty, finalEngraving)}
               >
                 <Icon name="bag" size={14} color="#0b0b0d" /> {locked ? "VIP members only" : chosen.buyable ? "Add to bag" : chosen.status === "coming_soon" ? "Coming soon" : "Sold out"}
               </button>
-              <button aria-label="Save to wishlist" style={{ width: 44, height: 44, border: "1px solid rgba(201,169,97,0.5)", background: "none", cursor: "pointer", display: "grid", placeItems: "center" }}>
+              <button aria-label="Save to wishlist" style={{ width: 52, height: 52, border: "1px solid rgba(201,169,97,0.5)", background: "none", cursor: "pointer", display: "grid", placeItems: "center" }}>
                 <Icon name="heart" size={16} />
               </button>
             </div>
@@ -226,7 +222,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
               </div>
             )}
           </div>
-          <SideCaption lines={["Iconic", "scents", "—", "A bolder", "you"]} style={{ paddingTop: 30, borderLeft: "1px solid #1f1f27", paddingLeft: 18 }} />
+          <SideCaption lines={["Iconic", "scents", "—", "A bolder", "you"]} style={{ paddingTop: 30, borderLeft: "1px solid #1f1f27", paddingLeft: 14, width: 62 }} />
         </div>
       </div>
 
@@ -273,8 +269,8 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
                   onClick={() => { setKey(s.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                   style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 14, alignItems: "center", border: "1px solid #1f1f27", background: "#101015", padding: 0, textAlign: "left", cursor: "pointer", color: CREAM, minHeight: 116 }}
                 >
-                  <span style={{ height: "100%", background: bottleBackdrop(frag.accent, frag.liquid), display: "grid", placeItems: "center", borderRight: "1px solid #1f1f27" }}>
-                    <span style={{ width: s.def.group === "ritual" ? 64 : 22, height: s.def.group === "ritual" ? 46 : 54, background: s.def.group === "drive" ? `linear-gradient(180deg, #6b4a2b 0 30%, ${frag.liquid}cc 30%)` : "#16161c", border: "1px solid rgba(243,236,220,0.35)" }} />
+                  <span style={{ height: "100%", background: bottleBackdrop(frag.accent, frag.liquid), display: "grid", placeItems: "center", borderRight: "1px solid #1f1f27", padding: 8 }}>
+                    <FormatGlyph formatKey={s.key} liquid={frag.liquid} height={s.key === "ritual" ? 50 : 76} />
                   </span>
                   <span style={{ padding: "12px 14px 12px 0" }}>
                     <span style={{ display: "block", fontFamily: SERIF, fontSize: 21 }}>{s.def.label}</span>

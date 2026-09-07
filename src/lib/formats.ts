@@ -31,7 +31,7 @@ export const FORMATS: FormatDef[] = [
   { key: "perf10", group: "wear", label: "10ml", name: "Eau de Parfum 10ml", short: "10ml", sizeMl: 10, sku: "PERF-10", defaultPrice: null, defaultStatus: "live" },
   { key: "perf30", group: "wear", label: "30ml", name: "Eau de Parfum 30ml", short: "30ml", sizeMl: 30, sku: "PERF-30", defaultPrice: null, defaultStatus: "live" },
   { key: "perf50", group: "wear", label: "50ml", name: "Eau de Parfum 50ml", short: "50ml", sizeMl: 50, sku: "PERF-50", defaultPrice: null, defaultStatus: "live" },
-  { key: "car", group: "drive", label: "Car Diffuser", name: "Car Diffuser 10ml", short: "CAR", sizeMl: 10, sku: "CAR-10", defaultPrice: 12000, defaultStatus: "live" },
+  { key: "car", group: "drive", label: "Car Diffuser", name: "Car Diffuser 10ml", short: "CAR", sizeMl: 10, sku: "CAR-10", defaultPrice: 1000, defaultStatus: "live" },
   { key: "wash", group: "live", label: "Body Wash", name: "Body Wash 300ml", short: "WASH", sizeMl: 300, sku: "WASH", defaultPrice: 4200, defaultStatus: "coming_soon" },
   { key: "moist", group: "live", label: "Moisturiser", name: "Body Moisturiser 300ml", short: "BODY", sizeMl: 300, sku: "MOIST", defaultPrice: 4800, defaultStatus: "coming_soon" },
   { key: "ritual", group: "ritual", label: "The Complete Ritual", name: "The Complete Ritual (4 pieces)", short: "SET", sizeMl: 50, sku: "RITUAL", defaultPrice: null, defaultStatus: "coming_soon" },
