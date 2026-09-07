@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
-import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceLine, experienceOf, relatedTo, type Sku } from "../lib/formats";
+import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, experienceOf, relatedTo, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import { bottleBackdrop } from "./adminStyles";
 import { FormatGlyph } from "./ProductGlyphs";
-import { Arrow, Container, Icon, IconBadge, SideCaption, Chip } from "./ui";
+import { Arrow, Container, Icon, IconBadge, SideCaption, Chip, InspiredBy } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
 interface ProductDetailProps {
@@ -133,7 +133,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
             </nav>
             <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 54, lineHeight: 1, color: CREAM }}>{frag.name}</h1>
             <div style={{ ...micro, color: GOLD, marginTop: 10, letterSpacing: "0.34em" }}>{profile.join(" · ")}</div>
-            <p style={{ margin: "14px 0 0", fontFamily: SERIF, fontSize: 18, color: "rgba(243,236,220,0.85)" }}>{referenceLine(frag)}</p>
+            <div style={{ marginTop: 14 }}><InspiredBy {...referenceOf(frag)} size="lg" /></div>
             <p style={{ margin: "10px 0 0", fontFamily: SERIF, fontSize: 17.5, lineHeight: 1.45, color: "rgba(243,236,220,0.78)", maxWidth: 620 }}>{frag.story}</p>
 
             <div style={{ display: "flex", gap: 34, marginTop: 20, flexWrap: "wrap" }}>

@@ -124,10 +124,12 @@ export function skusInGroup(f: Fragrance, group: FormatGroup): Sku[] {
   return skus(f).filter((s) => s.def.group === group);
 }
 
-/** Cheapest live way in — "From $39". */
+/** Cheapest live way to wear it — "From $39" (perfume sizes; the car diffuser is a companion, not the entry price). */
 export function fromPrice(f: Fragrance): number {
-  const live = skus(f).filter((s) => s.status === "live");
-  return Math.min(...(live.length ? live : skus(f)).map((s) => s.price));
+  const wear = skus(f).filter((s) => s.def.group === "wear");
+  const live = wear.filter((s) => s.status === "live");
+  const pool = live.length ? live : wear.length ? wear : skus(f);
+  return Math.min(...pool.map((s) => s.price));
 }
 
 export function fromLabel(f: Fragrance): string {

@@ -1,8 +1,8 @@
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
-import { profileOf, fromPrice, sku } from "../lib/formats";
+import { profileOf, fromPrice, sku, referenceOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
-import { Arrow, Chip } from "./ui";
+import { Arrow, Chip, InspiredBy } from "./ui";
 import { MONO, SERIF, btnLink, micro } from "./styles";
 
 interface ScentCardProps {
@@ -28,6 +28,7 @@ export default function ScentCard({ frag, onQuickView }: ScentCardProps) {
         <button onClick={() => navigate(paths.product(frag.slug))} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>
           {frag.name}
         </button>
+        <InspiredBy {...referenceOf(frag)} size="sm" />
         <div style={{ ...micro, color: "rgba(243,236,220,0.78)", fontSize: 8.5 }}>{profileOf(frag).join(" · ")}</div>
         <div style={{ fontSize: 12, color: "rgba(243,236,220,0.55)", lineHeight: 1.45, textTransform: "lowercase" }}>{notes}</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
