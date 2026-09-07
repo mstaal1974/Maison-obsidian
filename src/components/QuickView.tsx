@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
-import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, type Sku } from "../lib/formats";
+import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
 import { FormatGlyph } from "./ProductGlyphs";
-import { Arrow } from "./ui";
+import { Arrow, InspiredBy } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
 interface QuickViewProps {
@@ -83,6 +83,9 @@ export default function QuickView({ frag, initialFormat, onClose, onAdd }: Quick
               <div style={{ ...micro, marginTop: 6 }}>{profileOf(frag).join(" · ")}</div>
             </div>
           </div>
+        </div>
+        <div>
+          <InspiredBy {...referenceOf(frag)} size="md" />
           <button onClick={onClose} aria-label="Close" style={{ background: "none", border: "1px solid #1f1f27", color: CREAM, width: 34, height: 34, cursor: "pointer" }}>×</button>
         </div>
         <div style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: 20, color: "rgba(243,236,220,0.85)" }}>How would you like it?</div>

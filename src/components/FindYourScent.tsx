@@ -1,8 +1,8 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { type Fragrance, GOLD, CREAM } from "../lib/data";
-import { findMatches, MOODS, fromLabel, profileOf, availableIn } from "../lib/formats";
+import { findMatches, MOODS, fromLabel, profileOf, availableIn, referenceOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
-import { Arrow, Container, Icon, Chip } from "./ui";
+import { Arrow, Container, Icon, Chip, InspiredBy } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 import BottleImage from "./BottleImage";
 
@@ -62,6 +62,7 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
                 <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>{m.frag.name}</div>
                 <div style={{ fontFamily: MONO, fontSize: 10, color: GOLD, whiteSpace: "nowrap" }}>{m.percent}% match</div>
               </div>
+              <InspiredBy {...referenceOf(m.frag)} size="md" style={{ alignSelf: "flex-start" }} />
               <div style={{ ...micro, color: "rgba(243,236,220,0.7)" }}>{profileOf(m.frag).join(" · ")}</div>
               <div style={{ fontSize: 12, color: "rgba(243,236,220,0.55)", lineHeight: 1.5 }}>{m.reason}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 }}>

@@ -150,3 +150,33 @@ export function Chip({ children, active, onClick, tone = "cream", style }: { chi
     </Tag>
   );
 }
+
+/**
+ * The reference fragrance, made prominent on every tile: a gold band that
+ * reads "Inspired by · Tom Ford — Black Lacquer" so shoppers who search by the
+ * scent they already know spot it instantly. The house name still leads.
+ */
+export function InspiredBy({ brand, fragrance, size = "md", style }: { brand: string; fragrance: string; size?: "sm" | "md" | "lg"; style?: CSSProperties }) {
+  const px = size === "lg" ? 19 : size === "md" ? 16 : 14;
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "baseline",
+        gap: 10,
+        maxWidth: "100%",
+        borderLeft: `2px solid ${GOLD}`,
+        background: "linear-gradient(90deg, rgba(201,169,97,0.16), rgba(201,169,97,0.03))",
+        padding: size === "lg" ? "8px 14px 8px 12px" : "6px 12px 6px 10px",
+        ...style,
+      }}
+    >
+      <span style={{ ...micro, color: GOLD, fontSize: size === "sm" ? 7.5 : 8.5, whiteSpace: "nowrap" }}>Inspired by</span>
+      <span style={{ fontFamily: SERIF, fontSize: px, lineHeight: 1.15, color: "#f1dfae", fontWeight: 500, letterSpacing: "0.01em" }}>
+        {brand}
+        {fragrance ? <span style={{ color: GOLD, opacity: 0.8 }}> — </span> : null}
+        {fragrance ? <span style={{ fontStyle: "italic" }}>{fragrance}</span> : null}
+      </span>
+    </div>
+  );
+}
