@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { bottleImage } from "../lib/images";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
@@ -77,7 +78,7 @@ export default function QuickView({ frag, initialFormat, onClose, onAdd }: Quick
       <aside className="mo-drawer mo-scroll" style={{ position: "relative", width: 460, maxWidth: "100%", height: "100%", overflowY: "auto", background: "#0f0f13", borderLeft: "1px solid #1f1f27", padding: 28, display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={72} style={{ width: 60 }} />
+            <BottleImage imageUrl={bottleImage(frag)} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={72} style={{ width: 60 }} />
             <div>
               <div style={{ fontFamily: SERIF, fontSize: 26, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1 }}>{frag.name}</div>
               <div style={{ ...micro, marginTop: 6 }}>{profileOf(frag).join(" · ")}</div>

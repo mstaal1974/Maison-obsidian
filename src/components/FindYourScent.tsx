@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react";
+import { bottleImage } from "../lib/images";
 import { type Fragrance, GOLD, CREAM } from "../lib/data";
 import { findMatches, MOODS, fromLabel, profileOf, availableIn, referenceOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
@@ -56,7 +57,7 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
       <div style={{ display: "grid", gridTemplateColumns: mode === "page" ? "repeat(auto-fill, minmax(300px, 1fr))" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
         {matches.map((m, i) => (
           <article key={m.frag.id} style={{ border: `1px solid ${i === 0 ? "rgba(201,169,97,0.7)" : "#1f1f27"}`, background: "#101015", display: "grid", gridTemplateColumns: "96px 1fr", gap: 16, padding: 14 }}>
-            <BottleImage imageUrl={m.frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt={`${m.frag.name} bottle`} accent={m.frag.accent} liquid={m.frag.liquid} height={116} />
+            <BottleImage imageUrl={bottleImage(m.frag)} fallbackSrc="/assets/bottle-square.jpg" alt={`${m.frag.name} bottle`} accent={m.frag.accent} liquid={m.frag.liquid} height={116} />
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
                 <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>{m.frag.name}</div>

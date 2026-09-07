@@ -82,10 +82,10 @@ on the dark theme). Add these to match the comp exactly:
 
 | Path | Used by |
 | --- | --- |
-| `assets/hero-lineup.jpg` | Homepage hero — 50 ml, 30 ml, discovery, car diffuser, wash, moisturiser |
+| `assets/hero.jpg` | Homepage hero (in place) |
 | `assets/10-ml-bottles-Remix-1.jpg`, `30 ml bottle.jpeg`, `car-freshner.jpg`, `body and sets.jpg` | "Choose your Obsidian" tiles (in place) |
 | `assets/banner-drive.jpg` / `banner-ritual.jpg` | Drive / Ritual banners and the Car / Body page headers |
-| per-fragrance transparent PNG | Uploaded from the admin console (tiles, product page, bag) |
+| `assets/<slug>.png` (e.g. `smoky-obsidian.png`) | Per-fragrance transparent render on tiles, product page, quick view and bag; an image uploaded from the admin console overrides it |
 
 Earlier foundations, still in place:
 

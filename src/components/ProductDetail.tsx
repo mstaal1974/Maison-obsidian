@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { bottleImage } from "../lib/images";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, experienceOf, relatedTo, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
@@ -40,9 +41,9 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
 
   const gallery = [
     { kind: "bottle" as const, label: "Bottle" },
-    { kind: "img" as const, src: "/assets/bottle-pdp.jpg", label: "Detail" },
-    { kind: "img" as const, src: "/assets/bottle-square.jpg", label: "Texture" },
-    { kind: "img" as const, src: "/assets/bottle-pair.png", label: "Scene" },
+    { kind: "img" as const, src: "/assets/30%20ml%20bottle.jpeg", label: "Eau de Parfum" },
+    { kind: "img" as const, src: "/assets/car-freshner.jpg", label: "Car diffuser" },
+    { kind: "img" as const, src: "/assets/body%20and%20sets.jpg", label: "Ritual set" },
   ];
 
   const canEngrave = chosen.def.group === "wear";
@@ -100,7 +101,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
         <div style={{ borderRight: "1px solid #1f1f27", padding: "18px 24px 22px 32px" }}>
           <div style={{ position: "relative", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27", minHeight: 420 }}>
             {gallery[shot].kind === "bottle" ? (
-              <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={440} objectPosition="center 40%" />
+              <BottleImage imageUrl={bottleImage(frag)} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={440} objectPosition="center 40%" />
             ) : (
               <img src={gallery[shot].src} alt={`${frag.name} — ${gallery[shot].label}`} style={{ display: "block", width: "100%", height: 440, objectFit: "cover" }} />
             )}
@@ -110,7 +111,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
             {gallery.map((g, i) => (
               <button key={g.label} onClick={() => setShot(i)} aria-label={g.label} aria-pressed={shot === i} style={{ padding: 0, border: `1px solid ${shot === i ? GOLD : "#1f1f27"}`, background: "#0e0e12", cursor: "pointer", height: 96, overflow: "hidden" }}>
                 {g.kind === "bottle" ? (
-                  <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={94} />
+                  <BottleImage imageUrl={bottleImage(frag)} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={94} />
                 ) : (
                   <img src={g.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 )}
@@ -164,7 +165,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
             <div style={{ marginTop: 18, borderTop: "1px solid #1f1f27", paddingTop: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 220 }}>
                 <span style={{ width: 62, height: 78, flexShrink: 0, display: "grid", placeItems: "center", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27" }}>
-                  {frag.imageUrl ? <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={76} /> : <FormatGlyph formatKey={key} liquid={frag.liquid} height={64} />}
+                  {bottleImage(frag) ? <BottleImage imageUrl={bottleImage(frag)} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={76} /> : <FormatGlyph formatKey={key} liquid={frag.liquid} height={64} />}
                 </span>
                 <div>
                   <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1 }}>{frag.name}</div>

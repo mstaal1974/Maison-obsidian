@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { bottleImage } from "../lib/images";
 import { type Fragrance, GOLD, CREAM, money } from "../lib/data";
 import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
@@ -78,7 +79,7 @@ export default function BagDrawer({ lines, fragrances, placed, busy, onClose, on
                 const s = skuOf(frag, line.format);
                 return (
                   <div key={line.id} style={{ display: "grid", gridTemplateColumns: "64px 1fr auto", gap: 14, alignItems: "center", borderBottom: "1px solid #1f1f27", paddingBottom: 12 }}>
-                    <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={76} />
+                    <BottleImage imageUrl={bottleImage(frag)} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={76} />
                     <div>
                       <div style={{ fontFamily: SERIF, fontSize: 18, color: CREAM, lineHeight: 1.05 }}>{frag.name}</div>
                       <div style={{ ...micro, marginTop: 4 }}>{line.label ? `${line.label} · ${s.def.label}` : s.def.name}{line.engraving ? ` · “${line.engraving}”` : ""}</div>

@@ -1,4 +1,5 @@
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
+import { bottleImage } from "../lib/images";
 import { profileOf, fromPrice, sku, referenceOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
@@ -22,7 +23,7 @@ export default function ScentCard({ frag, onQuickView }: ScentCardProps) {
   return (
     <article className="mo-card" style={{ border: "1px solid #1f1f27", background: "#101015", display: "grid", gridTemplateColumns: "150px 1fr", minHeight: 176 }}>
       <button onClick={() => navigate(paths.product(frag.slug))} aria-label={`Open ${frag.name}`} style={{ padding: 0, border: 0, background: "none", cursor: "pointer", borderRight: "1px solid #1f1f27" }}>
-        <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height="100%" objectPosition="center 40%" />
+        <BottleImage imageUrl={bottleImage(frag)} fallbackSrc="/assets/bottle-square.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height="100%" objectPosition="center 40%" />
       </button>
       <div style={{ padding: "16px 18px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
         <button onClick={() => navigate(paths.product(frag.slug))} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>

@@ -12,10 +12,10 @@ export default function Hero() {
   return (
     <section aria-label="Hero" style={{ borderBottom: "1px solid #1f1f27" }}>
       <Art
-        src="/assets/hero-lineup.jpg"
+        src="/assets/hero.jpg"
         fallback="/assets/bottle-pair.png"
         alt="Maison Obsidian eau de parfum, discovery bottle, car diffuser and body care"
-        position="right center"
+        position="72% 40%"
         style={{ minHeight: 520 }}
         overlay="linear-gradient(90deg, rgba(11,11,13,0.96) 0%, rgba(11,11,13,0.82) 32%, rgba(11,11,13,0.25) 60%, rgba(11,11,13,0.15) 100%), linear-gradient(0deg, rgba(11,11,13,0.7) 0%, transparent 30%)"
       >
@@ -37,7 +37,7 @@ export default function Hero() {
               </button>
             </div>
           </div>
-          <SideCaption lines={["Fragrance", "beyond", "boundaries", "—", "A bolder", "you"]} style={{ alignSelf: "start", paddingTop: 70 }} />
+          <SideCaption lines={["Fragrance", "beyond", "boundaries", "—", "A bolder", "you"]} style={{ alignSelf: "start", marginTop: 40, padding: "18px 20px", background: "rgba(11,11,13,0.62)", backdropFilter: "blur(4px)" }} />
         </div>
       </Art>
     </section>

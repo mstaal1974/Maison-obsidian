@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { bottleImage } from "../lib/images";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE, profileOf, sku as skuOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
@@ -54,7 +55,7 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
                 const f = picked[i];
                 return f ? (
                   <button key={f.id} onClick={() => onToggleDiscovery(f)} title={`Remove ${f.name}`} style={{ padding: 0, border: "1px solid rgba(201,169,97,0.6)", background: "none", cursor: "pointer" }}>
-                    <BottleImage imageUrl={f.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt={f.name} accent={f.accent} liquid={f.liquid} height={76} />
+                    <BottleImage imageUrl={bottleImage(f)} fallbackSrc="/assets/bottle-square.jpg" alt={f.name} accent={f.accent} liquid={f.liquid} height={76} />
                   </button>
                 ) : (
                   <span key={i} aria-hidden style={{ height: 76, border: "1px dashed #2a2a33", display: "grid", placeItems: "center", color: "rgba(243,236,220,0.3)", fontFamily: MONO, fontSize: 10 }}>{i + 1}</span>

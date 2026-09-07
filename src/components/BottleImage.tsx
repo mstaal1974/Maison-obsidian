@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, useState } from "react";
 import { bottleBackdrop } from "./adminStyles";
 
 interface BottleImageProps {
@@ -29,7 +29,10 @@ export default function BottleImage({
   objectPosition = "center 30%",
   style,
 }: BottleImageProps) {
-  if (!imageUrl) {
+  // Remember a render that failed to load (e.g. no /assets/<slug>.png yet) so
+  // the stock photography takes over instead of a broken image.
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!imageUrl || failed === imageUrl) {
     // Stock photography is shot on a light set; a vignette and a touch less
     // brightness sit it into the near-black storefront until real renders land.
     return (
@@ -50,7 +53,8 @@ export default function BottleImage({
         src={imageUrl}
         alt={alt}
         loading="lazy"
-        style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", padding: "6% 10%", boxSizing: "border-box" }}
+        onError={() => setFailed(imageUrl)}
+        style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", padding: "4% 6%", boxSizing: "border-box" }}
       />
     </div>
   );
