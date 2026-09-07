@@ -211,6 +211,16 @@ body {
     padding-left: 0 !important;
     border-top: 1px solid #1f1f27;
   }
+  /* Sign-in dialog: tighter on phones so the whole form fits above the fold. */
+  .mo-auth-overlay {
+    padding: 12px !important;
+  }
+  .mo-auth-dialog {
+    padding: 22px 20px !important;
+  }
+  .mo-auth-title {
+    font-size: 28px !important;
+  }
 }
 
 /* Respect reduced-motion preferences */

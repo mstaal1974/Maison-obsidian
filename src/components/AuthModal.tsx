@@ -94,30 +94,41 @@ export default function AuthModal({
   };
 
   return (
-    <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 100,
-          background: "rgba(5,5,7,0.7)",
-          backdropFilter: "blur(3px)",
-          WebkitBackdropFilter: "blur(3px)",
-          animation: "moFade 0.25s ease",
-        }}
-      />
+    // The overlay is the scroll container: the dialog is flex-centred inside
+    // it (not transform-centred, which the moRise animation would override)
+    // and scrolls within the viewport when it is taller than the screen.
+    <div
+      className="mo-auth-overlay"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        overflowY: "auto",
+        background: "rgba(5,5,7,0.7)",
+        backdropFilter: "blur(3px)",
+        WebkitBackdropFilter: "blur(3px)",
+        animation: "moFade 0.25s ease",
+      }}
+    >
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Sign in"
+        className="mo-auth-dialog"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          position: "fixed",
-          zIndex: 101,
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%,-50%)",
           width: 420,
-          maxWidth: "92vw",
+          maxWidth: "100%",
+          maxHeight: "100%",
+          overflowY: "auto",
+          margin: "auto",
+          flex: "none",
+          boxSizing: "border-box",
           background: "#0d0d11",
           border: "1px solid #1f1f27",
           animation: "moRise 0.3s ease both",
@@ -145,7 +156,7 @@ export default function AuthModal({
           </button>
         </div>
 
-        <h2 style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
+        <h2 className="mo-auth-title" style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
           {reason === "reserve"
             ? mode === "signin"
               ? "Sign in to reserve."
@@ -261,6 +272,6 @@ export default function AuthModal({
           </p>
         )}
       </div>
-    </>
+    </div>
   );
 }
