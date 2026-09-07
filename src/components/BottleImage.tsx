@@ -30,13 +30,18 @@ export default function BottleImage({
   style,
 }: BottleImageProps) {
   if (!imageUrl) {
+    // Stock photography is shot on a light set; a vignette and a touch less
+    // brightness sit it into the near-black storefront until real renders land.
     return (
-      <img
-        src={fallbackSrc}
-        alt={alt}
-        loading="lazy"
-        style={{ display: "block", width: "100%", height, objectFit: "cover", objectPosition, ...style }}
-      />
+      <div style={{ position: "relative", width: "100%", height, overflow: "hidden", background: "#0e0e12", ...style }}>
+        <img
+          src={fallbackSrc}
+          alt={alt}
+          loading="lazy"
+          style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition, filter: "brightness(0.78) saturate(1.05)" }}
+        />
+        <div aria-hidden style={{ position: "absolute", inset: 0, background: "radial-gradient(75% 70% at 50% 45%, transparent 35%, rgba(11,11,13,0.8) 100%)" }} />
+      </div>
     );
   }
   return (

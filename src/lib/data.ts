@@ -41,7 +41,18 @@ export interface Fragrance {
   // descriptor set by the AI conception, e.g. ["Dark", "Resinous", "Woody"].
   imageUrl?: string;
   profile?: string[];
+  // Multi-format commerce. Per-fragrance price overrides (cents) and launch
+  // status per format key; anything unset falls back to the house defaults in
+  // formats.ts. Stock for the non-perfume formats lives alongside stock10/30/50.
+  formatPrices?: Partial<Record<FormatKey, number>>;
+  formatStatus?: Partial<Record<FormatKey, FormatStatus>>;
+  stockCar?: number;
+  stockWash?: number;
+  stockMoist?: number;
 }
+
+export type FormatKey = "perf10" | "perf30" | "perf50" | "car" | "wash" | "moist" | "ritual";
+export type FormatStatus = "live" | "coming_soon" | "hidden";
 
 export const FRAGS: Fragrance[] = [
   {

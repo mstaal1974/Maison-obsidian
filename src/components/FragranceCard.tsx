@@ -1,180 +1,79 @@
-import { type Fragrance, GOLD, money } from "../lib/data";
+import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
+import { profileOf, fromPrice, sku, availableIn } from "../lib/formats";
+import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
-
-// Gender-coded surround for each tile: navy (masculine), pink (feminine),
-// green (unisex). Muted jewel tones so they read on the near-black backdrop
-// without fighting the gold accent.
-const SURROUND: Record<Fragrance["gender"], string> = {
-  masculine: "#34568b", // navy blue
-  feminine: "#b25f80", // pink
-  unisex: "#3f8168", // green
-};
+import { Arrow, Chip, Icon } from "./ui";
+import { MONO, SERIF, btnLink, micro } from "./styles";
 
 interface FragranceCardProps {
   frag: Fragrance;
-  effectiveCommitted: number;
   vip: boolean;
-  showInspiration: boolean;
-  onOpen: () => void;
+  onQuickView: (f: Fragrance, format?: FormatKey) => void;
+  /** Discovery box: present when the card can add a 10 ml to the box. */
+  inDiscovery?: boolean;
+  onToggleDiscovery?: (f: Fragrance) => void;
+  /** Format the quick view opens on from "Choose options" (car / body pages). */
+  defaultFormat?: FormatKey;
 }
 
-export default function FragranceCard({
-  frag,
-  effectiveCommitted,
-  vip,
-  showInspiration,
-  onOpen,
-}: FragranceCardProps) {
-  const pct = Math.min(100, Math.round((effectiveCommitted / frag.moq) * 100));
-  const met = effectiveCommitted >= frag.moq;
+/**
+ * Collection tile. The hierarchy is the house's: name first, profile second,
+ * the reference fragrance only on the product page. Taller photography, less
+ * text, format chips and the two actions the brief asks for.
+ */
+export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onToggleDiscovery, defaultFormat }: FragranceCardProps) {
   const locked = !!frag.vipOnly && !vip;
-  const cta = locked ? "VIP Members Only" : met ? "Batch Met · Re-pour" : "Commit to Batch →";
-  const surround = SURROUND[frag.gender] ?? "#1f1f27";
-
+  const notes = [frag.top[0], frag.heart[0], frag.base[0]].filter(Boolean).join(" · ");
+  const chips: FormatKey[] = ["perf10", "perf30", "perf50"];
   return (
-    <button
-      className="mo-card"
-      onClick={onOpen}
-      style={{
-        textAlign: "left",
-        background: "#101015",
-        border: `2px solid ${surround}`,
-        cursor: "pointer",
-        padding: 0,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div style={{ position: "relative", height: 230, overflow: "hidden", background: "#0e0e12" }}>
-        <BottleImage
-          imageUrl={frag.imageUrl}
-          fallbackSrc="/assets/bottle-portrait.webp"
-          alt={`${frag.name} bottle`}
-          accent={frag.accent}
-          liquid={frag.liquid}
-          style={{ position: "absolute", inset: 0 }}
-        />
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(0deg, rgba(8,8,10,0.92) 0%, rgba(8,8,10,0.5) 30%, rgba(8,8,10,0.12) 62%, transparent 100%)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            padding: 20,
-          }}
-        >
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 27, fontWeight: 700, lineHeight: 1.05, color: "#f6efe0" }}>
-            {frag.name}
-          </div>
-        </div>
+    <article className="mo-card" style={{ border: "1px solid #1f1f27", background: "#101015", display: "flex", flexDirection: "column" }}>
+      <button onClick={() => navigate(paths.product(frag.slug))} aria-label={`Open ${frag.name}`} style={{ padding: 0, border: 0, background: "none", cursor: "pointer", position: "relative", display: "block" }}>
+        <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-portrait.webp" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={300} />
         {frag.vipOnly && (
-          <span
-            style={{
-              position: "absolute",
-              top: 14,
-              left: 14,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              background: "rgba(11,11,13,0.78)",
-              border: "1px solid rgba(201,169,97,0.45)",
-              color: "#c9a961",
-              fontSize: 9,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              padding: "5px 9px",
-              fontFamily: "'Space Mono',monospace",
-            }}
-          >
-            VIP
+          <span style={{ position: "absolute", top: 12, left: 12, ...micro, color: GOLD, border: "1px solid rgba(201,169,97,0.5)", background: "rgba(11,11,13,0.8)", padding: "4px 8px" }}>VIP</span>
+        )}
+      </button>
+      <div style={{ padding: "16px 18px 18px", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
+        <button onClick={() => navigate(paths.product(frag.slug))} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: SERIF, fontSize: 22, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1.05 }}>
+          {frag.name}
+        </button>
+        <div style={{ ...micro, color: "rgba(243,236,220,0.75)", fontSize: 8.5 }}>{profileOf(frag).join(" · ")}</div>
+        <div style={{ fontSize: 12.5, color: "rgba(243,236,220,0.55)" }}>{notes}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+          <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM }}>From {money(fromPrice(frag))}</span>
+          <span style={{ display: "flex", gap: 5 }}>
+            {chips.map((k) => {
+              const s = sku(frag, k);
+              return s.status === "hidden" ? null : (
+                <Chip key={k} onClick={() => onQuickView(frag, k)} style={{ height: 22, padding: "0 7px", fontSize: 8.5 }}>{s.def.short}</Chip>
+              );
+            })}
           </span>
-        )}
-        {met && (
-          <span
-            style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              background: "#c9a961",
-              color: "#0b0b0d",
-              fontSize: 9,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              padding: "5px 9px",
-              fontWeight: 700,
-              fontFamily: "'Space Mono',monospace",
-            }}
-          >
-            Batch Met
-          </span>
-        )}
-      </div>
-      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-        {showInspiration && (
-          <div style={{ fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "rgba(243,236,220,0.5)" }}>
-            {frag.inspiration}
-          </div>
-        )}
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "rgba(243,236,220,0.6)" }}>{frag.tagline}</p>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            fontFamily: "'Space Mono',monospace",
-            fontSize: 10,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: "rgba(243,236,220,0.55)",
-          }}
-        >
-          <span style={{ color: "#c9a961" }}>30% Extrait</span>
-          <span style={{ opacity: 0.4 }}>/</span>
-          <span>50ml</span>
-          <span style={{ opacity: 0.4 }}>/</span>
-          <span>{money(frag.price)}</span>
         </div>
-        <div style={{ marginTop: "auto" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontFamily: "'Space Mono',monospace",
-              fontSize: 10,
-              color: "rgba(243,236,220,0.5)",
-              marginBottom: 7,
-            }}
-          >
-            <span>
-              {effectiveCommitted} / {frag.moq}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, ...micro, fontSize: 8, whiteSpace: "nowrap", letterSpacing: "0.14em" }}>
+          <span>Available in</span>
+          {availableIn(frag).map((a) => (
+            <span key={a.group} style={{ color: a.status === "live" ? GOLD : "rgba(243,236,220,0.45)" }}>
+              {a.status === "live" ? "◈" : "◇"} {a.label}
             </span>
-            <span style={{ color: "#c9a961" }}>{pct}%</span>
-          </div>
-          <div style={{ height: 2, background: "#1f1f27" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: GOLD }} />
-          </div>
+          ))}
         </div>
-        <div
-          style={{
-            fontSize: 10.5,
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            color: locked ? "rgba(243,236,220,0.4)" : GOLD,
-            fontWeight: 600,
-          }}
-        >
-          {cta}
+        <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <button style={{ ...btnLink, color: locked ? "rgba(243,236,220,0.4)" : GOLD, whiteSpace: "nowrap", fontSize: 9 }} onClick={() => (locked ? navigate(paths.about) : onQuickView(frag, defaultFormat))}>
+            {locked ? "VIP members only" : <>Choose options <Arrow size={10} /></>}
+          </button>
+          {onToggleDiscovery && !locked && (
+            <button
+              onClick={() => onToggleDiscovery(frag)}
+              aria-pressed={!!inDiscovery}
+              style={{ background: "none", border: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", whiteSpace: "nowrap", color: inDiscovery ? GOLD : "rgba(243,236,220,0.6)" }}
+            >
+              <Icon name="heart" size={13} color={inDiscovery ? GOLD : "rgba(243,236,220,0.6)"} />
+              {inDiscovery ? "In your box" : "Discovery Box"}
+            </button>
+          )}
         </div>
       </div>
-    </button>
+    </article>
   );
 }

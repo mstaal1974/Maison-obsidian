@@ -202,6 +202,10 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   panel reports that it isn't configured. `/api/conceive` checks the caller against
   `is_admin()` using `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (already in the Vercel
   project) — or `SUPABASE_URL` / `SUPABASE_ANON_KEY` if you prefer server-only names.
+- **Formats** — migration `0009_formats.sql` adds the per-format price/status maps and
+  car / wash / moisturiser stock to `fragrances`, a `format` + `qty` on `commits`, the
+  `admin_set_formats` RPC behind the admin **Product Matrix**, and re-creates
+  `commit_to_batch` with the two extra arguments. Apply it after `0008`.
 - **Bottle images** — migration `0008_ai_conception.sql` creates the public
   `fragrance-images` storage bucket (PNG/WebP, 4 MB) with admin-only writes. Nothing else
   to configure; uploads from the admin console land there and the public URL is stored on

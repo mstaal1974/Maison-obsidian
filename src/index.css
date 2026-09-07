@@ -141,9 +141,46 @@ body {
   color: rgba(243, 236, 220, 0.32);
 }
 
+.mo-drawer {
+  animation: moDrawer 0.28s ease;
+}
+
 /* ─── Responsive: the design is a desktop comp; degrade gracefully ────────── */
 
+@media (max-width: 1180px) {
+  .mo-choose-grid,
+  .mo-mood-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .mo-find-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .mo-find-grid > div:last-child {
+    border-left: 0 !important;
+    padding-left: 0 !important;
+  }
+  .mo-notes-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .mo-notes-grid > div:first-child {
+    grid-column: 1 / -1;
+    border-right: 0 !important;
+  }
+  .mo-formats-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .mo-also-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
 @media (max-width: 1000px) {
+  .mo-nav {
+    display: none !important;
+  }
+  .mo-banner-grid {
+    grid-template-columns: 1fr !important;
+  }
   .mo-hero-grid,
   .mo-pdp-grid,
   .mo-vip-grid {
@@ -161,7 +198,12 @@ body {
 @media (max-width: 720px) {
   .mo-vault-grid,
   .mo-method-grid,
-  .mo-footer-grid {
+  .mo-footer-grid,
+  .mo-choose-grid,
+  .mo-mood-grid,
+  .mo-notes-grid,
+  .mo-formats-grid,
+  .mo-also-grid {
     grid-template-columns: 1fr !important;
   }
   .mo-method-grid > div {

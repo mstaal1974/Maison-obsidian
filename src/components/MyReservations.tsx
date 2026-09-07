@@ -3,6 +3,8 @@ import { type Fragrance, GOLD, money } from "../lib/data";
 export interface Reservation {
   frag: Fragrance;
   sizeMl?: number;
+  formatLabel?: string; // e.g. "Car Diffuser 10ml"
+  qty?: number;
   chargeCents?: number;
   engraving: string | null;
   status: "authorized" | "captured" | "released" | "void";
@@ -126,7 +128,7 @@ export default function MyReservations({ reservations, loading, onOpen, onBackTo
                           color: "rgba(243,236,220,0.6)",
                         }}
                       >
-                        {r.sizeMl && <span>{r.sizeMl} ml</span>}
+                        <span>{r.formatLabel ?? (r.sizeMl ? `${r.sizeMl} ml` : "")}{r.qty && r.qty > 1 ? ` × ${r.qty}` : ""}</span>
                         {r.chargeCents != null && (
                           <>
                             <span style={{ opacity: 0.4 }}>/</span>

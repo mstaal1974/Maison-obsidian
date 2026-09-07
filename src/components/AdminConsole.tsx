@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect, useMemo, useRef, useState, useSyncExtern
 import { type Fragrance, money } from "../lib/data";
 import { inspectPng, uploadFragranceImage } from "../lib/conceive";
 import ConceiveFragrance from "./ConceiveFragrance";
+import FormatMatrix from "./FormatMatrix";
 import { label, field, btnGold, btnGhost, bottleBackdrop } from "./adminStyles";
 import {
   adminUpsertFragrance,
@@ -60,7 +61,7 @@ const BLANK: Fragrance = {
 };
 
 export default function AdminConsole({ fragrances, configured, onReload, demoCommits }: AdminConsoleProps) {
-  const [tab, setTab] = useState<"catalogue" | "fulfillment">("catalogue");
+  const [tab, setTab] = useState<"catalogue" | "matrix" | "fulfillment">("catalogue");
 
   return (
     <main data-screen-label="Admin" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
@@ -75,7 +76,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
       )}
 
       <div style={{ display: "flex", gap: 22, margin: "28px 0 30px", borderBottom: "1px solid #1f1f27" }}>
-        {(["catalogue", "fulfillment"] as const).map((t) => (
+        {(["catalogue", "matrix", "fulfillment"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -92,13 +93,15 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
               fontWeight: 600,
             }}
           >
-            {t === "catalogue" ? "Catalogue & Inventory" : "Fulfillment"}
+            {t === "catalogue" ? "Catalogue & Inventory" : t === "matrix" ? "Product Matrix" : "Fulfillment"}
           </button>
         ))}
       </div>
 
       {tab === "catalogue" ? (
         <Catalogue fragrances={fragrances} configured={configured} onReload={onReload} demoCommits={demoCommits} />
+      ) : tab === "matrix" ? (
+        <FormatMatrix fragrances={fragrances} configured={configured} onReload={onReload} />
       ) : (
         <Fulfillment fragrances={fragrances} configured={configured} demoCommits={demoCommits} />
       )}
@@ -644,7 +647,7 @@ function FulfillRow({
       <div>
         <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: "#f3ecdc" }}>{name}</div>
         <div style={{ ...label, marginTop: 4 }}>
-          {commit.size_ml} ml · {commit.charge_cents != null ? money(commit.charge_cents) : "—"}
+          {commit.format ? commit.format.toUpperCase() : `${commit.size_ml} ml`} · {commit.charge_cents != null ? money(commit.charge_cents) : "—"}
           {commit.engraving ? ` · “${commit.engraving}”` : ""} · {commit.status}
         </div>
       </div>

@@ -38,4 +38,9 @@ export interface FragranceRow {
   oil_ml?: number;
   image_url?: string | null;
   profile?: string[];
+  format_prices?: Record<string, number> | null;
+  format_status?: Record<string, string> | null;
+  stock_car?: number;
+  stock_wash?: number;
+  stock_moist?: number;
 }
