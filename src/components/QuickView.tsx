@@ -3,6 +3,7 @@ import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data"
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
+import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
@@ -53,10 +54,13 @@ export default function QuickView({ frag, initialFormat, onClose, onAdd }: Quick
           color: CREAM,
         }}
       >
-        <span>
+        <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ width: 40, display: "grid", placeItems: "center" }}><FormatGlyph formatKey={s.key} liquid={frag.liquid} height={s.key === "ritual" ? 24 : 40} /></span>
+          <span>
           <span style={{ display: "block", fontFamily: SERIF, fontSize: 17 }}>{s.def.name}</span>
           <span style={{ ...micro, fontSize: 8, display: "block", marginTop: 3, color: soon ? GOLD : "rgba(243,236,220,0.5)" }}>
             {soon ? (notified.has(s.key) ? "We'll let you know" : "Coming soon · Notify me") : s.availability}
+          </span>
           </span>
         </span>
         <span style={{ fontFamily: MONO, fontSize: 12, whiteSpace: "nowrap", color: soon ? "rgba(243,236,220,0.5)" : CREAM }}>
