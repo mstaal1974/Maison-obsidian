@@ -37,7 +37,7 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
         <button onClick={() => navigate(paths.product(frag.slug))} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: SERIF, fontSize: 22, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1.05 }}>
           {frag.name}
         </button>
-        <InspiredBy {...referenceOf(frag)} size="sm" style={{ alignSelf: "flex-start" }} />
+        <InspiredBy {...referenceOf(frag)} size="sm" />
         <div style={{ ...micro, color: "rgba(243,236,220,0.75)", fontSize: 8.5 }}>{profileOf(frag).join(" · ")}</div>
         <div style={{ fontSize: 12.5, color: "rgba(243,236,220,0.55)" }}>{notes}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>

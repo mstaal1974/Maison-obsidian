@@ -62,7 +62,7 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
                 <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>{m.frag.name}</div>
                 <div style={{ fontFamily: MONO, fontSize: 10, color: GOLD, whiteSpace: "nowrap" }}>{m.percent}% match</div>
               </div>
-              <InspiredBy {...referenceOf(m.frag)} size="md" style={{ alignSelf: "flex-start" }} />
+              <InspiredBy {...referenceOf(m.frag)} size="md" />
               <div style={{ ...micro, color: "rgba(243,236,220,0.7)" }}>{profileOf(m.frag).join(" · ")}</div>
               <div style={{ fontSize: 12, color: "rgba(243,236,220,0.55)", lineHeight: 1.5 }}>{m.reason}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 2 }}>
