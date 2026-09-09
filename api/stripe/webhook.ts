@@ -8,7 +8,7 @@
 //   customer.subscription.deleted  mark cancelled
 // Every handler is idempotent, so Stripe's retries are safe.
 
-import { getStripe, json, rawBody, serviceClient, route } from "../_lib/stripe.js";
+import { getStripe, json, rawBody, serviceClient, route, notConfigured } from "../_lib/stripe.js";
 import { prepareRenewal, recordRenewal, recordReservation, recordSubscriptionStart } from "../_lib/record.js";
 import type Stripe from "stripe";
 
@@ -19,7 +19,7 @@ export default route("webhook", async function handler(req: any, res: any) {
   const stripe = getStripe();
   const db = serviceClient();
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!stripe || !db || !secret) return json(res, 501, { error: "Stripe webhook isn't configured" });
+  if (!stripe || !db || !secret) return notConfigured(res, "Stripe webhook", ["stripe", "service", "webhook"]);
 
   let event: Stripe.Event;
   try {

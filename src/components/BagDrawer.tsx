@@ -4,7 +4,6 @@ import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
-import StripeCheckoutForm from "./StripeCheckoutForm";
 import { Arrow, Icon } from "./ui";
 import { MONO, SERIF, btnGold, btnGhost, btnLink, micro } from "./styles";
 
@@ -15,9 +14,6 @@ interface BagDrawerProps {
   busy: boolean;
   /** Checkout could not start (Stripe declined the bag, network). */
   error?: string | null;
-  /** A Stripe Checkout Session is open: show the embedded payment form. */
-  checkoutSecret?: string | null;
-  onCancelCheckout?: () => void;
   onClose: () => void;
   onCheckout: () => void;
   onAddCar: (f: Fragrance) => void;
@@ -28,7 +24,7 @@ interface BagDrawerProps {
  * (card authorised, never charged, until its batch pours). The Drive cross-sell
  * lives here because "take it with you" is the obvious add at the end.
  */
-export default function BagDrawer({ lines, fragrances, placed, busy, error, checkoutSecret, onCancelCheckout, onClose, onCheckout, onAddCar }: BagDrawerProps) {
+export default function BagDrawer({ lines, fragrances, placed, busy, error, onClose, onCheckout, onAddCar }: BagDrawerProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -120,16 +116,9 @@ export default function BagDrawer({ lines, fragrances, placed, busy, error, chec
                 <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100</span>
                 <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
               </div>
-              {checkoutSecret ? (
-                <>
-                  <StripeCheckoutForm clientSecret={checkoutSecret} />
-                  <button style={{ ...btnLink, alignSelf: "flex-start" }} onClick={onCancelCheckout}>Back to bag</button>
-                </>
-              ) : (
-                <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} disabled={busy} onClick={onCheckout}>
-                  {busy ? "Opening secure checkout…" : "Reserve & authorise"} <Arrow />
-                </button>
-              )}
+              <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} disabled={busy} onClick={onCheckout}>
+                {busy ? "Opening secure checkout…" : "Reserve & authorise"} <Arrow />
+              </button>
               {error && <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{error}</div>}
               <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: "rgba(243,236,220,0.5)" }}>
                 Secure card checkout by Stripe. Authorised, never charged: we capture only when each batch is met; if a batch closes short, the hold is released.

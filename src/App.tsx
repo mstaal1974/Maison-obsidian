@@ -45,7 +45,6 @@ export default function App() {
   // The Monthly Pour: builder state and the sign-in hand-off, like checkout.
   const [pendingSub, setPendingSub] = useState<{ format: FormatKey; frag: Fragrance | null; mode: PickMode } | null>(null);
   const [subBusy, setSubBusy] = useState(false);
-  const [subSecret, setSubSecret] = useState<string | null>(null);
   const [subStarted, setSubStarted] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
 
@@ -63,7 +62,6 @@ export default function App() {
       setRoute(parseHash(window.location.hash));
       setSubStarted(false);
       setSubError(null);
-      setSubSecret(null);
     };
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -115,8 +113,6 @@ export default function App() {
   // Checkout (a hold per reservation, recorded on return); otherwise the stub
   // authorises locally. Needs an account either way.
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  // Stripe's embedded payment form renders in the bag drawer for this session.
-  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
   const checkout = useCallback(async () => {
     setCheckingOut(true);
     setCheckoutError(null);
@@ -124,7 +120,7 @@ export default function App() {
       if (auth.configured) {
         const r = await stripeCheckout(lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })));
         if (r?.ok) {
-          setCheckoutSecret(r.data.client_secret);
+          window.location.assign(r.data.url);
           return;
         }
         if (r?.ok === false && !r.unconfigured) {
@@ -133,7 +129,7 @@ export default function App() {
         }
         // Stripe not configured on Vercel: fall back to the local hold, and
         // tell an admin why so it isn't a silent mystery.
-        if (r?.ok === false && r.unconfigured && isAdmin) setCheckoutError(`Stripe isn't configured on Vercel (${r.error}). Set STRIPE_SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY and VITE_STRIPE_PUBLISHABLE_KEY, then redeploy. Recording a demo hold instead.`);
+        if (r?.ok === false && r.unconfigured && isAdmin) setCheckoutError(`${r.error}. ${r.detail ?? "Set STRIPE_SECRET_KEY and SUPABASE_SERVICE_ROLE_KEY in Vercel"}. Redeploy after saving. Recording a demo hold instead.`);
       }
       const done: Omit<Order, "id" | "createdAt">[] = [];
       for (const l of lines) {
@@ -184,14 +180,14 @@ export default function App() {
         if (auth.configured) {
           const r = await stripeSubscribe(format, pick?.id ?? null, mode);
           if (r?.ok) {
-            setSubSecret(r.data.client_secret);
+            window.location.assign(r.data.url);
             return;
           }
           if (r?.ok === false && !r.unconfigured) {
             setSubError(isAdmin && r.detail ? `${r.error} — ${r.detail}` : r.error);
             return;
           }
-          if (r?.ok === false && r.unconfigured && isAdmin) setSubError(`Stripe isn't configured on Vercel (${r.error}); this subscription is recorded without billing.`);
+          if (r?.ok === false && r.unconfigured && isAdmin) setSubError(`${r.error}. ${r.detail ?? "Set STRIPE_SECRET_KEY and SUPABASE_SERVICE_ROLE_KEY in Vercel"}. This subscription is recorded without billing.`);
         }
         // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
         const frag = pick ?? drawSurpriseScent(fragrances, format, [], surpriseAffinity);
@@ -389,8 +385,6 @@ export default function App() {
           busy={subBusy}
           started={subStarted}
           error={subError}
-          checkoutSecret={subSecret}
-          onCancelCheckout={() => setSubSecret(null)}
           onStart={requestSubscribe}
         />
       )}
@@ -451,12 +445,7 @@ export default function App() {
           placed={placed}
           busy={checkingOut}
           error={checkoutError}
-          checkoutSecret={checkoutSecret}
-          onCancelCheckout={() => setCheckoutSecret(null)}
-          onClose={() => {
-            setBagOpen(false);
-            setCheckoutSecret(null);
-          }}
+          onClose={() => setBagOpen(false)}
           onCheckout={requestCheckout}
           onAddCar={(f) => addToBag(f.id, "car", 1)}
         />

@@ -1,14 +1,16 @@
 # Stripe integration — remaining steps
 
-Stripe Checkout runs as an **embedded payment form** (Checkout Studio, `ui_mode: "form"`) inside the bag drawer and on the Subscribe page. This file is the single source of truth for what is left to do.
+Stripe Checkout runs as a **hosted page** (Checkout Studio, `ui_mode: "hosted_page"`): the bag and the Subscribe page redirect the customer to Stripe's own payment page, and Stripe returns them to the account page. This file is the single source of truth for what is left to do.
 
 ## Values to Replace
 
-No placeholder values remain in the Checkout Session calls. `mode` and `line_items` are real: reservations use `mode: "payment"` with line items priced server-side from the live catalogue, and the Monthly Pour uses `mode: "subscription"` with a monthly `price_data` line. Neither uses a Dashboard Price ID, so there is nothing to swap.
+No placeholder values remain. `mode`, `success_url`, `cancel_url` and `line_items` all hold real values: reservations use `mode: "payment"` with line items priced server-side from the live catalogue, and the Monthly Pour uses `mode: "subscription"` with a monthly `price_data` line. Neither uses a Dashboard Price ID, so there is nothing to swap.
 
 | Field | Current Value | What to Set |
 |-------|--------------|-------------|
 | — | — | Nothing to replace. |
+
+The success and cancel URLs are built from `SITE_URL` at request time (falling back to the request's own host), so they follow whichever domain the site is deployed on.
 
 ## Configured Parameters
 
@@ -20,68 +22,68 @@ These parameters were configured in Checkout Studio and are already set correctl
 
 | Parameter | Value |
 |-----------|-------|
-| ui_mode | form (Stripe SDK 22.6.1 ≥ 21.0.0) |
+| ui_mode | hosted_page (Stripe SDK 22.6.1 ≥ 21.0.0) |
 | billing_address_collection | auto |
 | phone_number_collection | { enabled: false } |
 | automatic_tax | { enabled: false } |
+| allow_promotion_codes | false |
 | submit_type | auto |
-| integration_identifier | custom_embedded_web_0002 |
+| integration_identifier | hosted_web_0001 |
+| origin_context | web |
 | payment_method_collection | always (subscription only) |
 
-Kept alongside them because the fulfilment flow depends on them: `customer`, `metadata`, `payment_intent_data` (manual capture + saved card on reservations), `subscription_data` (subscription metadata) and `return_url` (required for the embedded form; replaces the former `success_url` / `cancel_url`).
+Kept alongside them because the fulfilment flow depends on them: `customer`, `metadata`, `payment_intent_data` (manual capture plus a saved card on reservations) and `subscription_data` (subscription metadata).
 
-The server client is pinned to API version `2026-03-25.dahlia; custom_checkout_payment_form_preview=v1` in [api/_lib/stripe.ts](api/_lib/stripe.ts), as the embedded form requires.
+The Stripe client is created with no `apiVersion`, so your account's default API version applies — see [api/_lib/stripe.ts](api/_lib/stripe.ts).
 
 ## Setup
 
-1. **Keys.** In Vercel → Project → Settings → Environment Variables set:
+1. **Keys.** In Vercel → Project → Settings → Environment Variables, for the **Production** environment:
    - `STRIPE_SECRET_KEY` — server only
-   - `STRIPE_WEBHOOK_SECRET` — from the webhook endpoint you create below
-   - `VITE_STRIPE_PUBLISHABLE_KEY` — browser; without it the form reports "VITE_STRIPE_PUBLISHABLE_KEY is not set"
+   - `STRIPE_WEBHOOK_SECRET` — from the webhook endpoint below
    - `SUPABASE_SERVICE_ROLE_KEY` — server only; the webhook and admin capture write with it
-   - `SITE_URL` — e.g. `https://maison-obsidian.vercel.app` (return target after payment)
-   See [.env.example](.env.example) for local development.
-2. **Database.** Apply `supabase/migrations/0015_stripe.sql` (after 0014).
+   - `SITE_URL` — e.g. `https://maisonobsidian-zeta.vercel.app` (where Stripe returns the customer)
+   Hosted Checkout needs **no publishable key**: the browser never talks to Stripe directly. Environment variables apply to new deployments only, so redeploy after saving. See [.env.example](.env.example) for local development.
+2. **Database.** Apply `supabase/migrations/0015_stripe.sql` (after `0014`).
 3. **Webhook.** Dashboard → Developers → Webhooks → Add endpoint `https://<your site>/api/stripe/webhook` with events `checkout.session.completed`, `invoice.upcoming`, `invoice.paid`, `customer.subscription.deleted`. Paste its signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. **Customer portal.** Dashboard → Settings → Billing → Customer portal → enable, so "Update card & invoices" works for subscribers.
-5. **Dependencies.** `stripe` (^22.6.1) is already in `package.json`; Stripe.js loads from `https://js.stripe.com/dahlia/stripe.js` in [index.html](index.html) (never bundled, per PCI).
+5. **Dependencies.** `stripe` (^22.6.1) is already in `package.json`. Nothing to load in the browser.
 
 ## Project structure
 
-New or changed for Stripe:
+Files behind the Stripe integration:
 
 ```
-api/_lib/stripe.ts            client, catalogue pricing, customer lookup, API version pin
+api/_lib/stripe.ts            client, catalogue pricing, customer lookup, config checks
+api/_lib/catalogue.ts         pricing rules mirrored from src/lib/formats.ts
 api/_lib/record.ts            idempotent writes shared by webhook + confirm
-api/stripe/checkout.ts        Checkout Session for the bag (embedded form)
-api/stripe/subscribe.ts       Checkout Session for the Monthly Pour (embedded form)
+api/stripe/checkout.ts        hosted Checkout Session for the bag
+api/stripe/subscribe.ts       hosted Checkout Session for the Monthly Pour
 api/stripe/confirm.ts         on return: record if the webhook hasn't, report outcome
 api/stripe/webhook.ts         Stripe events → commits / subscriptions / deliveries
 api/stripe/cancel-subscription.ts, portal.ts, capture.ts
 src/lib/stripe.ts             browser calls to the routes (null when Stripe isn't configured)
-src/lib/stripeForm.ts         Stripe.js init with the embedded-form beta + mount helper
-src/components/StripeCheckoutForm.tsx   the <div id="checkout-form"> the SDK renders into
 supabase/migrations/0015_stripe.sql
 ```
 
 ## How it works
 
-**Reservations.** The bag drawer's "Reserve & authorise" posts the bag to `/api/stripe/checkout`, which prices every line from the live catalogue and creates a Checkout Session (`mode: "payment"`, manual capture, card saved off-session). The drawer swaps its button for Stripe's embedded form using the returned `client_secret`. After confirmation Stripe sends the customer to `#/account?checkout=success&session_id=…`; the webhook and `/api/stripe/confirm` each record one commit per line, whichever runs first. When a batch is met, the console's Fulfillment tab → "Capture & pour" captures the holds (or charges the saved card if a hold has expired); "Release holds" cancels them if the batch closed short.
+**Reservations.** "Reserve & authorise" posts the bag to `/api/stripe/checkout`, which prices every line from the live catalogue and creates a hosted Checkout Session (`mode: "payment"`, manual capture, card saved off-session). The browser redirects to `session.url`. After paying, Stripe returns the customer to `#/account?checkout=success&session_id=…`; the webhook and `/api/stripe/confirm` each record one commit per line, whichever runs first. When a batch is met, the console's Fulfillment tab → "Capture & pour" captures the holds (or charges the saved card if a hold has expired); "Release holds" cancels them if the batch closed short.
 
-**The Monthly Pour.** "Start my subscription" posts to `/api/stripe/subscribe`, which creates a Checkout Session (`mode: "subscription"`) at the first pick's member price and renders the form in the summary panel. Before each renewal, `invoice.upcoming` settles the month's scent (drawing it in surprise mode) and re-prices the subscription; `invoice.paid` records the delivery; the twelfth paid month completes the term and cancels the subscription. Cancelling from the account cancels at Stripe.
+**The Monthly Pour.** "Start my subscription" posts to `/api/stripe/subscribe`, which creates a hosted Checkout Session (`mode: "subscription"`) at the first pick's member price and redirects. Before each renewal, `invoice.upcoming` settles the month's scent (drawing it in surprise mode) and re-prices the subscription; `invoice.paid` records the delivery; the twelfth paid month completes the term and cancels the subscription. Cancelling from the account cancels at Stripe.
 
-**Without Stripe.** If `STRIPE_SECRET_KEY` is unset the routes answer 501 and the site keeps its local stub flow.
+**Without Stripe.** If `STRIPE_SECRET_KEY` or the Supabase service-role key is missing, the routes answer 501 naming what is absent, and the site falls back to its local hold flow.
 
 ## Testing
 
-Use test-mode keys. Cards: `4242 4242 4242 4242` (succeeds), `4000 0025 0000 3155` (requires 3D Secure), `4000 0000 0000 9995` (declined). Any future expiry, any CVC. Watch Vercel function logs for the webhook; each event returns `{ received: true }` on success.
+Use test-mode keys. Cards: `4242 4242 4242 4242` (succeeds), `4000 0025 0000 3155` (requires 3D Secure), `4000 0000 0000 9995` (declined). Any future expiry, any CVC. Watch the Vercel function logs for the webhook; each event returns `{ received: true }` on success.
 
 ## Next steps
 
 - Decide the currency (`STRIPE_CURRENCY`, default `aud`) before going live.
-- Set the Dashboard's public business details (statement descriptor, support email) that appear on receipts.
+- Set the Dashboard's public business details (statement descriptor, support email) that appear on receipts and on the hosted page.
+- Brand the hosted page under Dashboard → Settings → Branding (logo, colours) so it matches the house.
 - Turn on Stripe email receipts, or send your own from the `checkout.session.completed` event.
-- Consider extended authorisations if your batches routinely take longer than a card hold allows; the saved-card recharge covers it today.
 - Order tracking already lives under Account → My Reservations; the console records shipments per commit.
 
 ## Resources

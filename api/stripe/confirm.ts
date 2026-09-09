@@ -4,7 +4,7 @@
 // and tells the page what was reserved or started. Only the session's owner
 // may confirm it.
 
-import { getStripe, json, serviceClient, userFromRequest, route } from "../_lib/stripe.js";
+import { getStripe, json, serviceClient, userFromRequest, route, notConfigured } from "../_lib/stripe.js";
 import { recordReservation, recordSubscriptionStart } from "../_lib/record.js";
 
 export const config = { runtime: "nodejs" };
@@ -13,7 +13,7 @@ export default route("confirm", async function handler(req: any, res: any) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
-  if (!stripe || !db) return json(res, 501, { error: "Stripe isn't configured" });
+  if (!stripe || !db) return notConfigured(res, "Stripe", ["stripe", "service"]);
   const user = await userFromRequest(req);
   if (!user) return json(res, 401, { error: "Sign in" });
   const id = String(req.query?.session_id ?? "");

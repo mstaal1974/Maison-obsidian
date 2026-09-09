@@ -15,12 +15,10 @@ import { type CatalogueItem, type FormatKey, FORMAT_BY_KEY, buyable, formatPrice
 
 export const CURRENCY = (process.env.STRIPE_CURRENCY ?? "aud").toLowerCase();
 
-// Pinned API version + beta flag required by the embedded Checkout Form SDK.
-const API_VERSION = "2026-03-25.dahlia; custom_checkout_payment_form_preview=v1" as unknown as Stripe.LatestApiVersion;
-
 export function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
-  return key ? new Stripe(key, { apiVersion: API_VERSION }) : null;
+  // No apiVersion: the account's default version applies.
+  return key ? new Stripe(key) : null;
 }
 
 export function supabaseUrl(): string | undefined {
@@ -187,6 +185,27 @@ export async function customerFor(stripe: Stripe, db: SupabaseClient, user: { id
   const customer = await stripe.customers.create({ email: user.email ?? undefined, metadata: { user_id: user.id } });
   await db.from("stripe_customers").upsert({ user_id: user.id, customer_id: customer.id, email: user.email });
   return customer.id;
+}
+
+/**
+ * Names the environment variables a route needs and can't see, so a 501 says
+ * exactly what to set in Vercel rather than just "not configured".
+ */
+export function missingConfig(need: ("stripe" | "service" | "webhook")[]): string[] {
+  const missing: string[] = [];
+  if (need.includes("stripe") && !process.env.STRIPE_SECRET_KEY) missing.push("STRIPE_SECRET_KEY");
+  if (need.includes("service")) {
+    if (!supabaseUrl()) missing.push("SUPABASE_URL (or VITE_SUPABASE_URL)");
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push("SUPABASE_SERVICE_ROLE_KEY");
+  }
+  if (need.includes("webhook") && !process.env.STRIPE_WEBHOOK_SECRET) missing.push("STRIPE_WEBHOOK_SECRET");
+  return missing;
+}
+
+/** The standard 501 for an unconfigured route, naming what's missing. */
+export function notConfigured(res: any, what: string, need: ("stripe" | "service" | "webhook")[]) {
+  const missing = missingConfig(need);
+  return json(res, 501, { error: `${what} isn't configured`, detail: missing.length ? `Missing in Vercel: ${missing.join(", ")}` : "Keys are set but the client could not start", missing });
 }
 
 export function json(res: any, status: number, body: unknown) {

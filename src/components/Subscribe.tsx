@@ -4,7 +4,6 @@ import { formatPrice, FORMAT_BY_KEY, MOODS, moodsOf, profileOf, referenceOf } fr
 import { type PickMode, SUBSCRIPTION_FORMATS, SUBSCRIPTION_MONTHS, rangeLabel, subscriptionFrom, subscriptionPrice, subscriptionRange } from "../lib/subscription";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
-import StripeCheckoutForm from "./StripeCheckoutForm";
 import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow, Chip, Container, InspiredBy } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
@@ -20,9 +19,6 @@ interface SubscribeProps {
   /** Just started: show the confirmation instead of the builder. */
   started: boolean;
   error?: string | null;
-  /** A Stripe Checkout Session is open: show the embedded payment form. */
-  checkoutSecret?: string | null;
-  onCancelCheckout?: () => void;
   /** `frag` is the customer's month-1 pick; null means the house draws it. */
   onStart: (format: FormatKey, frag: Fragrance | null, mode: PickMode) => void;
 }
@@ -38,7 +34,7 @@ const STEPS = [
  * month, 10% under the shelf price. Format first, then the first scent, with
  * a running summary that becomes the order.
  */
-export default function Subscribe({ fragrances, vip, initialSlug, initialFormat, hasActive, busy, started, error, checkoutSecret, onCancelCheckout, onStart }: SubscribeProps) {
+export default function Subscribe({ fragrances, vip, initialSlug, initialFormat, hasActive, busy, started, error, onStart }: SubscribeProps) {
   const [format, setFormat] = useState<FormatKey>(
     initialFormat && SUBSCRIPTION_FORMATS.includes(initialFormat as FormatKey) ? (initialFormat as FormatKey) : "perf30",
   );
@@ -263,12 +259,6 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
               )}
             </div>
             {error && <div style={{ fontSize: 11.5, color: "#d98a6a", lineHeight: 1.5 }}>{error}</div>}
-            {checkoutSecret ? (
-              <>
-                <StripeCheckoutForm clientSecret={checkoutSecret} />
-                <button style={{ ...btnLink, justifySelf: "start" }} onClick={onCancelCheckout}>Change my choices</button>
-              </>
-            ) : (
             <button
               className="mo-cta"
               disabled={!ready || busy || hasActive}
@@ -277,7 +267,6 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
             >
               {busy ? "Starting…" : "Start my subscription"} <Arrow />
             </button>
-            )}
             <div style={{ fontSize: 10.5, lineHeight: 1.6, color: "rgba(243,236,220,0.45)", textAlign: "center" }}>
               Cancel any time from your account. Months already paid still ship.
             </div>
