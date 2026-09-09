@@ -99,14 +99,14 @@ export interface StripeLine {
   label?: string;
 }
 
-/** Bag → Stripe Checkout URL. Null when Stripe isn't configured. */
+/** Bag → a Checkout Session client secret for the embedded form. Null when Stripe isn't configured. */
 export async function stripeCheckout(lines: StripeLine[]) {
-  return call<{ url: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ lines }) });
+  return call<{ client_secret: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ lines }) });
 }
 
-/** Monthly Pour → Stripe Checkout URL (subscription). Null when not configured. */
+/** Monthly Pour → a Checkout Session client secret (subscription). Null when not configured. */
 export async function stripeSubscribe(format: FormatKey, fragranceId: string | null, pickMode: "choose" | "surprise") {
-  return call<{ url: string }>("/api/stripe/subscribe", { method: "POST", body: JSON.stringify({ format, fragranceId, pickMode }) });
+  return call<{ client_secret: string }>("/api/stripe/subscribe", { method: "POST", body: JSON.stringify({ format, fragranceId, pickMode }) });
 }
 
 export interface ConfirmResult {

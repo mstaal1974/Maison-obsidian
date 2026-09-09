@@ -45,6 +45,7 @@ export default function App() {
   // The Monthly Pour: builder state and the sign-in hand-off, like checkout.
   const [pendingSub, setPendingSub] = useState<{ format: FormatKey; frag: Fragrance | null; mode: PickMode } | null>(null);
   const [subBusy, setSubBusy] = useState(false);
+  const [subSecret, setSubSecret] = useState<string | null>(null);
   const [subStarted, setSubStarted] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
 
@@ -62,6 +63,7 @@ export default function App() {
       setRoute(parseHash(window.location.hash));
       setSubStarted(false);
       setSubError(null);
+      setSubSecret(null);
     };
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -113,6 +115,8 @@ export default function App() {
   // Checkout (a hold per reservation, recorded on return); otherwise the stub
   // authorises locally. Needs an account either way.
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  // Stripe's embedded payment form renders in the bag drawer for this session.
+  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
   const checkout = useCallback(async () => {
     setCheckingOut(true);
     setCheckoutError(null);
@@ -120,7 +124,7 @@ export default function App() {
       if (auth.configured) {
         const r = await stripeCheckout(lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })));
         if (r?.ok) {
-          window.location.assign(r.data.url);
+          setCheckoutSecret(r.data.client_secret);
           return;
         }
         if (r?.ok === false) {
@@ -177,7 +181,7 @@ export default function App() {
         if (auth.configured) {
           const r = await stripeSubscribe(format, pick?.id ?? null, mode);
           if (r?.ok) {
-            window.location.assign(r.data.url);
+            setSubSecret(r.data.client_secret);
             return;
           }
           if (r?.ok === false) {
@@ -381,6 +385,8 @@ export default function App() {
           busy={subBusy}
           started={subStarted}
           error={subError}
+          checkoutSecret={subSecret}
+          onCancelCheckout={() => setSubSecret(null)}
           onStart={requestSubscribe}
         />
       )}
@@ -441,7 +447,12 @@ export default function App() {
           placed={placed}
           busy={checkingOut}
           error={checkoutError}
-          onClose={() => setBagOpen(false)}
+          checkoutSecret={checkoutSecret}
+          onCancelCheckout={() => setCheckoutSecret(null)}
+          onClose={() => {
+            setBagOpen(false);
+            setCheckoutSecret(null);
+          }}
           onCheckout={requestCheckout}
           onAddCar={(f) => addToBag(f.id, "car", 1)}
         />
