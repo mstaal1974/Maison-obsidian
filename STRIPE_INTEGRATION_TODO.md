@@ -74,6 +74,10 @@ supabase/migrations/0015_stripe.sql
 
 **Without Stripe.** If `STRIPE_SECRET_KEY` or the Supabase service-role key is missing, the routes answer 501 naming what is absent, and the site falls back to its local hold flow.
 
+## Checking the configuration
+
+Open **`https://<your site>/api/stripe/status`** in a browser. It reports which environment variables the serverless functions can actually see, and whether the Supabase service-role key really carries the `service_role` claim (a common mistake is pasting the anon key into that slot). It never returns key material. `checkoutReady: true` means the routes have everything they need.
+
 ## Testing
 
 Use test-mode keys. Cards: `4242 4242 4242 4242` (succeeds), `4000 0025 0000 3155` (requires 3D Secure), `4000 0000 0000 9995` (declined). Any future expiry, any CVC. Watch the Vercel function logs for the webhook; each event returns `{ received: true }` on success.
