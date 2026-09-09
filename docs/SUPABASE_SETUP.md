@@ -212,9 +212,11 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   console's **Requests** tab, grouped with a count, where you mark them sourced or
   declined. Anonymous visitors can request; only admins can read. Apply it after `0009`.
 - **Bottle images** — migration `0008_ai_conception.sql` creates the public
-  `fragrance-images` storage bucket (PNG/WebP, 4 MB) with admin-only writes. Nothing else
-  to configure; uploads from the admin console land there and the public URL is stored on
-  `fragrances.image_url`.
+  `fragrance-images` storage bucket (4 MB) with admin-only writes, and
+  `0011_jpeg_bottle_images.sql` widens it from PNG/WebP to JPG as well. Nothing else to
+  configure; uploads from the admin console land there and the public URL is stored on
+  `fragrances.image_url`. A transparent PNG sits on the tinted backdrop; a JPG shows as
+  full-frame photography.
 - **Stripe authorize endpoint** — set `VITE_STRIPE_AUTHORIZE_URL` (frontend) to a
   serverless route that creates a `capture_method: "manual"` PaymentIntent and returns
   `{ paymentIntentId }`. Until then commits record a `pi_stub_*` id.

@@ -3,10 +3,11 @@ import { type Fragrance, GOLD } from "../lib/data";
 import {
   type Conception,
   ConceiveError,
-  type PngInfo,
+  type ImageInfo,
   conceiveFragrance,
   conceptionToFragrance,
-  inspectPng,
+  IMAGE_ACCEPT,
+  inspectImage,
   slugify,
 } from "../lib/conceive";
 import { label, field, btnGold, btnGhost, chip, bottleBackdrop } from "./adminStyles";
@@ -40,7 +41,7 @@ const serif: CSSProperties = { fontFamily: "'Cormorant Garamond',serif", color: 
 
 /**
  * "Conceive with AI" — type a reference fragrance, Claude returns the house
- * name, copy and olfactory pyramid; attach a transparent PNG of the bottle;
+ * name, copy and olfactory pyramid; attach an image of the bottle (PNG, JPG or WebP);
  * add the product. Everything is editable afterwards in the regular editor.
  */
 export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, onClose }: ConceiveFragranceProps) {
@@ -51,7 +52,7 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
   const [conception, setConception] = useState<Conception | null>(null);
   const [chosenName, setChosenName] = useState("");
   const [image, setImage] = useState<File | null>(null);
-  const [imageInfo, setImageInfo] = useState<PngInfo | null>(null);
+  const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
   const [dragging, setDragging] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -92,7 +93,7 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
 
   const pickFile = async (f: File | null) => {
     if (!f) return;
-    const info = await inspectPng(f);
+    const info = await inspectImage(f);
     setImageInfo(info);
     setImage(info.ok ? f : null);
   };
@@ -126,7 +127,7 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
           </div>
           <p style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)", maxWidth: 620 }}>
             Type the fragrance the atelier sourced. Claude proposes a Maison Obsidian name for its profile, writes the
-            packaging copy, and deconstructs the scent into top, heart and base notes. Attach a transparent PNG of the
+            packaging copy, and deconstructs the scent into top, heart and base notes. Attach an image of the
             bottle and add it to the catalogue.
           </p>
         </div>
@@ -290,7 +291,11 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
               }}
             >
               {preview ? (
-                <img src={preview} alt="Bottle preview" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "8% 12%", boxSizing: "border-box" }} />
+                <img
+                  src={preview}
+                  alt="Bottle preview"
+                  style={imageInfo?.format === "jpeg" ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" } : { width: "100%", height: "100%", objectFit: "contain", padding: "8% 12%", boxSizing: "border-box" }}
+                />
               ) : (
                 <img
                   src="/assets/bottle-portrait.webp"
@@ -307,20 +312,20 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
             <div style={{ flex: 1, minWidth: 240, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={panelTitle}>Bottle image</div>
               <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
-                Drop a <strong style={{ color: "#f3ecdc", fontWeight: 500 }}>transparent PNG</strong> of the bottle (up to 4 MB). It sits on a
-                backdrop tinted with the scent's colours on the tile and product page. Skip it and the placeholder
-                photography is used until you upload one.
+                Drop a <strong style={{ color: "#f3ecdc", fontWeight: 500 }}>PNG, JPG or WebP</strong> of the bottle (up to 4 MB). A
+                transparent PNG sits on a backdrop tinted with the scent's colours; a JPG shows as full-frame photography.
+                Skip it and the placeholder photography is used until you upload one.
               </p>
               <input
                 ref={fileInput}
                 type="file"
-                accept="image/png"
+                accept={IMAGE_ACCEPT}
                 hidden
                 onChange={(e) => void pickFile(e.target.files?.[0] ?? null)}
               />
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button type="button" style={{ ...btnGhost, height: 34 }} onClick={() => fileInput.current?.click()}>
-                  {image ? "Replace PNG" : "Choose PNG"}
+                  {image ? "Replace image" : "Choose image"}
                 </button>
                 {image && (
                   <button
@@ -338,9 +343,13 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
               </div>
               {imageInfo && !imageInfo.ok && <div style={{ fontSize: 12, color: "#d98a6a" }}>{imageInfo.reason}</div>}
               {imageInfo?.ok && (
-                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: imageInfo.transparent ? "#8bb98a" : "#d98a6a" }}>
+                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: imageInfo.transparent || imageInfo.format === "jpeg" ? "#8bb98a" : "#d98a6a" }}>
                   {image?.name} · {imageInfo.width}×{imageInfo.height}
-                  {imageInfo.transparent ? " · transparent ✓" : " · no alpha channel — export with a transparent background for the best result"}
+                  {imageInfo.format === "jpeg"
+                    ? " · JPG — shown as full-frame photography"
+                    : imageInfo.transparent
+                      ? " · transparent ✓"
+                      : " · no alpha channel — export with a transparent background for the best result"}
                 </div>
               )}
             </div>
