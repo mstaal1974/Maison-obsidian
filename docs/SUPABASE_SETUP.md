@@ -259,9 +259,37 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   configure; uploads from the admin console land there and the public URL is stored on
   `fragrances.image_url`. A transparent PNG sits on the tinted backdrop; a JPG shows as
   full-frame photography.
-- **Stripe authorize endpoint** — set `VITE_STRIPE_AUTHORIZE_URL` (frontend) to a
-  serverless route that creates a `capture_method: "manual"` PaymentIntent and returns
-  `{ paymentIntentId }`. Until then commits record a `pi_stub_*` id.
+- **Stripe (hosted Checkout)** — migration `0015_stripe.sql` plus four Vercel variables
+  turn on real payments; without them the bag and the Monthly Pour keep the local stub
+  (`pi_stub_*` ids) so the demo still works.
+
+  1. In Vercel → Settings → Environment Variables add:
+     `STRIPE_SECRET_KEY` (sk_test_… to start), `SUPABASE_SERVICE_ROLE_KEY` (Supabase →
+     Settings → API; server-side only, never `VITE_`), `SITE_URL`
+     (`https://maison-obsidian.vercel.app`), and optionally `STRIPE_CURRENCY` (default `aud`).
+  2. In Stripe → Developers → Webhooks add an endpoint for
+     `https://<site>/api/stripe/webhook` with the events `checkout.session.completed`,
+     `invoice.upcoming`, `invoice.paid` and `customer.subscription.deleted`, then put its
+     signing secret in `STRIPE_WEBHOOK_SECRET` and redeploy.
+  3. Turn on the Customer Portal (Stripe → Settings → Billing → Customer portal) so
+     "Update card & invoices" works for subscribers.
+
+  How it behaves. **Reservations**: the bag goes to Stripe Checkout; prices are computed
+  server-side from the live catalogue; the PaymentIntent is a manual-capture hold and the
+  card is saved off-session. The webhook (or `/api/stripe/confirm` when the customer
+  returns) records one commit per line. Cards only hold for about seven days, so the
+  console's **Capture & pour** (Fulfillment → Batches) captures a live hold or, if it has
+  expired, charges the saved card for the same amount; **Release holds** cancels them.
+  **The Monthly Pour**: a real Stripe subscription, monthly, priced at the first pick's
+  member price. Three days before each renewal Stripe sends `invoice.upcoming`; the
+  webhook settles that month's scent (drawing it in surprise mode) and re-prices the
+  subscription to it. `invoice.paid` records the delivery; after the twelfth it cancels
+  the subscription. Cancelling from the account cancels at Stripe immediately.
+  Test with card `4242 4242 4242 4242`, any future expiry, any CVC.
+
+- **Stripe authorize endpoint (legacy)** — `VITE_STRIPE_AUTHORIZE_URL` is the older
+  hook for a route that mints a manual-capture PaymentIntent; superseded by the hosted
+  Checkout above and only used when that isn't configured.
 
 See [`.env.example`](../.env.example) for the full annotated list.
 
@@ -306,7 +334,11 @@ See [`.env.example`](../.env.example) for the full annotated list.
 | `VITE_STRIPE_AUTHORIZE_URL` | Frontend | Serverless endpoint that mints manual-capture PaymentIntents (optional) |
 | `ANTHROPIC_API_KEY` | Vercel serverless | Concierge (`/api/chat`) + AI conception (`/api/conceive`) — server-side only |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Vercel serverless (optional) | Admin check for `/api/conceive`; falls back to the `VITE_` pair |
-| `STRIPE_SECRET_KEY` | Supabase Edge secret | `capture-batch` — capture/cancel intents |
+| `STRIPE_SECRET_KEY` | Vercel serverless (and Supabase Edge secret) | Hosted Checkout, subscriptions, capture (`/api/stripe/*`); `capture-batch` Edge Function |
+| `STRIPE_WEBHOOK_SECRET` | Vercel serverless | Verifies `/api/stripe/webhook` deliveries |
+| `SUPABASE_SERVICE_ROLE_KEY` | Vercel serverless | Webhook / confirm / capture write commits and subscriptions (bypasses RLS; never `VITE_`) |
+| `SITE_URL` | Vercel serverless | Where Checkout returns the customer (falls back to the request host) |
+| `STRIPE_CURRENCY` | Vercel serverless (optional) | Checkout currency, default `aud` |
 | `AUSPOST_PAC_KEY` | Supabase Edge secret | Parcel Post rate lookups |
 | `AUSPOST_API_KEY` / `AUSPOST_API_PASSWORD` / `AUSPOST_ACCOUNT_NUMBER` / `AUSPOST_PRODUCT_ID` | Supabase Edge secret | Parcel Post label creation |
 | `AUSPOST_FROM_NAME/_LINE1/_SUBURB/_STATE/_POSTCODE` | Supabase Edge secret | Sender address |

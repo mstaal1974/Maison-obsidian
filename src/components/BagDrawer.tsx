@@ -12,6 +12,8 @@ interface BagDrawerProps {
   fragrances: Fragrance[];
   placed: Order[] | null; // just-reserved orders → confirmation view
   busy: boolean;
+  /** Checkout could not start (Stripe declined the bag, network). */
+  error?: string | null;
   onClose: () => void;
   onCheckout: () => void;
   onAddCar: (f: Fragrance) => void;
@@ -22,7 +24,7 @@ interface BagDrawerProps {
  * (card authorised, never charged, until its batch pours). The Drive cross-sell
  * lives here because "take it with you" is the obvious add at the end.
  */
-export default function BagDrawer({ lines, fragrances, placed, busy, onClose, onCheckout, onAddCar }: BagDrawerProps) {
+export default function BagDrawer({ lines, fragrances, placed, busy, error, onClose, onCheckout, onAddCar }: BagDrawerProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -115,10 +117,11 @@ export default function BagDrawer({ lines, fragrances, placed, busy, onClose, on
                 <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
               </div>
               <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} disabled={busy} onClick={onCheckout}>
-                {busy ? "Authorising…" : "Reserve & authorise"} <Arrow />
+                {busy ? "Opening secure checkout…" : "Reserve & authorise"} <Arrow />
               </button>
+              {error && <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{error}</div>}
               <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: "rgba(243,236,220,0.5)" }}>
-                Authorised, never charged. We capture only when each batch is met; if a batch closes short, the hold is released.
+                Secure card checkout by Stripe. Authorised, never charged: we capture only when each batch is met; if a batch closes short, the hold is released.
               </p>
             </div>
           </>

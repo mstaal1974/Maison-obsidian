@@ -27,6 +27,7 @@ import { demoShipments, subscribeShipments } from "../lib/catalogue";
 import ScentRequests from "./ScentRequests";
 import AdminSubscriptions from "./AdminSubscriptions";
 import AdminMarketing from "./AdminMarketing";
+import { captureBatch } from "../lib/stripe";
 
 interface AdminConsoleProps {
   fragrances: Fragrance[];
@@ -609,6 +610,7 @@ function Fulfillment({
 
   const commits = configured ? remote ?? [] : demoCommits;
   const nameOf = (id: string) => fragrances.find((f) => f.id === id)?.name ?? id;
+  const batches = <Batches fragrances={fragrances} commits={commits} configured={configured} onDone={() => void fetchAllCommits().then((rows) => rows && setRemote(rows))} />;
 
   if (configured && remote === null) {
     return <p style={{ fontSize: 13, color: "rgba(243,236,220,0.5)" }}>Loading commits…</p>;
@@ -619,6 +621,7 @@ function Fulfillment({
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
+      {batches}
       {commits.map((c) => (
         <FulfillRow
           key={c.id}
@@ -628,6 +631,60 @@ function Fulfillment({
           demoStatus={demoShip[c.fragrance_id]}
         />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Batches with held payments: capture when met (the batch pours), release when
+ * it closed short. Goes through /api/stripe/capture; without Stripe the
+ * buttons explain themselves and do nothing.
+ */
+function Batches({ fragrances, commits, configured, onDone }: { fragrances: Fragrance[]; commits: AdminCommitRow[]; configured: boolean; onDone: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<Record<string, string>>({});
+  const open = fragrances
+    .map((f) => ({ f, held: commits.filter((c) => c.fragrance_id === f.id && c.status === "authorized") }))
+    .filter((x) => x.held.length > 0);
+  if (!open.length) return null;
+
+  const run = async (f: Fragrance, action: "capture" | "release") => {
+    setBusy(f.id);
+    const r = await captureBatch(f.id, action);
+    setBusy(null);
+    if (!r) setNote((n) => ({ ...n, [f.id]: "Stripe isn't configured — set STRIPE_SECRET_KEY and the service-role key on Vercel." }));
+    else if (r.ok === false) setNote((n) => ({ ...n, [f.id]: r.error }));
+    else {
+      const tally = r.data.results.reduce<Record<string, number>>((t, x) => ({ ...t, [x.outcome.split(":")[0]]: (t[x.outcome.split(":")[0]] ?? 0) + 1 }), {});
+      setNote((n) => ({ ...n, [f.id]: Object.entries(tally).map(([k, v]) => `${v} ${k}`).join(" · ") }));
+      onDone();
+    }
+  };
+
+  return (
+    <div style={{ border: "1px solid rgba(201,169,97,0.45)", background: "#101015", padding: "14px 18px", display: "grid", gap: 10, marginBottom: 6 }}>
+      <div style={label}>Batches with held payments</div>
+      {open.map(({ f, held }) => {
+        const met = f.committed >= f.moq;
+        const units = held.reduce((n, c) => n + (c.qty ?? 1), 0);
+        return (
+          <div key={f.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", borderTop: "1px solid #1f1f27", paddingTop: 10 }}>
+            <div>
+              <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, color: "#f3ecdc" }}>{f.name}</span>
+              <span style={{ ...label, marginLeft: 12 }}>{f.committed} / {f.moq} committed · {units} held · {met ? "met" : "open"}</span>
+              {note[f.id] && <div style={{ ...label, marginTop: 4, color: note[f.id].startsWith("Stripe isn't") || note[f.id].includes("failed") ? "#d98a6a" : "#8bb98a", textTransform: "none", letterSpacing: 0, fontSize: 11 }}>{note[f.id]}</div>}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={{ ...btnGold, height: 34, opacity: met && configured ? 1 : 0.5 }} disabled={!met || !configured || busy === f.id} onClick={() => void run(f, "capture")} title={met ? "Capture every hold — the batch pours" : "Batch not met yet"}>
+                {busy === f.id ? "…" : "Capture & pour"}
+              </button>
+              <button style={{ ...btnGhost, height: 34 }} disabled={!configured || busy === f.id} onClick={() => void run(f, "release")} title="Cancel the holds — the batch closed short">
+                Release holds
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

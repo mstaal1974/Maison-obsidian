@@ -33,6 +33,8 @@ interface MyReservationsProps {
   subscriptionSlot?: ReactNode;
   /** Privacy & preferences, rendered below the reservations. */
   preferencesSlot?: ReactNode;
+  /** Back from Stripe Checkout: what just happened. */
+  notice?: ReactNode;
 }
 
 const STATUS: Record<Reservation["status"], { label: string; color: string; bg: string }> = {
@@ -42,7 +44,7 @@ const STATUS: Record<Reservation["status"], { label: string; color: string; bg: 
   void: { label: "Void", color: "rgba(243,236,220,0.5)", bg: "rgba(243,236,220,0.06)" },
 };
 
-export default function MyReservations({ reservations, loading, onOpen, onBackToVault, subscriptionSlot, preferencesSlot }: MyReservationsProps) {
+export default function MyReservations({ reservations, loading, onOpen, onBackToVault, subscriptionSlot, preferencesSlot, notice }: MyReservationsProps) {
   return (
     <main data-screen-label="Account" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
       <div
@@ -72,6 +74,8 @@ export default function MyReservations({ reservations, loading, onOpen, onBackTo
         Every batch you've reserved. Your card is held — never charged — until each batch reaches its floor and the lab
         opens.
       </p>
+
+      {notice}
 
       {subscriptionSlot}
 

@@ -12,7 +12,7 @@ export type Route =
   | { view: "subscribe"; slug: string | null; format: string | null }
   | { view: "product"; slug: string }
   | { view: "about" }
-  | { view: "account" }
+  | { view: "account"; checkout: "success" | null; subscribed: boolean; sessionId: string | null }
   | { view: "admin" };
 
 export function parseHash(hash: string): Route {
@@ -45,8 +45,10 @@ export function parseHash(hash: string): Route {
       return tail ? { view: "product", slug: decodeURIComponent(tail) } : { view: "fragrances" };
     case "about":
       return { view: "about" };
-    case "account":
-      return { view: "account" };
+    case "account": {
+      const qs = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)) : null;
+      return { view: "account", checkout: qs?.get("checkout") === "success" ? "success" : null, subscribed: qs?.get("subscribed") === "1", sessionId: qs?.get("session_id") ?? null };
+    }
     case "admin":
       return { view: "admin" };
     default:
