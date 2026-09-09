@@ -322,6 +322,15 @@ export function relatedTo(f: Fragrance, frags: Fragrance[], limit = 4): Fragranc
     .map((r) => r.x);
 }
 
+// ─── The Monthly Pour (pricing only; the store lives in subscription.ts) ─────
+export const SUBSCRIPTION_MONTHS = 12;
+export const SUBSCRIPTION_DISCOUNT = 0.1;
+
+/** Member price for one month: 10% under the format's shelf price, rounded to the cent. */
+export function subscriptionPrice(f: Fragrance, key: FormatKey): number {
+  return Math.round(formatPrice(f, key) * (1 - SUBSCRIPTION_DISCOUNT));
+}
+
 // ─── Discovery box ───────────────────────────────────────────────────────────
 export const DISCOVERY_BOX_SIZE = 5;
 export const DISCOVERY_BOX_PRICE = 5000; // cents — five 10ml discoveries

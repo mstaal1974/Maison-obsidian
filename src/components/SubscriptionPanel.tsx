@@ -15,6 +15,7 @@ import {
   subscriptionRange,
 } from "../lib/subscription";
 import { navigate, paths } from "../lib/route";
+import { billingPortalUrl } from "../lib/stripe";
 import BottleImage from "./BottleImage";
 import { Arrow, InspiredBy } from "./ui";
 import { MONO, SERIF, btnGhost, btnLink, micro } from "./styles";
@@ -57,9 +58,15 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
     setBusy(false);
     onChanged();
   };
+  const portal = async () => {
+    setBusy(true);
+    const r = await billingPortalUrl();
+    setBusy(false);
+    if (r?.ok) window.location.assign(r.data.url);
+  };
   const cancel = async (s: Subscription) => {
     setBusy(true);
-    await cancelSubscription(s.id);
+    await cancelSubscription(s.id, s.stripeSubscriptionId);
     setBusy(false);
     setConfirmCancel(null);
     onChanged();
@@ -189,7 +196,12 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                         <button style={btnLink} onClick={() => setConfirmCancel(null)}>Keep it</button>
                       </>
                     ) : (
-                      <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)" }} onClick={() => setConfirmCancel(s.id)}>Cancel subscription</button>
+                      <>
+                        {s.stripeSubscriptionId && (
+                          <button style={btnLink} disabled={busy} onClick={() => void portal()}>Update card &amp; invoices <Arrow size={10} /></button>
+                        )}
+                        <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)" }} onClick={() => setConfirmCancel(s.id)}>Cancel subscription</button>
+                      </>
                     )}
                   </div>
                 )}

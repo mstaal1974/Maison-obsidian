@@ -11,12 +11,12 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { type Fragrance, type FormatKey, money } from "./data";
-import { formatPrice, FORMAT_BY_KEY } from "./formats";
+import { FORMAT_BY_KEY, SUBSCRIPTION_DISCOUNT, SUBSCRIPTION_MONTHS, subscriptionPrice } from "./formats";
 import { supabase } from "./supabase";
+import { cancelStripeSubscription } from "./stripe";
 
+export { SUBSCRIPTION_DISCOUNT, SUBSCRIPTION_MONTHS, subscriptionPrice };
 export const SUBSCRIPTION_FORMATS: FormatKey[] = ["perf10", "perf30", "perf50", "car"];
-export const SUBSCRIPTION_MONTHS = 12;
-export const SUBSCRIPTION_DISCOUNT = 0.1;
 
 export type SubscriptionStatus = "active" | "cancelled" | "completed";
 /** Who picks each month's scent: the customer, or the house at random. */
@@ -36,6 +36,8 @@ export interface Subscription {
   id: string;
   userId?: string | null;
   userEmail: string | null;
+  /** Set when Stripe bills it; the console's manual "Bill month" is hidden. */
+  stripeSubscriptionId?: string | null;
   format: FormatKey;
   months: number;
   status: SubscriptionStatus;
@@ -76,11 +78,6 @@ export function rangeLabel([lo, hi]: [number, number]): string {
 export function subscriptionRange(frags: Fragrance[], key: FormatKey): [number, number] {
   const prices = frags.map((f) => subscriptionPrice(f, key));
   return prices.length ? [Math.min(...prices), Math.max(...prices)] : [0, 0];
-}
-
-/** Member price for one month: 10% under the format's shelf price, rounded to the cent. */
-export function subscriptionPrice(f: Fragrance, key: FormatKey): number {
-  return Math.round(formatPrice(f, key) * (1 - SUBSCRIPTION_DISCOUNT));
 }
 
 /** Lowest member price across the catalogue for a format — the "from" figure. */
@@ -150,6 +147,7 @@ interface SubRow {
   id: string;
   user_id?: string | null;
   user_email: string | null;
+  stripe_subscription_id?: string | null;
   format: FormatKey;
   months: number;
   status: SubscriptionStatus;
@@ -172,6 +170,7 @@ function rowToSub(r: SubRow): Subscription {
     id: r.id,
     userId: r.user_id ?? null,
     userEmail: r.user_email,
+    stripeSubscriptionId: r.stripe_subscription_id ?? null,
     format: r.format,
     months: r.months,
     status: r.status,
@@ -184,7 +183,7 @@ function rowToSub(r: SubRow): Subscription {
   };
 }
 
-const SELECT_ADMIN = "id, user_id, user_email, format, months, status, pick_mode, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
+const SELECT_ADMIN = "id, user_id, user_email, stripe_subscription_id, format, months, status, pick_mode, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -268,10 +267,15 @@ export async function setSubscriptionMode(id: string, pickMode: PickMode): Promi
   }
 }
 
-export async function cancelSubscription(id: string): Promise<boolean> {
+export async function cancelSubscription(id: string, stripeSubscriptionId?: string | null): Promise<boolean> {
   if (!supabase) {
     saveDemo(loadDemo().map((s) => (s.id === id ? { ...s, status: "cancelled" } : s)));
     return true;
+  }
+  // Stripe-billed: stop the charges at Stripe first; the route marks the row too.
+  if (stripeSubscriptionId) {
+    const r = await cancelStripeSubscription(id);
+    if (r) return r.ok;
   }
   try {
     const { error } = await supabase.rpc("cancel_subscription", { p_id: id });

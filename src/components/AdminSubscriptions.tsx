@@ -126,7 +126,10 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
                     {billing ? fmtDate(billing) : "—"}
                   </div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                    {s.status === "active" && n !== null && (surprise || next) && (
+                    {s.status === "active" && n !== null && s.stripeSubscriptionId && (
+                      <span style={{ ...label, alignSelf: "center", color: "#8bb98a" }}>Stripe bills month {n}</span>
+                    )}
+                    {s.status === "active" && n !== null && !s.stripeSubscriptionId && (surprise || next) && (
                       <button style={{ ...btnGhost, height: 32, padding: "0 12px" }} disabled={busy === s.id} onClick={() => void bill(s)}>
                         Bill month {n}
                       </button>

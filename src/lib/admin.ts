@@ -171,6 +171,7 @@ export interface AdminCommitRow {
   fragrance_id: string;
   format?: string | null;
   size_ml: number;
+  qty?: number | null;
   charge_cents: number | null;
   engraving: string | null;
   status: string;
@@ -183,7 +184,7 @@ export async function fetchAllCommits(): Promise<AdminCommitRow[] | null> {
   try {
     const { data, error } = await supabase
       .from("commits")
-      .select("id, user_id, user_email, fragrance_id, format, size_ml, charge_cents, engraving, status, created_at")
+      .select("id, user_id, user_email, fragrance_id, format, size_ml, qty, charge_cents, engraving, status, created_at")
       .order("created_at", { ascending: false });
     if (error) return null;
     return (data ?? []) as AdminCommitRow[];

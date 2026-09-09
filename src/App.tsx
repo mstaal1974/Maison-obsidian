@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { type Fragrance, type FormatKey } from "./lib/data";
+import { type Fragrance, type FormatKey, money } from "./lib/data";
 import { useFragrances, recordCommit, enrollVip, isVipSubscriber, fetchMyCommits, fetchMyShipments, type CommitRow, type ShipmentRow } from "./lib/store";
 import { useAuth } from "./lib/auth";
 import { useIsAdmin, type AdminCommitRow } from "./lib/admin";
 import { demoShipments, subscribeShipments } from "./lib/catalogue";
-import { authorizePayment } from "./lib/stripe";
+import { authorizePayment, confirmStripeSession, stripeCheckout, stripeSubscribe } from "./lib/stripe";
 import { parseHash, navigate, paths, type Route } from "./lib/route";
-import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, recordOrders, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
+import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, recordOrders, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
 import AuthModal from "./components/AuthModal";
 import MyReservations, { type Reservation } from "./components/MyReservations";
@@ -109,10 +109,25 @@ export default function App() {
     if (!toggleDiscovery(f.id, DISCOVERY_BOX_SIZE)) navigate(paths.discovery);
   }, []);
 
-  // Reserve every line: authorise a hold, record the commit. Needs an account.
+  // Reserve every line. With Stripe configured the bag goes to hosted
+  // Checkout (a hold per reservation, recorded on return); otherwise the stub
+  // authorises locally. Needs an account either way.
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const checkout = useCallback(async () => {
     setCheckingOut(true);
+    setCheckoutError(null);
     try {
+      if (auth.configured) {
+        const r = await stripeCheckout(lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })));
+        if (r?.ok) {
+          window.location.assign(r.data.url);
+          return;
+        }
+        if (r?.ok === false) {
+          setCheckoutError(r.error);
+          return;
+        }
+      }
       const done: Omit<Order, "id" | "createdAt">[] = [];
       for (const l of lines) {
         const frag = fragrances.find((f) => f.id === l.fragranceId);
@@ -127,7 +142,7 @@ export default function App() {
     } finally {
       setCheckingOut(false);
     }
-  }, [lines, fragrances]);
+  }, [lines, fragrances, auth.configured]);
 
   // ── Monthly Pour ───────────────────────────────────────────────────────────
   const { subscriptions, loading: subsLoading, reload: reloadSubs } = useSubscriptions(!!auth.user);
@@ -159,6 +174,17 @@ export default function App() {
       setSubBusy(true);
       setSubError(null);
       try {
+        if (auth.configured) {
+          const r = await stripeSubscribe(format, pick?.id ?? null, mode);
+          if (r?.ok) {
+            window.location.assign(r.data.url);
+            return;
+          }
+          if (r?.ok === false) {
+            setSubError(r.error);
+            return;
+          }
+        }
         // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
         const frag = pick ?? drawSurpriseScent(fragrances, format, [], surpriseAffinity);
         if (!frag) {
@@ -178,7 +204,7 @@ export default function App() {
         setSubBusy(false);
       }
     },
-    [auth.user, fragrances, reloadSubs, surpriseAffinity],
+    [auth.user, auth.configured, fragrances, reloadSubs, surpriseAffinity],
   );
 
   const requestSubscribe = useCallback(
@@ -209,6 +235,7 @@ export default function App() {
   const usingRemote = auth.configured && !!auth.user?.id;
   const onAccount = route.view === "account";
 
+  const [commitsVersion, setCommitsVersion] = useState(0);
   useEffect(() => {
     if (!onAccount || !usingRemote || !auth.user?.id) return;
     let active = true;
@@ -217,7 +244,35 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [onAccount, usingRemote, auth.user?.id, orders]);
+  }, [onAccount, usingRemote, auth.user?.id, orders, commitsVersion]);
+
+  // Back from Stripe Checkout: confirm the session (records it if the webhook
+  // hasn't yet), clear the bag, and say what happened.
+  const [stripeNotice, setStripeNotice] = useState<{ kind: "reservation" | "subscription"; detail: string } | null>(null);
+  const sessionId = route.view === "account" ? route.sessionId : null;
+  const sessionUserId = auth.user?.id ?? null;
+  useEffect(() => {
+    if (!sessionId || !sessionUserId) return;
+    let active = true;
+    void confirmStripeSession(sessionId).then((r) => {
+      if (!active) return;
+      if (r?.ok && r.data.kind === "reservation") {
+        clearBag();
+        setStripeNotice({ kind: "reservation", detail: `${(r.data.lines ?? []).reduce((n, l) => n + l.q, 0)} piece(s) reserved · ${money(r.data.amountTotal ?? 0)} held, not charged` });
+        setCommitsVersion((v) => v + 1);
+      } else if (r?.ok && r.data.kind === "subscription") {
+        setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });
+        reloadSubs();
+      } else if (r?.ok === false) {
+        setStripeNotice({ kind: "reservation", detail: r.error });
+      }
+      // Drop the session id from the URL so a refresh doesn't re-confirm.
+      window.history.replaceState(null, "", "#/account");
+    });
+    return () => {
+      active = false;
+    };
+  }, [sessionId, sessionUserId, reloadSubs]);
 
   const shipmentFor = useCallback(
     (fragranceId: string): Partial<Reservation> => {
@@ -354,6 +409,14 @@ export default function App() {
           onBackToVault={() => navigate(paths.fragrances)}
           subscriptionSlot={<SubscriptionPanel subscriptions={subscriptions} fragrances={fragrances} loading={subsLoading} onChanged={reloadSubs} />}
           preferencesSlot={<PreferencesPanel consents={consents} taste={taste} onChange={(c) => saveConsents(c)} />}
+          notice={
+            stripeNotice ? (
+              <div style={{ marginTop: 24, border: "1px solid rgba(201,169,97,0.6)", background: "#101015", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#f3ecdc" }}>{stripeNotice.kind === "subscription" ? "You're in." : "Reserved."}</span>
+                <span style={{ fontSize: 13, color: "rgba(243,236,220,0.7)" }}>{stripeNotice.detail}</span>
+              </div>
+            ) : null
+          }
         />
       )}
 
@@ -377,6 +440,7 @@ export default function App() {
           fragrances={fragrances}
           placed={placed}
           busy={checkingOut}
+          error={checkoutError}
           onClose={() => setBagOpen(false)}
           onCheckout={requestCheckout}
           onAddCar={(f) => addToBag(f.id, "car", 1)}
