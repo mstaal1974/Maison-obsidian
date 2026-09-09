@@ -8,8 +8,8 @@
 //   customer.subscription.deleted  mark cancelled
 // Every handler is idempotent, so Stripe's retries are safe.
 
-import { getStripe, json, rawBody, serviceClient , route } from "../_lib/stripe";
-import { prepareRenewal, recordRenewal, recordReservation, recordSubscriptionStart } from "../_lib/record";
+import { getStripe, json, rawBody, serviceClient, route } from "../_lib/stripe.js";
+import { prepareRenewal, recordRenewal, recordReservation, recordSubscriptionStart } from "../_lib/record.js";
 import type Stripe from "stripe";
 
 export const config = { runtime: "nodejs", api: { bodyParser: false } };

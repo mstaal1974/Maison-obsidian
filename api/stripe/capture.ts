@@ -7,7 +7,7 @@
 //          hands the spots back.
 // The same logic as the capture-batch Edge Function, reachable from the console.
 
-import { getStripe, isAdminRequest, json, readBody, serviceClient, CURRENCY , route } from "../_lib/stripe";
+import { getStripe, isAdminRequest, json, readBody, serviceClient, CURRENCY, route } from "../_lib/stripe.js";
 
 export const config = { runtime: "nodejs" };
 

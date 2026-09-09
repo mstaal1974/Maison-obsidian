@@ -1,7 +1,7 @@
 // POST /api/stripe/portal — a Stripe Billing Portal link for the signed-in
 // customer to update their card or see invoices.
 
-import { customerFor, getStripe, json, serviceClient, siteUrl, userFromRequest , route } from "../_lib/stripe";
+import { customerFor, getStripe, json, serviceClient, siteUrl, userFromRequest, route } from "../_lib/stripe.js";
 
 export const config = { runtime: "nodejs" };
 

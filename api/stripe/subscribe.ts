@@ -7,9 +7,8 @@
 // renewal the webhook re-prices the subscription to the upcoming pick, and
 // after the twelfth paid month it cancels it.
 
-import { customerFor, getStripe, json, loadCatalogue, memberPrice, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY , route } from "../_lib/stripe";
-import { FORMAT_BY_KEY, SUBSCRIPTION_MONTHS } from "../../src/lib/formats";
-import type { FormatKey } from "../../src/lib/data";
+import { customerFor, getStripe, json, loadCatalogue, memberPrice, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route } from "../_lib/stripe.js";
+import { type FormatKey, FORMAT_BY_KEY, SUBSCRIPTION_MONTHS } from "../_lib/catalogue.js";
 
 export const config = { runtime: "nodejs" };
 

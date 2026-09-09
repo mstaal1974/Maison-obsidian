@@ -8,7 +8,7 @@
 // (and by /api/stripe/confirm on return, whichever comes first).
 // Returns { client_secret } for stripe.initCheckoutFormSdk on the client.
 
-import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY , route } from "../_lib/stripe";
+import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route } from "../_lib/stripe.js";
 
 export const config = { runtime: "nodejs" };
 

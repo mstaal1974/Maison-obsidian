@@ -4,8 +4,8 @@
 // and tells the page what was reserved or started. Only the session's owner
 // may confirm it.
 
-import { getStripe, json, serviceClient, userFromRequest , route } from "../_lib/stripe";
-import { recordReservation, recordSubscriptionStart } from "../_lib/record";
+import { getStripe, json, serviceClient, userFromRequest, route } from "../_lib/stripe.js";
+import { recordReservation, recordSubscriptionStart } from "../_lib/record.js";
 
 export const config = { runtime: "nodejs" };
 
