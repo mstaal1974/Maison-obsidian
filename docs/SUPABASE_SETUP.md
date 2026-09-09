@@ -331,7 +331,9 @@ See [`.env.example`](../.env.example) for the full annotated list.
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | Frontend (Vite/Vercel) | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Frontend | Browser-safe anon key (RLS-guarded) |
-| `VITE_STRIPE_AUTHORIZE_URL` | Frontend | Serverless endpoint that mints manual-capture PaymentIntents (optional) |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Frontend | Stripe publishable key for the embedded Checkout form |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `SUPABASE_SERVICE_ROLE_KEY` / `SITE_URL` | Vercel serverless | Stripe Checkout, webhook and batch capture — see `STRIPE_INTEGRATION_TODO.md` |
+| `VITE_STRIPE_AUTHORIZE_URL` | Frontend | Legacy stub endpoint; unused once the Stripe routes are configured |
 | `ANTHROPIC_API_KEY` | Vercel serverless | Concierge (`/api/chat`) + AI conception (`/api/conceive`) — server-side only |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Vercel serverless (optional) | Admin check for `/api/conceive`; falls back to the `VITE_` pair |
 | `STRIPE_SECRET_KEY` | Vercel serverless (and Supabase Edge secret) | Hosted Checkout, subscriptions, capture (`/api/stripe/*`); `capture-batch` Edge Function |
