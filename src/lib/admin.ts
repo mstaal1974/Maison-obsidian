@@ -176,6 +176,10 @@ export interface AdminCommitRow {
   engraving: string | null;
   status: string;
   created_at: string;
+  delivery_method?: string | null;
+  delivery_name?: string | null;
+  delivery_phone?: string | null;
+  delivery_notes?: string | null;
 }
 
 /** All commits (admin RLS). Null when unconfigured (caller uses local state). */
@@ -184,7 +188,7 @@ export async function fetchAllCommits(): Promise<AdminCommitRow[] | null> {
   try {
     const { data, error } = await supabase
       .from("commits")
-      .select("id, user_id, user_email, fragrance_id, format, size_ml, qty, charge_cents, engraving, status, created_at")
+      .select("id, user_id, user_email, fragrance_id, format, size_ml, qty, charge_cents, engraving, status, created_at, delivery_method, delivery_name, delivery_phone, delivery_notes")
       .order("created_at", { ascending: false });
     if (error) return null;
     return (data ?? []) as AdminCommitRow[];

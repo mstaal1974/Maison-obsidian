@@ -37,6 +37,10 @@ export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: S
     status: "captured",
     checkout_session_id: session.id,
     stripe_customer_id: customer,
+    delivery_method: session.metadata?.delivery_method === "alternate" ? "alternate" : "auspost",
+    delivery_name: session.metadata?.delivery_name ?? null,
+    delivery_phone: session.metadata?.delivery_phone ?? null,
+    delivery_notes: session.metadata?.delivery_notes ?? null,
   }));
   const { error } = await db.from("commits").insert(rows);
   if (error) throw new Error(error.message);

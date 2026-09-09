@@ -5,6 +5,7 @@ import { useAuth } from "./lib/auth";
 import { useIsAdmin, type AdminCommitRow } from "./lib/admin";
 import { demoShipments, subscribeShipments } from "./lib/catalogue";
 import { authorizePayment, confirmStripeSession, stripeCheckout, stripeSubscribe } from "./lib/stripe";
+import type { CheckoutDelivery } from "./lib/shipping";
 import { parseHash, navigate, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, recordOrders, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
@@ -110,7 +111,7 @@ export default function App() {
   // Checkout (a hold per reservation, recorded on return); otherwise the stub
   // authorises locally. Needs an account either way.
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const checkout = useCallback(async (shipping?: { postcode: string; code: string }) => {
+  const checkout = useCallback(async (delivery?: CheckoutDelivery) => {
     setCheckingOut(true);
     setCheckoutError(null);
     try {
@@ -120,7 +121,7 @@ export default function App() {
       if (auth.configured) {
         const r = await stripeCheckout(
           lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })),
-          shipping,
+          delivery,
         );
         if (r?.ok) {
           window.location.assign(r.data.url);
@@ -230,16 +231,16 @@ export default function App() {
   );
 
   // The postage the customer picked, carried across a sign-in if one is needed.
-  const pendingShipping = useRef<{ postcode: string; code: string } | undefined>(undefined);
+  const pendingShipping = useRef<CheckoutDelivery | undefined>(undefined);
   const requestCheckout = useCallback(
-    (shipping?: { postcode: string; code: string }) => {
-      pendingShipping.current = shipping;
+    (delivery?: CheckoutDelivery) => {
+      pendingShipping.current = delivery;
       if (!auth.user) {
         setPendingCheckout(true);
         setAuthOpen(true);
         return;
       }
-      void checkout(shipping);
+      void checkout(delivery);
     },
     [auth.user, checkout],
   );

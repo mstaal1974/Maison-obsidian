@@ -67,6 +67,7 @@ export async function authorizePayment(
 
 import { supabase } from "./supabase";
 import type { FormatKey } from "./data";
+import type { CheckoutDelivery } from "./shipping";
 
 async function authHeaders(): Promise<Record<string, string>> {
   const h: Record<string, string> = { "Content-Type": "application/json" };
@@ -109,14 +110,20 @@ export interface StripeLine {
 }
 
 /**
- * Bag → the hosted Checkout URL to redirect to. `shipping` is the Australia
- * Post service the customer picked; the server re-quotes it before charging.
- * Null when Stripe isn't configured.
+ * Bag → the hosted Checkout URL to redirect to. `delivery` is how the order
+ * gets there: an Australia Post service (re-quoted server-side before
+ * charging) or an arrangement the customer described. Null when Stripe isn't
+ * configured.
  */
-export async function stripeCheckout(lines: StripeLine[], shipping?: { postcode: string; code: string }) {
+export async function stripeCheckout(lines: StripeLine[], delivery?: CheckoutDelivery) {
   return call<{ url: string }>("/api/stripe/checkout", {
     method: "POST",
-    body: JSON.stringify({ lines, ...(shipping ? { postcode: shipping.postcode, shippingCode: shipping.code } : {}) }),
+    body: JSON.stringify({
+      lines,
+      ...(delivery?.postcode ? { postcode: delivery.postcode } : {}),
+      ...(delivery?.code ? { shippingCode: delivery.code } : {}),
+      ...(delivery ? { delivery: { method: delivery.method, name: delivery.name, phone: delivery.phone, notes: delivery.notes } } : {}),
+    }),
   });
 }
 

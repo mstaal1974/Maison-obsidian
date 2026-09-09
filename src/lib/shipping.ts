@@ -52,6 +52,18 @@ export async function quoteShipping(lines: QuoteLine[], postcode: string): Promi
   }
 }
 
+/** How an order reaches the customer, as chosen in the bag. */
+export interface CheckoutDelivery {
+  method: "auspost" | "alternate";
+  /** Australia Post: the quoted postcode and the service picked. */
+  postcode?: string;
+  code?: string;
+  /** Alternate: who to contact and how to get it to them. */
+  name?: string;
+  phone?: string;
+  notes?: string;
+}
+
 export function etaLabel(r: ShippingRate): string {
   if (!r.etaDays) return "";
   return r.etaDays.min === r.etaDays.max ? `${r.etaDays.min} business days` : `${r.etaDays.min}–${r.etaDays.max} business days`;

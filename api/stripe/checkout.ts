@@ -32,12 +32,24 @@ export default route("checkout", async function handler(req: any, res: any) {
     return json(res, 400, { error: e instanceof Error ? e.message : "Invalid bag" });
   }
 
+  // How it gets there: posted by Australia Post at a live rate, or arranged
+  // directly with the customer, in which case no postage is charged and they
+  // tell us how to deliver it.
+  const delivery = (body.delivery ?? {}) as { method?: string; name?: string; phone?: string; notes?: string };
+  const alternate = delivery.method === "alternate";
+  const deliveryName = String(delivery.name ?? "").trim().slice(0, 120);
+  const deliveryPhone = String(delivery.phone ?? "").trim().slice(0, 40);
+  const deliveryNotes = String(delivery.notes ?? "").trim().slice(0, 450);
+  if (alternate && (!deliveryName || !deliveryPhone || !deliveryNotes)) {
+    return json(res, 400, { error: "Tell us your name, a mobile number, and how we should get this to you." });
+  }
+
   // Postage is re-quoted here rather than trusted from the browser, so the
   // rate charged is the one Australia Post actually returns for this parcel.
   const postcode = String(body.postcode ?? "").trim();
   const serviceCode = String(body.shippingCode ?? "").trim();
   let shipping: { name: string; chargeCents: number; etaDays?: { min: number; max: number } } | null = null;
-  if (auspostConfigured() && /^\d{4}$/.test(postcode) && serviceCode) {
+  if (!alternate && auspostConfigured() && /^\d{4}$/.test(postcode) && serviceCode) {
     const subtotalCents = priced.reduce((n, l) => n + l.unitCents * l.qty, 0);
     const rates = await quoteRates(parcelFor(priced.map((l) => ({ format: l.format, qty: l.qty }))), postcode, subtotalCents);
     const chosen = rates.find((r) => r.code === serviceCode);
@@ -60,7 +72,8 @@ export default route("checkout", async function handler(req: any, res: any) {
     integration_identifier: "hosted_web_0001",
     origin_context: "web",
     mode: "payment",
-    shipping_address_collection: { allowed_countries: ["AU"] },
+    // Arranged delivery needs no postal address; Stripe collects one otherwise.
+    ...(alternate ? {} : { shipping_address_collection: { allowed_countries: ["AU"] as const } }),
     ...(shipping
       ? {
           shipping_options: [
@@ -88,7 +101,14 @@ export default route("checkout", async function handler(req: any, res: any) {
       },
     })),
     payment_intent_data: { metadata: { user_id: user.id, kind: "order" } },
-    metadata: { user_id: user.id, user_email: user.email ?? "", kind: "order", lines: JSON.stringify(compact).slice(0, 490) },
+    metadata: {
+      user_id: user.id,
+      user_email: user.email ?? "",
+      kind: "order",
+      lines: JSON.stringify(compact).slice(0, 490),
+      delivery_method: alternate ? "alternate" : "auspost",
+      ...(alternate ? { delivery_name: deliveryName, delivery_phone: deliveryPhone, delivery_notes: deliveryNotes } : {}),
+    },
     success_url: `${site}/#/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${site}/#/?checkout=cancelled`,
   });
