@@ -8,7 +8,7 @@
 // (and by /api/stripe/confirm on return, whichever comes first).
 // Returns { client_secret } for stripe.initCheckoutFormSdk on the client.
 
-import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route } from "../_lib/stripe.js";
+import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route, notConfigured } from "../_lib/stripe.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -16,7 +16,7 @@ export default route("checkout", async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
-  if (!stripe || !db) return json(res, 501, { error: "Stripe checkout isn't configured" });
+  if (!stripe || !db) return notConfigured(res, "Stripe checkout", ["stripe", "service"]);
   const user = await userFromRequest(req);
   if (!user) return json(res, 401, { error: "Sign in to reserve" });
 

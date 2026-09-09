@@ -89,8 +89,8 @@ async function call<T>(path: string, init: RequestInit): Promise<StripeCall<T>> 
     const res = await fetch(path, { ...init, headers: { ...(init.headers as Record<string, string>), ...(await authHeaders()) } });
     const type = res.headers.get("content-type") ?? "";
     if (res.status === 501) {
-      const body = type.includes("application/json") ? ((await res.json()) as { error?: string }) : {};
-      return { ok: false, unconfigured: true, error: body.error ?? "Stripe isn't configured" };
+      const body = type.includes("application/json") ? ((await res.json()) as { error?: string; detail?: string }) : {};
+      return { ok: false, unconfigured: true, error: body.error ?? "Stripe isn't configured", detail: body.detail };
     }
     if (res.status === 404 || !type.includes("application/json")) return null;
     const data = (await res.json()) as T & { error?: string; detail?: string };

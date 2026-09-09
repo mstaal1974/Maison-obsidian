@@ -7,7 +7,7 @@
 // renewal the webhook re-prices the subscription to the upcoming pick, and
 // after the twelfth paid month it cancels it.
 
-import { customerFor, getStripe, json, loadCatalogue, memberPrice, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route } from "../_lib/stripe.js";
+import { customerFor, getStripe, json, loadCatalogue, memberPrice, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route, notConfigured } from "../_lib/stripe.js";
 import { type FormatKey, FORMAT_BY_KEY, SUBSCRIPTION_MONTHS } from "../_lib/catalogue.js";
 
 export const config = { runtime: "nodejs" };
@@ -18,7 +18,7 @@ export default route("subscribe", async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
-  if (!stripe || !db) return json(res, 501, { error: "Stripe checkout isn't configured" });
+  if (!stripe || !db) return notConfigured(res, "Stripe checkout", ["stripe", "service"]);
   const user = await userFromRequest(req);
   if (!user) return json(res, 401, { error: "Sign in to subscribe" });
 

@@ -133,7 +133,7 @@ export default function App() {
         }
         // Stripe not configured on Vercel: fall back to the local hold, and
         // tell an admin why so it isn't a silent mystery.
-        if (r?.ok === false && r.unconfigured && isAdmin) setCheckoutError(`Stripe isn't configured on Vercel (${r.error}). Set STRIPE_SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY and VITE_STRIPE_PUBLISHABLE_KEY, then redeploy. Recording a demo hold instead.`);
+        if (r?.ok === false && r.unconfigured && isAdmin) setCheckoutError(`${r.error}. ${r.detail ?? "Set STRIPE_SECRET_KEY and SUPABASE_SERVICE_ROLE_KEY in Vercel"}. Redeploy after saving. Recording a demo hold instead.`);
       }
       const done: Omit<Order, "id" | "createdAt">[] = [];
       for (const l of lines) {
@@ -191,7 +191,7 @@ export default function App() {
             setSubError(isAdmin && r.detail ? `${r.error} — ${r.detail}` : r.error);
             return;
           }
-          if (r?.ok === false && r.unconfigured && isAdmin) setSubError(`Stripe isn't configured on Vercel (${r.error}); this subscription is recorded without billing.`);
+          if (r?.ok === false && r.unconfigured && isAdmin) setSubError(`${r.error}. ${r.detail ?? "Set STRIPE_SECRET_KEY and SUPABASE_SERVICE_ROLE_KEY in Vercel"}. This subscription is recorded without billing.`);
         }
         // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
         const frag = pick ?? drawSurpriseScent(fragrances, format, [], surpriseAffinity);
