@@ -51,7 +51,7 @@ export interface Sku {
   compareAt?: number; // cents, pre-discount (ritual)
   status: FormatStatus;
   stock: number;
-  /** Purchasable right now (live and stocked, or a made-to-order perfume batch). */
+  /** Purchasable right now (live and stocked, or a made-to-order perfume). */
   buyable: boolean;
   /** Short availability copy for the product page. */
   availability: string;
@@ -98,8 +98,7 @@ export function sku(f: Fragrance, key: FormatKey): Sku {
   const price = formatPrice(f, key);
   const compareAt = key === "ritual" ? RITUAL_PARTS.reduce((s, k) => s + formatPrice(f, k), 0) : undefined;
   // Perfume and car diffusers are filled from the same oil on demand, so they
-  // stay orderable at zero stock (they join the next batch); body care ships
-  // from finished stock only.
+  // stay orderable at zero stock; body care ships from finished stock only.
   const perfume = def.group === "wear" || def.group === "drive";
   const buyable = status === "live" && (stock > 0 || perfume);
   const availability =
@@ -110,7 +109,7 @@ export function sku(f: Fragrance, key: FormatKey): Sku {
         : stock > 0
           ? "In stock · Ships within 1–2 business days"
           : perfume
-            ? "Made to order · joins the next batch pour"
+            ? "Made to order · ships within 5–7 business days"
             : "Sold out";
   return { key, def, code: `${f.slug.toUpperCase()}-${def.sku}`, price, compareAt, status, stock, buyable, availability };
 }

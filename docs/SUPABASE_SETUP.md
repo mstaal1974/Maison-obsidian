@@ -158,7 +158,7 @@ will accept your calls. Everyone else is rejected by `is_admin()`.
 
 Two functions live in [`supabase/functions/`](../supabase/functions):
 
-- **`capture-batch`** — captures held Stripe intents when a batch is met (or
+- **`capture-batch`** — removed. Cards are charged at checkout, so there is nothing to capture later. (Older deployments may still have this function; it can be deleted.) It previously captured held intents when a batch was met (or
   releases them if it closes short).
 - **`create-shipment`** — buys an Australia Post Parcel Post label and records the
   shipment.
@@ -275,11 +275,9 @@ Two integrations live **outside** Supabase — listed here so the picture is com
      "Update card & invoices" works for subscribers.
 
   How it behaves. **Reservations**: the bag goes to Stripe Checkout; prices are computed
-  server-side from the live catalogue; the PaymentIntent is a manual-capture hold and the
+  server-side from the live catalogue; the card is charged at checkout and the
   card is saved off-session. The webhook (or `/api/stripe/confirm` when the customer
-  returns) records one commit per line. Cards only hold for about seven days, so the
-  console's **Capture & pour** (Fulfillment → Batches) captures a live hold or, if it has
-  expired, charges the saved card for the same amount; **Release holds** cancels them.
+  returns) records one paid order row per line, which the customer sees under **My Orders**.
   **The Monthly Pour**: a real Stripe subscription, monthly, priced at the first pick's
   member price. Three days before each renewal Stripe sends `invoice.upcoming`; the
   webhook settles that month's scent (drawing it in surprise mode) and re-prices the
@@ -331,7 +329,7 @@ See [`.env.example`](../.env.example) for the full annotated list.
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | Frontend (Vite/Vercel) | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Frontend | Browser-safe anon key (RLS-guarded) |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `SUPABASE_SERVICE_ROLE_KEY` / `SITE_URL` | Vercel serverless | Stripe Checkout, webhook and batch capture — see `STRIPE_INTEGRATION_TODO.md` |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `SITE_URL` | Vercel serverless | Stripe Checkout and its webhook — see `STRIPE_INTEGRATION_TODO.md` |
 | `VITE_STRIPE_AUTHORIZE_URL` | Frontend | Legacy stub endpoint; unused once the Stripe routes are configured |
 | `ANTHROPIC_API_KEY` | Vercel serverless | Concierge (`/api/chat`) + AI conception (`/api/conceive`) — server-side only |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Vercel serverless (optional) | Admin check for `/api/conceive`; falls back to the `VITE_` pair |

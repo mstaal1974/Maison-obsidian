@@ -7,7 +7,7 @@ interface VIPProps {
 }
 
 const PERKS = [
-  { title: "→ Early access", body: "Open VIP-only batches before public release." },
+  { title: "→ Early access", body: "Shop VIP-only releases before they open to everyone." },
   { title: "→ Re-pour priority", body: "First claim when a sold-out scent returns." },
   { title: "→ Free engraving", body: "Complimentary on every bottle, always." },
 ];
@@ -50,7 +50,7 @@ export default function VIP({ vip, signedIn, onJoin }: VIPProps) {
               The VIP Club
             </h2>
             <p style={{ margin: "18px 0 0", maxWidth: 460, fontSize: 14, lineHeight: 1.7, color: "rgba(243,236,220,0.62)" }}>
-              Early access to locked batches, first claim on re-pours of sold-out scents, and a complimentary engraving on
+              Early access to locked releases, first claim on re-pours of sold-out scents, and a complimentary engraving on
               every order. Members shape what the lab pours next.
             </p>
             <div style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 18 }}>

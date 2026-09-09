@@ -130,25 +130,25 @@ export function localFallbackReply(text: string, frags: Fragrance[]): string {
   const has = (...w: string[]) => w.some((x) => t.includes(x));
 
   if (!t || has("hello", "hi ", "hey", "help")) {
-    return "Welcome to Maison Obsidian. I can explain how our batch commits work, recommend a scent by note or occasion, or walk you through sizes, engraving, VIP, and shipping. What are you after?";
+    return "Welcome to Maison Obsidian. I can recommend a scent by note or occasion, or walk you through sizes, engraving, the Monthly Pour, VIP, and shipping. What are you after?";
   }
-  if (has("commit", "batch", "authoriz", "charge", "moq", "pour", "reserve")) {
-    return "Each fragrance is poured in a small batch. When you commit, your card is authorized — never charged — until the batch reaches its minimum. Only then do we capture payment and pour; if a batch closes short, the hold is released, no questions asked.";
+  if (has("pay", "payment", "charge", "checkout", "card", "order")) {
+    return "Checkout is handled securely by Stripe — your card is charged when you place the order. Every bottle is filled to order and ships within 5–7 business days, with free shipping over $100 and 30-day returns.";
   }
   if (has("ship", "delivery", "deliver", "post", "track")) {
-    return "Bottles ship via Australia Post Parcel Post once a batch pours and payment is captured. You'll see status and a tracking link under “My Reservations” in your account.";
+    return "Bottles ship via Australia Post Parcel Post, usually within 5–7 business days. You'll see status and a tracking link under “My Orders” in your account.";
   }
   if (has("size", "ml", "price", "cost", "how much")) {
-    return "Every scent comes in three sizes — 10 ml, 30 ml, and 50 ml — at 30% extrait. Prices vary by fragrance; open any product to see the three tiers and pick your size before committing.";
+    return "Every scent comes in three sizes — 10 ml, 30 ml, and 50 ml — at 30% extrait. Prices vary by fragrance; open any product to see the three tiers and pick your size.";
   }
   if (has("engrav", "custom", "name on")) {
     return "You can engrave up to 28 characters on the bottle label — a name, a date, a secret. Toggle Custom Engraving on the product page and it previews live as you type. It's complimentary for VIP members.";
   }
   if (has("vip", "member", "club", "subscri")) {
-    return "The VIP Club is $120/year: early access to locked batches, first claim on re-pours, and complimentary engraving on every order. Some scents are VIP-only — join from the VIP Club section once you're signed in.";
+    return "The VIP Club is $120/year: early access to locked releases, first claim on re-pours, and complimentary engraving on every order. Some scents are VIP-only — join from the VIP Club section once you're signed in.";
   }
-  if (has("account", "sign in", "log in", "login", "reservation", "order")) {
-    return "Sign in (email or Google) to commit to a batch, join VIP, and track everything under “My Reservations,” where each commit shows its size, engraving, batch progress, and shipping status.";
+  if (has("account", "sign in", "log in", "login", "my orders")) {
+    return "Sign in (email or Google) to check out, join VIP, and track everything under “My Orders,” where each order shows its size, engraving, payment and shipping status.";
   }
 
   const gender: Filter = has("him", "men", "masculine", "male") ? "men" : has("her", "women", "feminine", "female") ? "women" : "all";
@@ -156,12 +156,12 @@ export function localFallbackReply(text: string, frags: Fragrance[]): string {
     const noteMatch = ["oud", "rose", "vanilla", "citrus", "tobacco", "leather", "amber", "saffron", "jasmine", "smoke", "spice", "musk", "wood"].find((n) => t.includes(n));
     const picks = pick(frags, gender, noteMatch);
     if (picks.length) {
-      return `A few you might love: ${names(picks)}. Open any in the Vault to read its full composition and commit.`;
+      return `A few you might love: ${names(picks)}. Open any in the Vault to read its full composition.`;
     }
   }
   if (has("list", "what do you have", "catalog", "catalogue", "scents", "fragrances", "range")) {
     return `We're currently pouring ${frags.length} scents — for example: ${names(frags.slice(0, 4))}. Browse them all in the Vault.`;
   }
 
-  return "I can help with our batch-commit model, sizes and pricing, engraving, VIP membership, shipping, or a recommendation by note or occasion. Could you tell me a little more about what you're looking for?";
+  return "I can help with sizes and pricing, engraving, the Monthly Pour, VIP membership, shipping, or a recommendation by note or occasion. Could you tell me a little more about what you're looking for?";
 }

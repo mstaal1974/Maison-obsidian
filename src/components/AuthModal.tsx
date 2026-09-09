@@ -4,7 +4,7 @@ import type { AuthResult } from "../lib/auth";
 
 interface AuthModalProps {
   configured: boolean;
-  /** When set ("reserve" | "subscribe"), the modal explains why sign-in is required. */
+  /** When set ("checkout" | "subscribe"), the modal explains why sign-in is required. */
   reason?: string | null;
   onClose: () => void;
   /** Fired once, after authentication succeeds — before onClose — with the email used. */
@@ -29,7 +29,7 @@ export default function AuthModal({
   signInGoogle,
 }: AuthModalProps) {
   // A reservation attempt lands new visitors on the sign-up tab by default.
-  const [mode, setMode] = useState<"signin" | "signup">(reason === "reserve" || reason === "subscribe" ? "signup" : "signin");
+  const [mode, setMode] = useState<"signin" | "signup">(reason === "checkout" || reason === "subscribe" ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -164,10 +164,10 @@ export default function AuthModal({
         </div>
 
         <h2 className="mo-auth-title" style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
-          {reason === "reserve"
+          {reason === "checkout"
             ? mode === "signin"
-              ? "Sign in to reserve."
-              : "Join to reserve."
+              ? "Sign in to check out."
+              : "Join to check out."
             : reason === "subscribe"
               ? mode === "signin"
                 ? "Sign in to subscribe."
@@ -176,9 +176,9 @@ export default function AuthModal({
                 ? "Welcome back."
                 : "Create your account."}
         </h2>
-        {reason === "reserve" ? (
+        {reason === "checkout" ? (
           <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
-            Reservations are held under your account. Sign in or create one to commit to this batch — your bottle picks up right where you left off.
+            Your orders live under your account, with tracking for every parcel. Sign in or create one to check out — your bag picks up right where you left off.
           </p>
         ) : reason === "subscribe" ? (
           <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
@@ -223,7 +223,7 @@ export default function AuthModal({
           <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
             {(
               [
-                { key: "marketing", on: marketing, set: setMarketing, label: "Email me about new batches and offers.", hint: "A note when a scent you might like pours. Unsubscribe any time from your account." },
+                { key: "marketing", on: marketing, set: setMarketing, label: "Email me about new releases and offers.", hint: "A note when a scent you might like lands. Unsubscribe any time from your account." },
                 { key: "ai", on: ai, set: setAi, label: "Personalise suggestions from my history.", hint: "The concierge and Monthly Pour surprises can use what you've bought and asked for." },
               ] as { key: string; on: boolean; set: (v: boolean) => void; label: string; hint: string }[]
             ).map((c) => (

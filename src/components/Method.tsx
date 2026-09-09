@@ -1,8 +1,8 @@
 const MOVEMENTS = [
   { no: "/ 01", title: "Source", body: "Absolutes pressed and shipped from Dubai's oldest oud houses." },
   { no: "/ 02", title: "Macerate", body: "Each compound rests four weeks at thirty percent oil before it is judged." },
-  { no: "/ 03", title: "Commit", body: "Twenty patrons reserve a batch. No card is charged until the floor is met." },
-  { no: "/ 04", title: "Pour", body: "The lab opens, bottles are filled, and each ships engraved with your name." },
+  { no: "/ 03", title: "Order", body: "Choose your size, add an engraving, and pay securely at checkout." },
+  { no: "/ 04", title: "Pour", body: "Your bottle is filled to order and ships engraved with your name." },
 ];
 
 export default function Method() {

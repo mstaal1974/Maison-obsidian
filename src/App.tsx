@@ -9,7 +9,7 @@ import { parseHash, navigate, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, recordOrders, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
 import AuthModal from "./components/AuthModal";
-import MyReservations, { type Reservation } from "./components/MyReservations";
+import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
 import AdminConsole from "./components/AdminConsole";
 import ChatWidget from "./components/ChatWidget";
 import Header from "./components/Header";
@@ -78,9 +78,6 @@ export default function App() {
       active = false;
     };
   }, [auth.user]);
-
-  /** Batch progress: server count plus what this visitor reserved locally. */
-  const effective = useCallback((f: Fragrance) => f.committed + orders.filter((o) => o.fragranceId === f.id).reduce((n, o) => n + o.qty, 0), [orders]);
 
   // ── Bag actions ────────────────────────────────────────────────────────────
   const openQuick = useCallback((frag: Fragrance, format?: FormatKey) => setQuick({ frag, format }), []);
@@ -252,7 +249,7 @@ export default function App() {
 
   // Back from Stripe Checkout: confirm the session (records it if the webhook
   // hasn't yet), clear the bag, and say what happened.
-  const [stripeNotice, setStripeNotice] = useState<{ kind: "reservation" | "subscription"; detail: string } | null>(null);
+  const [stripeNotice, setStripeNotice] = useState<{ kind: "order" | "subscription"; detail: string } | null>(null);
   const sessionId = route.view === "account" ? route.sessionId : null;
   const sessionUserId = auth.user?.id ?? null;
   useEffect(() => {
@@ -260,15 +257,15 @@ export default function App() {
     let active = true;
     void confirmStripeSession(sessionId).then((r) => {
       if (!active) return;
-      if (r?.ok && r.data.kind === "reservation") {
+      if (r?.ok && r.data.kind === "order") {
         clearBag();
-        setStripeNotice({ kind: "reservation", detail: `${(r.data.lines ?? []).reduce((n, l) => n + l.q, 0)} piece(s) reserved · ${money(r.data.amountTotal ?? 0)} held, not charged` });
+        setStripeNotice({ kind: "order", detail: `${(r.data.lines ?? []).reduce((n, l) => n + l.q, 0)} item(s) · ${money(r.data.amountTotal ?? 0)} paid` });
         setCommitsVersion((v) => v + 1);
       } else if (r?.ok && r.data.kind === "subscription") {
         setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });
         reloadSubs();
       } else if (r?.ok === false) {
-        setStripeNotice({ kind: "reservation", detail: r.error });
+        setStripeNotice({ kind: "order", detail: r.error });
       }
       // Drop the session id from the URL so a refresh doesn't re-confirm.
       window.history.replaceState(null, "", "#/account");
@@ -279,7 +276,7 @@ export default function App() {
   }, [sessionId, sessionUserId, reloadSubs]);
 
   const shipmentFor = useCallback(
-    (fragranceId: string): Partial<Reservation> => {
+    (fragranceId: string): Partial<AccountOrder> => {
       if (usingRemote) {
         const s = (remoteShipments ?? []).find((x) => x.fragrance_id === fragranceId);
         return s ? { shipmentStatus: s.status, carrier: s.carrier ?? undefined, tracking: s.tracking_number ?? undefined, trackingUrl: s.tracking_url ?? undefined } : {};
@@ -293,26 +290,26 @@ export default function App() {
   const formatLabel = (key: string | null | undefined, sizeMl: number) =>
     key && key in FORMAT_BY_KEY ? FORMAT_BY_KEY[key as FormatKey].name : `${sizeMl} ml`;
 
-  const reservations: Reservation[] = useMemo(() => {
+  const accountOrders: AccountOrder[] = useMemo(() => {
     if (usingRemote) {
       return (remoteCommits ?? [])
-        .map((row): Reservation | null => {
+        .map((row): AccountOrder | null => {
           const frag = fragrances.find((f) => f.id === row.fragrance_id);
           return frag
-            ? { frag, sizeMl: row.size_ml, formatLabel: formatLabel(row.format, row.size_ml), chargeCents: row.charge_cents ?? undefined, engraving: row.engraving, status: row.status, effectiveCommitted: effective(frag), ...shipmentFor(frag.id) }
+            ? { frag, sizeMl: row.size_ml, formatLabel: formatLabel(row.format, row.size_ml), chargeCents: row.charge_cents ?? undefined, engraving: row.engraving, status: row.status, placedAt: row.created_at, ...shipmentFor(frag.id) }
             : null;
         })
-        .filter((r): r is Reservation => r !== null);
+        .filter((r): r is AccountOrder => r !== null);
     }
     return orders
-      .map((o): Reservation | null => {
+      .map((o): AccountOrder | null => {
         const frag = fragrances.find((f) => f.id === o.fragranceId);
         return frag
-          ? { frag, sizeMl: o.sizeMl, formatLabel: formatLabel(o.format, o.sizeMl), qty: o.qty, chargeCents: o.chargeCents * o.qty, engraving: o.engraving, status: "authorized", effectiveCommitted: effective(frag), ...shipmentFor(frag.id) }
+          ? { frag, sizeMl: o.sizeMl, formatLabel: formatLabel(o.format, o.sizeMl), qty: o.qty, chargeCents: o.chargeCents * o.qty, engraving: o.engraving, status: "captured", placedAt: new Date(o.createdAt).toISOString(), ...shipmentFor(frag.id) }
           : null;
       })
-      .filter((r): r is Reservation => r !== null);
-  }, [usingRemote, remoteCommits, orders, fragrances, effective, shipmentFor]);
+      .filter((r): r is AccountOrder => r !== null);
+  }, [usingRemote, remoteCommits, orders, fragrances, shipmentFor]);
 
   const demoAdminCommits: AdminCommitRow[] = useMemo(
     () => orders.map((o) => ({ id: o.id, fragrance_id: o.fragranceId, format: o.format, size_ml: o.sizeMl, charge_cents: o.chargeCents * o.qty, engraving: o.engraving, status: "authorized", created_at: "" })),
@@ -392,7 +389,7 @@ export default function App() {
       {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
 
       {route.view === "product" && selected && (
-        <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} effectiveCommitted={effective(selected)} onAdd={add} onQuickView={openQuick} />
+        <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} onAdd={add} onQuickView={openQuick} />
       )}
       {route.view === "product" && !selected && (
         <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
@@ -406,8 +403,8 @@ export default function App() {
       {route.view === "about" && <About vip={vip} signedIn={!!auth.user} onJoin={joinVip} />}
 
       {route.view === "account" && (
-        <MyReservations
-          reservations={reservations}
+        <MyOrders
+          orders={accountOrders}
           loading={usingRemote && remoteCommits === null}
           onOpen={(slug) => navigate(paths.product(slug))}
           onBackToVault={() => navigate(paths.fragrances)}
@@ -416,7 +413,7 @@ export default function App() {
           notice={
             stripeNotice ? (
               <div style={{ marginTop: 24, border: "1px solid rgba(201,169,97,0.6)", background: "#101015", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#f3ecdc" }}>{stripeNotice.kind === "subscription" ? "You're in." : "Reserved."}</span>
+                <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#f3ecdc" }}>{stripeNotice.kind === "subscription" ? "You're in." : "Thank you — your order is confirmed."}</span>
                 <span style={{ fontSize: 13, color: "rgba(243,236,220,0.7)" }}>{stripeNotice.detail}</span>
               </div>
             ) : null
@@ -454,7 +451,7 @@ export default function App() {
       {authOpen && (
         <AuthModal
           configured={auth.configured}
-          reason={pendingCheckout ? "reserve" : pendingSub ? "subscribe" : null}
+          reason={pendingCheckout ? "checkout" : pendingSub ? "subscribe" : null}
           onClose={() => {
             setAuthOpen(false);
             setPendingCheckout(false);

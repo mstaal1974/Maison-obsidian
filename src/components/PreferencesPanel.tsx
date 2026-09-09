@@ -25,7 +25,7 @@ export default function PreferencesPanel({ consents, taste, onChange }: Preferen
   };
 
   const rows: { key: keyof Pick<Consents, "marketing" | "ai">; title: string; body: string; since?: string | null }[] = [
-    { key: "marketing", title: "Email me about new batches and offers", body: "A note when a scent you might like pours, and the occasional offer. Turning this off unsubscribes you from all marketing email.", since: consents.marketingAt },
+    { key: "marketing", title: "Email me about new releases and offers", body: "A note when a scent you might like lands, and the occasional offer. Turning this off unsubscribes you from all marketing email.", since: consents.marketingAt },
     { key: "ai", title: "Personalise suggestions from my history", body: "Lets the concierge and Monthly Pour surprises use what you've bought, subscribed to and asked for. Turn it off and they treat you as new.", since: consents.aiAt },
   ];
 
@@ -68,7 +68,7 @@ export default function PreferencesPanel({ consents, taste, onChange }: Preferen
           {!taste ? (
             <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "rgba(243,236,220,0.5)" }}>Reading your history…</p>
           ) : taste.empty ? (
-            <p style={{ margin: "8px 0 0", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>Nothing yet. As you reserve, subscribe or ask the concierge, your taste profile builds here, and you can see it.</p>
+            <p style={{ margin: "8px 0 0", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>Nothing yet. As you order, subscribe or ask the concierge, your taste profile builds here, and you can see it.</p>
           ) : (
             <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
               {taste.moods.length > 0 && (

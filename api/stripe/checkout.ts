@@ -3,10 +3,9 @@
 // success_url (or cancel_url).
 //
 // Prices are computed from the live catalogue, never from the browser. The
-// PaymentIntent is created with capture_method "manual" (a hold, captured
-// when the batch pours) and the card is saved off-session so a batch that
-// outlives the hold can still be charged. Commits are recorded by the webhook
-// (and by /api/stripe/confirm on return, whichever comes first).
+// card is charged when the customer pays — a normal store checkout. Orders
+// are recorded by the webhook (and by /api/stripe/confirm on return,
+// whichever comes first).
 
 import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route, notConfigured } from "../_lib/stripe.js";
 
@@ -54,16 +53,12 @@ export default route("checkout", async function handler(req: any, res: any) {
         unit_amount: l.unitCents,
         product_data: {
           name: `${l.name} — ${l.formatName}`,
-          description: l.engraving ? `Engraved “${l.engraving}”` : "Reserved for the next batch pour",
+          description: l.engraving ? `Engraved “${l.engraving}”` : undefined,
         },
       },
     })),
-    payment_intent_data: {
-      capture_method: "manual",
-      setup_future_usage: "off_session",
-      metadata: { user_id: user.id, kind: "reservation" },
-    },
-    metadata: { user_id: user.id, user_email: user.email ?? "", kind: "reservation", lines: JSON.stringify(compact).slice(0, 490) },
+    payment_intent_data: { metadata: { user_id: user.id, kind: "order" } },
+    metadata: { user_id: user.id, user_email: user.email ?? "", kind: "order", lines: JSON.stringify(compact).slice(0, 490) },
     success_url: `${site}/#/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${site}/#/?checkout=cancelled`,
   });

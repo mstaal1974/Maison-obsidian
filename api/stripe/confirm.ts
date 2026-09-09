@@ -5,7 +5,7 @@
 // may confirm it.
 
 import { getStripe, json, serviceClient, userFromRequest, route, notConfigured } from "../_lib/stripe.js";
-import { recordReservation, recordSubscriptionStart } from "../_lib/record.js";
+import { recordOrder, recordSubscriptionStart } from "../_lib/record.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -24,8 +24,8 @@ export default route("confirm", async function handler(req: any, res: any) {
   if (session.status !== "complete") return json(res, 409, { error: "Payment not completed", status: session.status });
 
   if (session.mode === "payment") {
-    await recordReservation(stripe, db, session);
-    return json(res, 200, { kind: "reservation", lines: JSON.parse(session.metadata?.lines ?? "[]"), amountTotal: session.amount_total });
+    await recordOrder(stripe, db, session);
+    return json(res, 200, { kind: "order", lines: JSON.parse(session.metadata?.lines ?? "[]"), amountTotal: session.amount_total });
   }
   if (session.mode === "subscription") {
     await recordSubscriptionStart(stripe, db, session);
