@@ -25,6 +25,10 @@ import ProductDetail from "./components/ProductDetail";
 import QuickView from "./components/QuickView";
 import BagDrawer from "./components/BagDrawer";
 import Footer from "./components/Footer";
+import Subscribe from "./components/Subscribe";
+import SubscribeBand from "./components/SubscribeBand";
+import SubscriptionPanel from "./components/SubscriptionPanel";
+import { startSubscription, subscriptionPrice, useSubscriptions } from "./lib/subscription";
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
@@ -35,6 +39,11 @@ export default function App() {
   const [bagOpen, setBagOpen] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [placed, setPlaced] = useState<Order[] | null>(null);
+  // The Monthly Pour: builder state and the sign-in hand-off, like checkout.
+  const [pendingSub, setPendingSub] = useState<{ format: FormatKey; frag: Fragrance } | null>(null);
+  const [subBusy, setSubBusy] = useState(false);
+  const [subStarted, setSubStarted] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
 
   const { fragrances, reload } = useFragrances();
   const auth = useAuth();
@@ -46,7 +55,11 @@ export default function App() {
 
   // ── Hash routing ───────────────────────────────────────────────────────────
   useEffect(() => {
-    const sync = () => setRoute(parseHash(window.location.hash));
+    const sync = () => {
+      setRoute(parseHash(window.location.hash));
+      setSubStarted(false);
+      setSubError(null);
+    };
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
@@ -112,6 +125,43 @@ export default function App() {
       setCheckingOut(false);
     }
   }, [lines, fragrances]);
+
+  // ── Monthly Pour ───────────────────────────────────────────────────────────
+  const { subscriptions, loading: subsLoading, reload: reloadSubs } = useSubscriptions(!!auth.user);
+  const hasActiveSub = subscriptions.some((s) => s.status === "active");
+
+  const startSub = useCallback(
+    async (format: FormatKey, frag: Fragrance, email?: string) => {
+      setSubBusy(true);
+      setSubError(null);
+      try {
+        const charge = subscriptionPrice(frag, format);
+        const { paymentIntentId } = await authorizePayment(frag.id, charge);
+        const res = await startSubscription(format, frag.id, charge, paymentIntentId, email || auth.user?.email || null);
+        if (!res.ok) {
+          setSubError(res.error ?? "Could not start the subscription.");
+          return;
+        }
+        setSubStarted(true);
+        reloadSubs();
+      } finally {
+        setSubBusy(false);
+      }
+    },
+    [auth.user, reloadSubs],
+  );
+
+  const requestSubscribe = useCallback(
+    (format: FormatKey, frag: Fragrance) => {
+      if (!auth.user) {
+        setPendingSub({ format, frag });
+        setAuthOpen(true);
+        return;
+      }
+      void startSub(format, frag);
+    },
+    [auth.user, startSub],
+  );
 
   const requestCheckout = useCallback(() => {
     if (!auth.user) {
@@ -214,6 +264,7 @@ export default function App() {
           <ChooseObsidian />
           <FindYourScent fragrances={fragrances} onQuickView={openQuick} userEmail={auth.user?.email} />
           <MoodShop fragrances={fragrances} onQuickView={openQuick} />
+          <SubscribeBand />
           <RangeBanners />
         </main>
       )}
@@ -235,6 +286,20 @@ export default function App() {
         <Discovery fragrances={fragrances} vip={vip} discoveryIds={boxIds} onToggleDiscovery={onToggleDiscovery} onAddBox={addBox} onQuickView={openQuick} />
       )}
 
+      {route.view === "subscribe" && (
+        <Subscribe
+          fragrances={fragrances}
+          vip={vip}
+          initialSlug={route.slug}
+          initialFormat={route.format}
+          hasActive={hasActiveSub}
+          busy={subBusy}
+          started={subStarted}
+          error={subError}
+          onStart={requestSubscribe}
+        />
+      )}
+
       {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
 
       {route.view === "product" && selected && (
@@ -252,7 +317,13 @@ export default function App() {
       {route.view === "about" && <About vip={vip} signedIn={!!auth.user} onJoin={joinVip} />}
 
       {route.view === "account" && (
-        <MyReservations reservations={reservations} loading={usingRemote && remoteCommits === null} onOpen={(slug) => navigate(paths.product(slug))} onBackToVault={() => navigate(paths.fragrances)} />
+        <MyReservations
+          reservations={reservations}
+          loading={usingRemote && remoteCommits === null}
+          onOpen={(slug) => navigate(paths.product(slug))}
+          onBackToVault={() => navigate(paths.fragrances)}
+          subscriptionSlot={<SubscriptionPanel subscriptions={subscriptions} fragrances={fragrances} loading={subsLoading} onChanged={reloadSubs} />}
+        />
       )}
 
       {route.view === "admin" &&
@@ -284,15 +355,22 @@ export default function App() {
       {authOpen && (
         <AuthModal
           configured={auth.configured}
-          reason={pendingCheckout ? "reserve" : null}
+          reason={pendingCheckout ? "reserve" : pendingSub ? "subscribe" : null}
           onClose={() => {
             setAuthOpen(false);
             setPendingCheckout(false);
+            setPendingSub(null);
           }}
-          onAuthed={() => {
+          onAuthed={(email) => {
             if (pendingCheckout) {
               setPendingCheckout(false);
               void checkout();
+            }
+            if (pendingSub) {
+              // Runs before the auth state re-renders, so carry the email along.
+              const { format, frag } = pendingSub;
+              setPendingSub(null);
+              void startSub(format, frag, email);
             }
           }}
           signInEmail={auth.signInEmail}

@@ -148,9 +148,20 @@ body {
 /* ─── Responsive: the design is a desktop comp; degrade gracefully ────────── */
 
 @media (max-width: 1180px) {
+  /* Seven primary links: tighten the nav until it hides at 1000px. */
+  .mo-nav {
+    gap: 16px !important;
+  }
+  .mo-nav > button {
+    font-size: 9.5px !important;
+    letter-spacing: 0.14em !important;
+  }
   .mo-choose-grid,
   .mo-mood-grid {
     grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .mo-subscents-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
   }
   .mo-find-grid {
     grid-template-columns: 1fr !important;
@@ -183,9 +194,16 @@ body {
   }
   .mo-hero-grid,
   .mo-pdp-grid,
-  .mo-vip-grid {
+  .mo-vip-grid,
+  .mo-subscribe-grid {
     grid-template-columns: 1fr !important;
     gap: 40px !important;
+  }
+  .mo-subscribe-summary {
+    position: static !important;
+  }
+  .mo-subformats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
   .mo-vault-grid {
     grid-template-columns: repeat(2, 1fr) !important;
@@ -210,6 +228,15 @@ body {
     border-left: 0 !important;
     padding-left: 0 !important;
     border-top: 1px solid #1f1f27;
+  }
+  .mo-subscents-grid,
+  .mo-steps-grid,
+  .mo-band-grid,
+  .mo-subnext-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .mo-subscents-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
   /* Sign-in dialog: tighter on phones so the whole form fits above the fold. */
   .mo-auth-overlay {

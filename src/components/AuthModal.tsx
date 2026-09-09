@@ -4,11 +4,11 @@ import type { AuthResult } from "../lib/auth";
 
 interface AuthModalProps {
   configured: boolean;
-  /** When set (e.g. "reserve"), the modal explains why sign-in is required. */
+  /** When set ("reserve" | "subscribe"), the modal explains why sign-in is required. */
   reason?: string | null;
   onClose: () => void;
-  /** Fired once, after authentication succeeds — before onClose. */
-  onAuthed?: () => void;
+  /** Fired once, after authentication succeeds — before onClose — with the email used. */
+  onAuthed?: (email: string) => void;
   signInEmail: (email: string, password: string) => Promise<AuthResult>;
   signUpEmail: (email: string, password: string) => Promise<AuthResult>;
   signInGoogle: () => Promise<AuthResult>;
@@ -26,7 +26,7 @@ export default function AuthModal({
   signInGoogle,
 }: AuthModalProps) {
   // A reservation attempt lands new visitors on the sign-up tab by default.
-  const [mode, setMode] = useState<"signin" | "signup">(reason === "reserve" ? "signup" : "signin");
+  const [mode, setMode] = useState<"signin" | "signup">(reason === "reserve" || reason === "subscribe" ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export default function AuthModal({
       setError(err);
       return;
     }
-    onAuthed?.();
+    onAuthed?.(email.trim());
     onClose();
   };
 
@@ -62,7 +62,7 @@ export default function AuthModal({
     }
     // Real Supabase Google sign-in redirects away; the demo resolves inline.
     if (!configured) {
-      onAuthed?.();
+      onAuthed?.("");
       onClose();
     }
   };
@@ -161,13 +161,21 @@ export default function AuthModal({
             ? mode === "signin"
               ? "Sign in to reserve."
               : "Join to reserve."
-            : mode === "signin"
-              ? "Welcome back."
-              : "Create your account."}
+            : reason === "subscribe"
+              ? mode === "signin"
+                ? "Sign in to subscribe."
+                : "Join the Monthly Pour."
+              : mode === "signin"
+                ? "Welcome back."
+                : "Create your account."}
         </h2>
         {reason === "reserve" ? (
           <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
             Reservations are held under your account. Sign in or create one to commit to this batch — your bottle picks up right where you left off.
+          </p>
+        ) : reason === "subscribe" ? (
+          <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
+            Your subscription lives under your account: that's where you choose next month's scent, follow deliveries and cancel. Sign in or create one to start.
           </p>
         ) : (
           <div style={{ height: 24 }} />

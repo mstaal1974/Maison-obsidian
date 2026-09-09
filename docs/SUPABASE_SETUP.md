@@ -206,6 +206,19 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   car / wash / moisturiser stock to `fragrances`, a `format` + `qty` on `commits`, the
   `admin_set_formats` RPC behind the admin **Product Matrix**, and re-creates
   `commit_to_batch` with the two extra arguments. Apply it after `0008`.
+- **The Monthly Pour (subscriptions)** — migration `0012_subscriptions.sql` adds
+  `scent_subscriptions` and `subscription_deliveries` with the RPCs `start_subscription`
+  (customer; records month 1 as paid), `set_subscription_pick`, `cancel_subscription`
+  and `bill_subscription_month` (admin / payment processor; records the next month's
+  charge and delivery, marking the subscription complete on month 12). Customers see
+  and manage their subscription under **Account**; admins triage every subscription
+  under the console's **Monthly Pour** tab. Apply it after `0011`.
+
+  The monthly charge itself is the payment processor's job. Wire Stripe Subscriptions
+  (or a scheduled job) so that each successful monthly payment calls
+  `bill_subscription_month(id, charge_cents, payment_intent_id)`; until then the admin
+  console's **Bill month N** button records a month by hand through the same RPC, using
+  the `VITE_STRIPE_AUTHORIZE_URL` endpoint (or the stub) for the charge.
 - **Scent requests** — migration `0010_scent_requests.sql` adds the `scent_requests` table
   and the `request_scent` RPC. When **Find my match** has nothing for what a customer
   typed (or only nearest profiles), they can request it; the asks land in the admin
