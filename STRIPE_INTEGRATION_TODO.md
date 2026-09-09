@@ -43,6 +43,10 @@ The Stripe client is created with no `apiVersion`, so your account's default API
    - `STRIPE_WEBHOOK_SECRET` — from the webhook endpoint below
    - `SUPABASE_SERVICE_ROLE_KEY` — server only; the webhook and admin capture write with it
    - `SITE_URL` — e.g. `https://maisonobsidian-zeta.vercel.app` (where Stripe returns the customer)
+   - `SUPABASE_URL` and `SUPABASE_ANON_KEY` — the functions read the catalogue and identify the
+     customer with these. The `VITE_`-prefixed pair in `.env` is baked into the browser bundle at
+     build time and is **not** visible to serverless functions at runtime, so set these unprefixed
+     names in Vercel as well (same values).
    Hosted Checkout needs **no publishable key**: the browser never talks to Stripe directly. Environment variables apply to new deployments only, so redeploy after saving. See [.env.example](.env.example) for local development.
 2. **Database.** Apply `supabase/migrations/0015_stripe.sql` (after `0014`).
 3. **Webhook.** Dashboard → Developers → Webhooks → Add endpoint `https://<your site>/api/stripe/webhook` with events `checkout.session.completed`, `invoice.upcoming`, `invoice.paid`, `customer.subscription.deleted`. Paste its signing secret into `STRIPE_WEBHOOK_SECRET`.

@@ -45,6 +45,9 @@ export default route("status", async function handler(req: any, res: any) {
   if (!secret) blocking.push("STRIPE_SECRET_KEY");
   if (!url) blocking.push("SUPABASE_URL (or VITE_SUPABASE_URL)");
   if (!serviceKey) blocking.push("SUPABASE_SERVICE_ROLE_KEY");
+  // Needed to read the catalogue and to identify the signed-in customer;
+  // without it checkout gets past the config check and then fails at sign-in.
+  if (!anon) blocking.push("SUPABASE_ANON_KEY (or VITE_SUPABASE_ANON_KEY)");
   if (serviceKey && jwtRole(serviceKey) !== "service_role") blocking.push(`SUPABASE_SERVICE_ROLE_KEY has role "${jwtRole(serviceKey)}" — it must be the service_role key, not the anon key`);
 
   return json(res, 200, {
