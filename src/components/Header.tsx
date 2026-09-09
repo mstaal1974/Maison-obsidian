@@ -24,6 +24,7 @@ const navLink: CSSProperties = {
   letterSpacing: "0.22em",
   textTransform: "uppercase",
   padding: "26px 0",
+  whiteSpace: "nowrap",
 };
 
 // SHOP mega-menu: fragrance first, format second — the architecture the brief
@@ -91,7 +92,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
           </span>
         </button>
 
-        <nav className="mo-nav" style={{ display: "flex", alignItems: "center", gap: 34, position: "relative" }} aria-label="Primary">
+        <nav className="mo-nav" style={{ display: "flex", alignItems: "center", gap: 26, position: "relative" }} aria-label="Primary">
           <div onMouseEnter={openShop} onMouseLeave={closeShopSoon} style={{ position: "relative" }}>
             <button className="mo-navlink" style={{ ...navLink, color: shopOpen ? GOLD : navLink.color }} onClick={() => setShopOpen((o) => !o)} aria-expanded={shopOpen} aria-haspopup="true">
               Shop
@@ -135,6 +136,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
           <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.discovery)}>Discovery</button>
           <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.car)}>Car</button>
           <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.body)}>Body &amp; Sets</button>
+          <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.subscribe())}>Subscribe</button>
           <button className="mo-navlink" style={{ ...navLink, color: GOLD }} onClick={() => navigate(paths.find())}>Find your scent</button>
         </nav>
 
@@ -167,6 +169,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                 <div style={{ padding: "8px 12px", fontFamily: MONO, fontSize: 10, color: "rgba(243,236,220,0.55)", borderBottom: "1px solid #1f1f27", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userEmail}</div>
                 {[
                   { label: "My Reservations", to: paths.account },
+                  { label: "My Monthly Pour", to: paths.account },
                   ...(isAdmin ? [{ label: "Admin Console", to: paths.admin }] : []),
                 ].map((x) => (
                   <button key={x.label} role="menuitem" className="mo-softhover" onClick={() => navigate(x.to)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: 0, cursor: "pointer", color: CREAM, padding: "10px 12px", fontSize: 13 }}>

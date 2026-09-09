@@ -144,7 +144,10 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 26 }}>
               <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 24, color: CREAM }}>Choose your format</h2>
-              <button style={btnLink} onClick={() => navigate(paths.about)}>Size guide <Arrow size={10} /></button>
+              <span style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+                <button style={btnLink} onClick={() => navigate(paths.subscribe(frag.slug))}>Subscribe monthly · save 10% <Arrow size={10} /></button>
+                <button style={btnLink} onClick={() => navigate(paths.about)}>Size guide <Arrow size={10} /></button>
+              </span>
             </div>
             <div className="mo-formats-grid" style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "stretch" }}>
               {ORDER.map((g) => {

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { type Fragrance, GOLD, money } from "../lib/data";
 
 export interface Reservation {
@@ -28,6 +29,8 @@ interface MyReservationsProps {
   loading: boolean;
   onOpen: (slug: string) => void;
   onBackToVault: () => void;
+  /** The Monthly Pour panel, rendered above the reservations. */
+  subscriptionSlot?: ReactNode;
 }
 
 const STATUS: Record<Reservation["status"], { label: string; color: string; bg: string }> = {
@@ -37,7 +40,7 @@ const STATUS: Record<Reservation["status"], { label: string; color: string; bg: 
   void: { label: "Void", color: "rgba(243,236,220,0.5)", bg: "rgba(243,236,220,0.06)" },
 };
 
-export default function MyReservations({ reservations, loading, onOpen, onBackToVault }: MyReservationsProps) {
+export default function MyReservations({ reservations, loading, onOpen, onBackToVault, subscriptionSlot }: MyReservationsProps) {
   return (
     <main data-screen-label="Account" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
       <div
@@ -68,7 +71,12 @@ export default function MyReservations({ reservations, loading, onOpen, onBackTo
         opens.
       </p>
 
+      {subscriptionSlot}
+
       <div style={{ marginTop: 40 }}>
+        <h2 style={{ margin: "0 0 18px", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
+          Batch <span style={{ fontStyle: "italic", color: "#c9a961" }}>Reservations.</span>
+        </h2>
         {loading ? (
           <p style={{ fontSize: 13, color: "rgba(243,236,220,0.5)" }}>Loading your reservations…</p>
         ) : reservations.length === 0 ? (
