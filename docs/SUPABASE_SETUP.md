@@ -72,6 +72,15 @@ supabase link --project-ref <your-project-ref>   # ref is the subdomain in your 
 supabase db push                                  # applies everything in supabase/migrations in order
 ```
 
+**Catching up a project that is behind.** The migrations build on each other, so a later
+one fails on a project missing an earlier one (for example `column f.format_status does not
+exist` means `0009` was never applied). Run them in numeric order, or paste them all into one
+SQL Editor run: every migration except `0002_seed.sql` is safe to re-run, and the seed should
+be skipped on a project whose catalogue you have already edited.
+
+```bash
+```
+
 > If `db push` complains about migration naming/versioning, use Option A — the SQL
 > Editor doesn't care about filename conventions.
 
