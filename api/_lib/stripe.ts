@@ -11,8 +11,7 @@
 
 import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Fragrance, FormatKey } from "../../src/lib/data";
-import { FORMAT_BY_KEY, sku, subscriptionPrice, DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE } from "../../src/lib/formats";
+import { type CatalogueItem, type FormatKey, FORMAT_BY_KEY, buyable, formatPrice, subscriptionPrice, DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE } from "./catalogue.js";
 
 export const CURRENCY = (process.env.STRIPE_CURRENCY ?? "aud").toLowerCase();
 
@@ -113,48 +112,36 @@ interface FragranceRow {
   format_status: Record<string, string> | null;
 }
 
-/** Enough of a Fragrance for sku()/formatPrice(); the rest is blank. */
-function rowToFragrance(r: FragranceRow): Fragrance {
+function rowToItem(r: FragranceRow): CatalogueItem {
   return {
     id: r.id,
     slug: r.slug,
     name: r.name,
-    inspiration: "",
-    tagline: "",
-    story: "",
     price: r.price_50ml_cents,
     price10: r.price_10ml_cents,
     price30: r.price_30ml_cents,
-    gender: "unisex",
-    moq: 0,
-    committed: 0,
-    liquid: "#000000",
-    accent: "#000000",
     vipOnly: r.vip_only,
-    top: [],
-    heart: [],
-    base: [],
     stock10: r.stock_10ml ?? 0,
     stock30: r.stock_30ml ?? 0,
     stock50: r.stock_50ml ?? 0,
     stockCar: r.stock_car ?? 0,
     stockWash: r.stock_wash ?? 0,
     stockMoist: r.stock_moist ?? 0,
-    formatPrices: (r.format_prices ?? undefined) as Fragrance["formatPrices"],
-    formatStatus: (r.format_status ?? undefined) as Fragrance["formatStatus"],
-  } as Fragrance;
+    formatPrices: (r.format_prices ?? undefined) as CatalogueItem["formatPrices"],
+    formatStatus: (r.format_status ?? undefined) as CatalogueItem["formatStatus"],
+  };
 }
 
 const FRAG_SELECT = "id, slug, name, price_10ml_cents, price_30ml_cents, price_50ml_cents, vip_only, stock_10ml, stock_30ml, stock_50ml, stock_car, stock_wash, stock_moist, format_prices, format_status";
 
 /** Live catalogue (public read, anon key is enough). */
-export async function loadCatalogue(): Promise<Map<string, Fragrance>> {
+export async function loadCatalogue(): Promise<Map<string, CatalogueItem>> {
   const url = supabaseUrl();
   const anon = anonKey();
   if (!url || !anon) return new Map();
   const sb = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data } = await sb.from("fragrances").select(FRAG_SELECT);
-  return new Map(((data ?? []) as FragranceRow[]).map((r) => [r.id, rowToFragrance(r)]));
+  return new Map(((data ?? []) as FragranceRow[]).map((r) => [r.id, rowToItem(r)]));
 }
 
 export interface CheckoutLine {
@@ -174,7 +161,7 @@ export interface PricedLine extends CheckoutLine {
 }
 
 /** Validates and prices the bag server-side. Throws on anything not buyable. */
-export function priceLines(lines: CheckoutLine[], catalogue: Map<string, Fragrance>): PricedLine[] {
+export function priceLines(lines: CheckoutLine[], catalogue: Map<string, CatalogueItem>): PricedLine[] {
   const boxPieces = lines.filter((l) => l.label === "Discovery Box" && l.format === "perf10").reduce((n, l) => n + l.qty, 0);
   const boxPriced = boxPieces > 0 && boxPieces % DISCOVERY_BOX_SIZE === 0;
   return lines.map((l) => {
@@ -182,15 +169,14 @@ export function priceLines(lines: CheckoutLine[], catalogue: Map<string, Fragran
     if (!f) throw new Error(`unknown fragrance ${l.fragranceId}`);
     const def = FORMAT_BY_KEY[l.format];
     if (!def) throw new Error(`unknown format ${l.format}`);
-    const s = sku(f, l.format);
-    if (!s.buyable) throw new Error(`${f.name} ${def.name} is not available`);
+    if (!buyable(f, l.format)) throw new Error(`${f.name} ${def.name} is not available`);
     const qty = Math.max(1, Math.min(20, Math.floor(l.qty || 1)));
-    const unit = l.label === "Discovery Box" && boxPriced ? Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE) : s.price;
+    const unit = l.label === "Discovery Box" && boxPriced ? Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE) : formatPrice(f, l.format);
     return { ...l, qty, engraving: l.engraving?.trim().slice(0, 28) || null, name: f.name, formatName: def.name, sizeMl: def.sizeMl, unitCents: unit };
   });
 }
 
-export function memberPrice(f: Fragrance, format: FormatKey): number {
+export function memberPrice(f: CatalogueItem, format: FormatKey): number {
   return subscriptionPrice(f, format);
 }
 
@@ -206,4 +192,23 @@ export async function customerFor(stripe: Stripe, db: SupabaseClient, user: { id
 export function json(res: any, status: number, body: unknown) {
   res.setHeader("Cache-Control", "no-store");
   res.status(status).json(body);
+}
+
+/**
+ * Wraps a route so an exception (a Stripe rejection, a missing table, a
+ * misconfigured key) comes back as JSON naming the cause, rather than
+ * Vercel's plain-text FUNCTION_INVOCATION_FAILED page the app can't read.
+ * The console shows `detail` to admins; customers see `error` only.
+ */
+export function route(name: string, handler: (req: any, res: any) => Promise<unknown>) {
+  return async (req: any, res: any) => {
+    try {
+      await handler(req, res);
+    } catch (e) {
+      const err = e as { message?: string; type?: string; code?: string; statusCode?: number };
+      console.error(`[stripe/${name}]`, e);
+      const detail = [err.type, err.code, err.message].filter(Boolean).join(" · ") || "unknown error";
+      json(res, 500, { error: "Checkout could not start", detail: `${name}: ${detail}` });
+    }
+  };
 }

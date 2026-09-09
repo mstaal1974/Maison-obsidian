@@ -77,15 +77,24 @@ async function authHeaders(): Promise<Record<string, string>> {
   return h;
 }
 
-/** Null when the route isn't deployed/configured (404, 501, or an HTML page). */
-async function call<T>(path: string, init: RequestInit): Promise<{ ok: true; data: T } | { ok: false; error: string } | null> {
+/**
+ * Null when the route isn't deployed (404 or an HTML page). A 501 means the
+ * route exists but Stripe isn't configured on Vercel: still a fallback to the
+ * local flow, but reported so an admin can see why.
+ */
+export type StripeCall<T> = { ok: true; data: T } | { ok: false; error: string; detail?: string; unconfigured?: boolean } | null;
+async function call<T>(path: string, init: RequestInit): Promise<StripeCall<T>> {
   if (!supabase) return null;
   try {
     const res = await fetch(path, { ...init, headers: { ...(init.headers as Record<string, string>), ...(await authHeaders()) } });
     const type = res.headers.get("content-type") ?? "";
-    if (res.status === 404 || res.status === 501 || !type.includes("application/json")) return null;
-    const data = (await res.json()) as T & { error?: string };
-    return res.ok ? { ok: true, data } : { ok: false, error: data.error ?? `Request failed (${res.status})` };
+    if (res.status === 501) {
+      const body = type.includes("application/json") ? ((await res.json()) as { error?: string }) : {};
+      return { ok: false, unconfigured: true, error: body.error ?? "Stripe isn't configured" };
+    }
+    if (res.status === 404 || !type.includes("application/json")) return null;
+    const data = (await res.json()) as T & { error?: string; detail?: string };
+    return res.ok ? { ok: true, data } : { ok: false, error: data.error ?? `Request failed (${res.status})`, detail: data.detail };
   } catch {
     return null;
   }

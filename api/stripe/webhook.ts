@@ -8,13 +8,13 @@
 //   customer.subscription.deleted  mark cancelled
 // Every handler is idempotent, so Stripe's retries are safe.
 
-import { getStripe, json, rawBody, serviceClient } from "../_lib/stripe";
-import { prepareRenewal, recordRenewal, recordReservation, recordSubscriptionStart } from "../_lib/record";
+import { getStripe, json, rawBody, serviceClient, route } from "../_lib/stripe.js";
+import { prepareRenewal, recordRenewal, recordReservation, recordSubscriptionStart } from "../_lib/record.js";
 import type Stripe from "stripe";
 
 export const config = { runtime: "nodejs", api: { bodyParser: false } };
 
-export default async function handler(req: any, res: any) {
+export default route("webhook", async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
@@ -62,4 +62,4 @@ export default async function handler(req: any, res: any) {
     console.error("stripe webhook:", event.type, e);
     return json(res, 500, { error: "handler failed" });
   }
-}
+});

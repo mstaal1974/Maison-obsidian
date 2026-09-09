@@ -2,11 +2,11 @@
 // Cancels at Stripe immediately (no further charges); months already paid
 // still ship. The webhook marks the row cancelled too, so this is belt and braces.
 
-import { getStripe, json, readBody, serviceClient, userFromRequest } from "../_lib/stripe";
+import { getStripe, json, readBody, serviceClient, userFromRequest, route } from "../_lib/stripe.js";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req: any, res: any) {
+export default route("cancel-subscription", async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
@@ -26,4 +26,4 @@ export default async function handler(req: any, res: any) {
   }
   await db.from("scent_subscriptions").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("id", id).eq("status", "active");
   return json(res, 200, { ok: true });
-}
+});

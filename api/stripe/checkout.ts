@@ -8,11 +8,11 @@
 // (and by /api/stripe/confirm on return, whichever comes first).
 // Returns { client_secret } for stripe.initCheckoutFormSdk on the client.
 
-import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY } from "../_lib/stripe";
+import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route } from "../_lib/stripe.js";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req: any, res: any) {
+export default route("checkout", async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
@@ -65,4 +65,4 @@ export default async function handler(req: any, res: any) {
     return_url: `${site}/#/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
   });
   return json(res, 200, { client_secret: session.client_secret, sessionId: session.id });
-}
+});

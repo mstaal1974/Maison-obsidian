@@ -3,8 +3,8 @@
 
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadCatalogue, memberPrice, CURRENCY } from "./stripe";
-import type { FormatKey } from "../../src/lib/data";
+import { loadCatalogue, memberPrice, CURRENCY } from "./stripe.js";
+import type { FormatKey } from "./catalogue.js";
 
 interface CompactLine {
   f: string; // fragrance id

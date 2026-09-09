@@ -7,7 +7,7 @@
 //          hands the spots back.
 // The same logic as the capture-batch Edge Function, reachable from the console.
 
-import { getStripe, isAdminRequest, json, readBody, serviceClient, CURRENCY } from "../_lib/stripe";
+import { getStripe, isAdminRequest, json, readBody, serviceClient, CURRENCY, route } from "../_lib/stripe.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -20,7 +20,7 @@ interface CommitRow {
   qty: number | null;
 }
 
-export default async function handler(req: any, res: any) {
+export default route("capture", async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
@@ -84,4 +84,4 @@ export default async function handler(req: any, res: any) {
     }
   }
   return json(res, 200, { ok: true, action, results });
-}
+});
