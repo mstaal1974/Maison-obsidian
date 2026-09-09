@@ -10,6 +10,8 @@ No placeholder values remain. `mode`, `success_url`, `cancel_url` and `line_item
 |-------|--------------|-------------|
 | — | — | Nothing to replace. |
 
+Two figures are house settings rather than placeholders, and worth a look before launch: the packed weights and carton sizes in [api/_lib/parcel.ts](api/_lib/parcel.ts) (a wrong weight means a wrong postage price), and the $100 free-shipping threshold in [api/_lib/auspost.ts](api/_lib/auspost.ts).
+
 The success and cancel URLs are built from `SITE_URL` at request time (falling back to the request's own host), so they follow whichever domain the site is deployed on.
 
 ## Configured Parameters
@@ -43,6 +45,8 @@ The Stripe client is created with no `apiVersion`, so your account's default API
    - `STRIPE_WEBHOOK_SECRET` — from the webhook endpoint below
    - `SUPABASE_SERVICE_ROLE_KEY` — server only; the webhook and admin capture write with it
    - `SITE_URL` — e.g. `https://maisonobsidian-zeta.vercel.app` (where Stripe returns the customer)
+   - `AUSPOST_PAC_KEY` and `AUSPOST_FROM_POSTCODE` — live Australia Post rates at checkout.
+     Without them the bag hides the postage picker and checkout proceeds with no postage line.
    - `SUPABASE_URL` and `SUPABASE_ANON_KEY` — the functions read the catalogue and identify the
      customer with these. The `VITE_`-prefixed pair in `.env` is baked into the browser bundle at
      build time and is **not** visible to serverless functions at runtime, so set these unprefixed
@@ -66,11 +70,16 @@ api/stripe/subscribe.ts       hosted Checkout Session for the Monthly Pour
 api/stripe/confirm.ts         on return: record if the webhook hasn't, report outcome
 api/stripe/webhook.ts         Stripe events → commits / subscriptions / deliveries
 api/stripe/cancel-subscription.ts, portal.ts, status.ts
+api/shipping/quote.ts         live Australia Post rates for the bag
+api/_lib/auspost.ts           PAC rate lookup + free-shipping rule
+api/_lib/parcel.ts            per-format packed weight/size, carton choice
 src/lib/stripe.ts             browser calls to the routes (null when Stripe isn't configured)
 supabase/migrations/0015_stripe.sql
 ```
 
 ## How it works
+
+**Postage.** In the bag the customer enters their postcode and the site asks `/api/shipping/quote`, which prices the bag server-side, measures the parcel from per-format packed weights ([api/_lib/parcel.ts](api/_lib/parcel.ts)) and asks Australia Post for its services. Parcel Post and Express Post come back with prices and delivery estimates; orders at or above $100 get Parcel Post free. The chosen service is **re-quoted server-side at checkout**, so the amount charged is Australia Post's, never the browser's. It reaches Stripe as a shipping option, and Checkout collects an Australian delivery address.
 
 **Orders.** "Checkout" posts the bag to `/api/stripe/checkout`, which prices every line from the live catalogue and creates a hosted Checkout Session (`mode: "payment"`). The browser redirects to `session.url`. The card is charged when the customer pays. Stripe then returns them to `#/account?checkout=success&session_id=…`; the webhook and `/api/stripe/confirm` each record one paid order row per line, whichever runs first. Orders appear under **My Orders**, and the console's Fulfillment tab creates the shipment and tracking.
 

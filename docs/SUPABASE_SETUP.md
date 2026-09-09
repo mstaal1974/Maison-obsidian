@@ -338,7 +338,8 @@ See [`.env.example`](../.env.example) for the full annotated list.
 | `SUPABASE_SERVICE_ROLE_KEY` | Vercel serverless | Webhook / confirm / capture write commits and subscriptions (bypasses RLS; never `VITE_`) |
 | `SITE_URL` | Vercel serverless | Where Checkout returns the customer (falls back to the request host) |
 | `STRIPE_CURRENCY` | Vercel serverless (optional) | Checkout currency, default `aud` |
-| `AUSPOST_PAC_KEY` | Supabase Edge secret | Parcel Post rate lookups |
+| `AUSPOST_PAC_KEY` | **Vercel serverless** + Supabase Edge secret | Postage rates at checkout (`/api/shipping/quote`) and label costing |
+| `AUSPOST_FROM_POSTCODE` | **Vercel serverless** + Supabase Edge secret | Where parcels are posted from, for rate lookups |
 | `AUSPOST_API_KEY` / `AUSPOST_API_PASSWORD` / `AUSPOST_ACCOUNT_NUMBER` / `AUSPOST_PRODUCT_ID` | Supabase Edge secret | Parcel Post label creation |
 | `AUSPOST_FROM_NAME/_LINE1/_SUBURB/_STATE/_POSTCODE` | Supabase Edge secret | Sender address |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Edge (auto-injected) | Do **not** set manually — Supabase provides these to functions |
