@@ -1,6 +1,5 @@
-// POST /api/stripe/subscribe — a Checkout Session for the Monthly Pour,
-// rendered as Stripe's embedded payment form (ui_mode "form") on the
-// Subscribe page. Returns { client_secret } for the Checkout Form SDK.
+// POST /api/stripe/subscribe — a hosted Stripe Checkout Session for the
+// Monthly Pour. The browser redirects to session.url.
 //
 // A real Stripe subscription, monthly, priced at 10% under the first pick's
 // shelf price (surprise mode: the house draws month 1 here). Before each
@@ -46,14 +45,16 @@ export default route("subscribe", async function handler(req: any, res: any) {
   const meta = { user_id: user.id, user_email: user.email ?? "", kind: "subscription", format, pick_mode: pickMode, fragrance_id: fragranceId, months: String(SUBSCRIPTION_MONTHS) };
 
   const session = await stripe.checkout.sessions.create({
-    // Checkout Studio configuration (embedded form).
-    ui_mode: "form",
+    // Checkout Studio configuration (hosted page).
+    ui_mode: "hosted_page",
     billing_address_collection: "auto",
     phone_number_collection: { enabled: false },
     automatic_tax: { enabled: false },
-    submit_type: "auto",
-    integration_identifier: "custom_embedded_web_0002",
+    allow_promotion_codes: false,
     payment_method_collection: "always",
+    submit_type: "auto",
+    integration_identifier: "hosted_web_0001",
+    origin_context: "web",
     mode: "subscription",
     customer,
     line_items: [
@@ -69,7 +70,8 @@ export default route("subscribe", async function handler(req: any, res: any) {
     ],
     subscription_data: { metadata: meta },
     metadata: meta,
-    return_url: `${site}/#/account?subscribed=1&session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${site}/#/account?subscribed=1&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${site}/#/subscribe`,
   });
-  return json(res, 200, { client_secret: session.client_secret, sessionId: session.id });
+  return json(res, 200, { url: session.url, sessionId: session.id });
 });

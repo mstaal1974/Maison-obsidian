@@ -58,12 +58,12 @@ export async function authorizePayment(
 
 // ─── Hosted Checkout (api/stripe/*) ──────────────────────────────────────────
 //
-// When the Stripe routes are configured (STRIPE_SECRET_KEY on Vercel), the
-// bag and the Monthly Pour go through Stripe Checkout: the browser asks for a
-// session URL and redirects; Stripe sends the customer back to #/account with
-// a session id, and the webhook / confirm route record the outcome. Each call
-// below returns null when the route isn't there, so the app falls back to the
-// stub flow above.
+// When the Stripe routes are configured (STRIPE_SECRET_KEY on Vercel), the bag
+// and the Monthly Pour go through hosted Stripe Checkout: the browser asks for
+// a session URL and redirects to Stripe's payment page; Stripe sends the
+// customer back to #/account with a session id, and the webhook / confirm
+// route record the outcome. Each call below returns null when the route isn't
+// there, so the app falls back to the stub flow above.
 
 import { supabase } from "./supabase";
 import type { FormatKey } from "./data";
@@ -108,14 +108,14 @@ export interface StripeLine {
   label?: string;
 }
 
-/** Bag → a Checkout Session client secret for the embedded form. Null when Stripe isn't configured. */
+/** Bag → the hosted Checkout URL to redirect to. Null when Stripe isn't configured. */
 export async function stripeCheckout(lines: StripeLine[]) {
-  return call<{ client_secret: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ lines }) });
+  return call<{ url: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ lines }) });
 }
 
-/** Monthly Pour → a Checkout Session client secret (subscription). Null when not configured. */
+/** Monthly Pour → the hosted Checkout URL (subscription). Null when not configured. */
 export async function stripeSubscribe(format: FormatKey, fragranceId: string | null, pickMode: "choose" | "surprise") {
-  return call<{ client_secret: string }>("/api/stripe/subscribe", { method: "POST", body: JSON.stringify({ format, fragranceId, pickMode }) });
+  return call<{ url: string }>("/api/stripe/subscribe", { method: "POST", body: JSON.stringify({ format, fragranceId, pickMode }) });
 }
 
 export interface ConfirmResult {

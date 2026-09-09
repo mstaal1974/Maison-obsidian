@@ -15,12 +15,10 @@ import { type CatalogueItem, type FormatKey, FORMAT_BY_KEY, buyable, formatPrice
 
 export const CURRENCY = (process.env.STRIPE_CURRENCY ?? "aud").toLowerCase();
 
-// Pinned API version + beta flag required by the embedded Checkout Form SDK.
-const API_VERSION = "2026-03-25.dahlia; custom_checkout_payment_form_preview=v1" as unknown as Stripe.LatestApiVersion;
-
 export function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
-  return key ? new Stripe(key, { apiVersion: API_VERSION }) : null;
+  // No apiVersion: the account's default version applies.
+  return key ? new Stripe(key) : null;
 }
 
 export function supabaseUrl(): string | undefined {
