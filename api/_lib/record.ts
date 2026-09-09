@@ -15,18 +15,13 @@ interface CompactLine {
   u: number; // unit cents
 }
 
-/** Reservation: one commit per bag line, keyed by the Checkout Session. */
-export async function recordReservation(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ recorded: number }> {
+/** Order: one row per bag line, keyed by the Checkout Session. */
+export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ recorded: number }> {
   const { data: already } = await db.from("commits").select("id").eq("checkout_session_id", session.id).limit(1);
   if (already?.length) return { recorded: 0 };
   const lines = JSON.parse(session.metadata?.lines ?? "[]") as CompactLine[];
   if (!lines.length) return { recorded: 0 };
   const piId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
-  let paymentMethod: string | null = null;
-  if (piId) {
-    const pi = await stripe.paymentIntents.retrieve(piId);
-    paymentMethod = typeof pi.payment_method === "string" ? pi.payment_method : (pi.payment_method?.id ?? null);
-  }
   const customer = typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null);
   const rows = lines.map((l) => ({
     fragrance_id: l.f,
@@ -38,9 +33,9 @@ export async function recordReservation(stripe: Stripe, db: SupabaseClient, sess
     payment_intent_id: piId,
     format: l.k,
     qty: l.q,
-    status: "authorized",
+    // The card is charged at checkout, so the order is paid on arrival.
+    status: "captured",
     checkout_session_id: session.id,
-    payment_method_id: paymentMethod,
     stripe_customer_id: customer,
   }));
   const { error } = await db.from("commits").insert(rows);

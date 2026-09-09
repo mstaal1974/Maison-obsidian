@@ -119,7 +119,7 @@ export async function stripeSubscribe(format: FormatKey, fragranceId: string | n
 }
 
 export interface ConfirmResult {
-  kind: "reservation" | "subscription" | "other";
+  kind: "order" | "subscription" | "other";
   lines?: { f: string; k: FormatKey; q: number; e: string | null; s: number; u: number }[];
   amountTotal?: number | null;
 }
@@ -137,7 +137,3 @@ export async function billingPortalUrl() {
   return call<{ url: string }>("/api/stripe/portal", { method: "POST", body: "{}" });
 }
 
-/** Admin: capture a met batch's holds, or release a short batch's. */
-export async function captureBatch(fragranceId: string, action: "capture" | "release") {
-  return call<{ ok: true; results: { id: string; outcome: string }[] }>("/api/stripe/capture", { method: "POST", body: JSON.stringify({ fragranceId, action }) });
-}

@@ -1,7 +1,6 @@
 // The bag: format-level lines persisted to localStorage, plus the orders the
-// visitor has reserved (each line becomes a commit — card authorised, never
-// charged, until the batch pours). A tiny external store so any component can
-// subscribe with useSyncExternalStore.
+// visitor has placed (each line becomes an order row, paid at checkout). A tiny
+// external store so any component can subscribe with useSyncExternalStore.
 
 import type { FormatKey } from "./data";
 

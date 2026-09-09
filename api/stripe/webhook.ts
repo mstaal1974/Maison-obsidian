@@ -2,14 +2,14 @@
 //
 // Register https://<site>/api/stripe/webhook in the Stripe dashboard with
 // these events, and put the signing secret in STRIPE_WEBHOOK_SECRET:
-//   checkout.session.completed   reservations recorded / subscription started
+//   checkout.session.completed   orders recorded / subscription started
 //   invoice.upcoming             re-price the coming month to the customer's pick
 //   invoice.paid                 record the month's delivery; end after month 12
 //   customer.subscription.deleted  mark cancelled
 // Every handler is idempotent, so Stripe's retries are safe.
 
 import { getStripe, json, rawBody, serviceClient, route, notConfigured } from "../_lib/stripe.js";
-import { prepareRenewal, recordRenewal, recordReservation, recordSubscriptionStart } from "../_lib/record.js";
+import { prepareRenewal, recordRenewal, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
 import type Stripe from "stripe";
 
 export const config = { runtime: "nodejs", api: { bodyParser: false } };
@@ -33,7 +33,7 @@ export default route("webhook", async function handler(req: any, res: any) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object;
-        if (session.mode === "payment" && session.metadata?.kind === "reservation") await recordReservation(stripe, db, session);
+        if (session.mode === "payment" && session.metadata?.kind === "order") await recordOrder(stripe, db, session);
         if (session.mode === "subscription") await recordSubscriptionStart(stripe, db, session);
         break;
       }

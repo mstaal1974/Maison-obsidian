@@ -13,7 +13,6 @@ interface ProductDetailProps {
   frag: Fragrance;
   fragrances: Fragrance[];
   vip: boolean;
-  effectiveCommitted: number;
   onAdd: (f: Fragrance, key: FormatKey, qty: number, engraving: string | null) => void;
   onQuickView: (f: Fragrance, format?: FormatKey) => void;
 }
@@ -26,7 +25,7 @@ const ENGRAVE_MAX = 28;
  * experience it — Wear it / Drive with it / Live in it / Complete the ritual —
  * and reads the notes and the story underneath.
  */
-export default function ProductDetail({ frag, fragrances, vip, effectiveCommitted, onAdd, onQuickView }: ProductDetailProps) {
+export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickView }: ProductDetailProps) {
   const [key, setKey] = useState<FormatKey>("perf50");
   const [qty, setQty] = useState(1);
   const [engraveOn, setEngraveOn] = useState(false);
@@ -195,7 +194,7 @@ export default function ProductDetail({ frag, fragrances, vip, effectiveCommitte
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 10, flexWrap: "wrap", ...micro, fontSize: 8.5 }}>
               <span style={{ color: chosen.status === "live" && (chosen.stock > 0 || chosen.def.group === "wear") ? "#8bb98a" : GOLD }}>
                 ● {chosen.availability}
-                {chosen.def.group === "wear" && chosen.stock === 0 && chosen.status === "live" ? ` · ${effectiveCommitted}/${frag.moq} committed` : ""}
+
               </span>
               <span style={{ display: "flex", gap: 18 }}>
                 <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100</span>

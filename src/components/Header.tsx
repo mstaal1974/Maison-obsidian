@@ -168,7 +168,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
               <div role="menu" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", minWidth: 220, background: "#0f0f13", border: "1px solid #1f1f27", padding: 8, boxShadow: "0 24px 50px rgba(0,0,0,0.55)" }}>
                 <div style={{ padding: "8px 12px", fontFamily: MONO, fontSize: 10, color: "rgba(243,236,220,0.55)", borderBottom: "1px solid #1f1f27", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userEmail}</div>
                 {[
-                  { label: "My Reservations", to: paths.account },
+                  { label: "My Orders", to: paths.account },
                   { label: "My Monthly Pour", to: paths.account },
                   ...(isAdmin ? [{ label: "Admin Console", to: paths.admin }] : []),
                 ].map((x) => (

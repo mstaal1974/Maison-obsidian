@@ -1,6 +1,6 @@
 # Stripe integration — remaining steps
 
-Stripe Checkout runs as a **hosted page** (Checkout Studio, `ui_mode: "hosted_page"`): the bag and the Subscribe page redirect the customer to Stripe's own payment page, and Stripe returns them to the account page. This file is the single source of truth for what is left to do.
+Stripe Checkout runs as a **hosted page** (Checkout Studio, `ui_mode: "hosted_page"`): the bag and the Subscribe page redirect the customer to Stripe's own payment page, and Stripe returns them to the account page. Payment is taken at checkout, like any normal store. This file is the single source of truth for what is left to do.
 
 ## Values to Replace
 
@@ -32,7 +32,7 @@ These parameters were configured in Checkout Studio and are already set correctl
 | origin_context | web |
 | payment_method_collection | always (subscription only) |
 
-Kept alongside them because the fulfilment flow depends on them: `customer`, `metadata`, `payment_intent_data` (manual capture plus a saved card on reservations) and `subscription_data` (subscription metadata).
+Kept alongside them because the fulfilment flow depends on them: `customer`, `metadata`, `payment_intent_data` (order metadata) and `subscription_data` (subscription metadata).
 
 The Stripe client is created with no `apiVersion`, so your account's default API version applies — see [api/_lib/stripe.ts](api/_lib/stripe.ts).
 
@@ -43,6 +43,10 @@ The Stripe client is created with no `apiVersion`, so your account's default API
    - `STRIPE_WEBHOOK_SECRET` — from the webhook endpoint below
    - `SUPABASE_SERVICE_ROLE_KEY` — server only; the webhook and admin capture write with it
    - `SITE_URL` — e.g. `https://maisonobsidian-zeta.vercel.app` (where Stripe returns the customer)
+   - `SUPABASE_URL` and `SUPABASE_ANON_KEY` — the functions read the catalogue and identify the
+     customer with these. The `VITE_`-prefixed pair in `.env` is baked into the browser bundle at
+     build time and is **not** visible to serverless functions at runtime, so set these unprefixed
+     names in Vercel as well (same values).
    Hosted Checkout needs **no publishable key**: the browser never talks to Stripe directly. Environment variables apply to new deployments only, so redeploy after saving. See [.env.example](.env.example) for local development.
 2. **Database.** Apply `supabase/migrations/0015_stripe.sql` (after `0014`).
 3. **Webhook.** Dashboard → Developers → Webhooks → Add endpoint `https://<your site>/api/stripe/webhook` with events `checkout.session.completed`, `invoice.upcoming`, `invoice.paid`, `customer.subscription.deleted`. Paste its signing secret into `STRIPE_WEBHOOK_SECRET`.
@@ -57,18 +61,18 @@ Files behind the Stripe integration:
 api/_lib/stripe.ts            client, catalogue pricing, customer lookup, config checks
 api/_lib/catalogue.ts         pricing rules mirrored from src/lib/formats.ts
 api/_lib/record.ts            idempotent writes shared by webhook + confirm
-api/stripe/checkout.ts        hosted Checkout Session for the bag
+api/stripe/checkout.ts        hosted Checkout Session for the bag (charges at checkout)
 api/stripe/subscribe.ts       hosted Checkout Session for the Monthly Pour
 api/stripe/confirm.ts         on return: record if the webhook hasn't, report outcome
 api/stripe/webhook.ts         Stripe events → commits / subscriptions / deliveries
-api/stripe/cancel-subscription.ts, portal.ts, capture.ts
+api/stripe/cancel-subscription.ts, portal.ts, status.ts
 src/lib/stripe.ts             browser calls to the routes (null when Stripe isn't configured)
 supabase/migrations/0015_stripe.sql
 ```
 
 ## How it works
 
-**Reservations.** "Reserve & authorise" posts the bag to `/api/stripe/checkout`, which prices every line from the live catalogue and creates a hosted Checkout Session (`mode: "payment"`, manual capture, card saved off-session). The browser redirects to `session.url`. After paying, Stripe returns the customer to `#/account?checkout=success&session_id=…`; the webhook and `/api/stripe/confirm` each record one commit per line, whichever runs first. When a batch is met, the console's Fulfillment tab → "Capture & pour" captures the holds (or charges the saved card if a hold has expired); "Release holds" cancels them if the batch closed short.
+**Orders.** "Checkout" posts the bag to `/api/stripe/checkout`, which prices every line from the live catalogue and creates a hosted Checkout Session (`mode: "payment"`). The browser redirects to `session.url`. The card is charged when the customer pays. Stripe then returns them to `#/account?checkout=success&session_id=…`; the webhook and `/api/stripe/confirm` each record one paid order row per line, whichever runs first. Orders appear under **My Orders**, and the console's Fulfillment tab creates the shipment and tracking.
 
 **The Monthly Pour.** "Start my subscription" posts to `/api/stripe/subscribe`, which creates a hosted Checkout Session (`mode: "subscription"`) at the first pick's member price and redirects. Before each renewal, `invoice.upcoming` settles the month's scent (drawing it in surprise mode) and re-prices the subscription; `invoice.paid` records the delivery; the twelfth paid month completes the term and cancels the subscription. Cancelling from the account cancels at Stripe.
 
