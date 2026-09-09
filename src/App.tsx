@@ -114,19 +114,22 @@ export default function App() {
     setCheckingOut(true);
     setCheckoutError(null);
     try {
+      // A real deployment always pays through Stripe. If that can't start we
+      // stop and say so — recording an order nobody paid for would be worse
+      // than failing. The local stub below is only for the offline demo.
       if (auth.configured) {
         const r = await stripeCheckout(lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })));
         if (r?.ok) {
           window.location.assign(r.data.url);
           return;
         }
-        if (r?.ok === false && !r.unconfigured) {
-          setCheckoutError(isAdmin && r.detail ? `${r.error} — ${r.detail}` : r.error);
-          return;
-        }
-        // Stripe not configured on Vercel: fall back to the local hold, and
-        // tell an admin why so it isn't a silent mystery.
-        if (r?.ok === false && r.unconfigured && isAdmin) setCheckoutError(`${r.error}. ${r.detail ?? "Set STRIPE_SECRET_KEY and SUPABASE_SERVICE_ROLE_KEY in Vercel"}. Redeploy after saving. Recording a demo hold instead.`);
+        const admin = isAdmin && r?.ok === false && r.detail ? ` (${r.detail})` : "";
+        setCheckoutError(
+          r?.ok === false && !r.unconfigured
+            ? `${r.error}${admin}`
+            : `Checkout is temporarily unavailable, so nothing has been charged or ordered. Please try again shortly.${admin}`,
+        );
+        return;
       }
       const done: Omit<Order, "id" | "createdAt">[] = [];
       for (const l of lines) {
@@ -174,17 +177,20 @@ export default function App() {
       setSubBusy(true);
       setSubError(null);
       try {
+        // As with checkout: never start a subscription we can't bill.
         if (auth.configured) {
           const r = await stripeSubscribe(format, pick?.id ?? null, mode);
           if (r?.ok) {
             window.location.assign(r.data.url);
             return;
           }
-          if (r?.ok === false && !r.unconfigured) {
-            setSubError(isAdmin && r.detail ? `${r.error} — ${r.detail}` : r.error);
-            return;
-          }
-          if (r?.ok === false && r.unconfigured && isAdmin) setSubError(`${r.error}. ${r.detail ?? "Set STRIPE_SECRET_KEY and SUPABASE_SERVICE_ROLE_KEY in Vercel"}. This subscription is recorded without billing.`);
+          const admin = isAdmin && r?.ok === false && r.detail ? ` (${r.detail})` : "";
+          setSubError(
+            r?.ok === false && !r.unconfigured
+              ? `${r.error}${admin}`
+              : `Subscriptions are temporarily unavailable, so nothing has been charged. Please try again shortly.${admin}`,
+          );
+          return;
         }
         // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
         const frag = pick ?? drawSurpriseScent(fragrances, format, [], surpriseAffinity);
