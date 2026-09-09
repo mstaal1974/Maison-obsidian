@@ -1,5 +1,5 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { type Fragrance, money } from "../lib/data";
+import { type Fragrance, GOLD, money } from "../lib/data";
 import { IMAGE_ACCEPT, inspectImage, isPhotoImage, uploadFragranceImage } from "../lib/conceive";
 import ConceiveFragrance from "./ConceiveFragrance";
 import FormatMatrix from "./FormatMatrix";
@@ -673,6 +673,18 @@ function FulfillRow({
           {commit.format ? commit.format.toUpperCase() : `${commit.size_ml} ml`} · {commit.charge_cents != null ? money(commit.charge_cents) : "—"}
           {commit.engraving ? ` · “${commit.engraving}”` : ""} · {commit.status}
         </div>
+        {commit.delivery_method === "alternate" && (
+          <div style={{ marginTop: 8, border: "1px solid rgba(201,169,97,0.45)", padding: "8px 10px", maxWidth: 460 }}>
+            <div style={{ ...label, color: GOLD }}>Alternate delivery — arrange directly</div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#f3ecdc", marginTop: 4 }}>
+              {commit.delivery_name ?? "—"}
+              {commit.delivery_phone ? ` · ${commit.delivery_phone}` : ""}
+            </div>
+            {commit.delivery_notes && (
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: "rgba(243,236,220,0.7)", marginTop: 4, whiteSpace: "pre-wrap" }}>{commit.delivery_notes}</div>
+            )}
+          </div>
+        )}
       </div>
       {done ? (
         <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#8bb98a" }}>✓ {done}</span>

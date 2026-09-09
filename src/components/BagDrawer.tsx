@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { type Fragrance, GOLD, CREAM, money, moneyExact } from "../lib/data";
 import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
@@ -6,7 +6,7 @@ import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
 import { Arrow, Icon } from "./ui";
 import { MONO, SERIF, btnGold, btnGhost, btnLink, micro } from "./styles";
-import { type ShippingRate, etaLabel, quoteShipping } from "../lib/shipping";
+import { type CheckoutDelivery, type ShippingRate, etaLabel, quoteShipping } from "../lib/shipping";
 
 interface BagDrawerProps {
   lines: BagLine[];
@@ -16,8 +16,8 @@ interface BagDrawerProps {
   /** Checkout could not start (Stripe declined the bag, network). */
   error?: string | null;
   onClose: () => void;
-  /** The chosen postage, when the customer has quoted one. */
-  onCheckout: (shipping?: { postcode: string; code: string }) => void;
+  /** How the order should reach the customer. */
+  onCheckout: (delivery?: CheckoutDelivery) => void;
   onAddCar: (f: Fragrance) => void;
 }
 
@@ -26,6 +26,19 @@ interface BagDrawerProps {
  * places the order. The Drive cross-sell lives here because "take it with you"
  * is the obvious add at the end.
  */
+const altField: CSSProperties = {
+  width: "100%",
+  background: "none",
+  border: "1px solid #1f1f27",
+  outline: "none",
+  height: 38,
+  padding: "0 12px",
+  color: CREAM,
+  fontFamily: MONO,
+  fontSize: 12,
+  boxSizing: "border-box",
+};
+
 export default function BagDrawer({ lines, fragrances, placed, busy, error, onClose, onCheckout, onAddCar }: BagDrawerProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -39,7 +52,11 @@ export default function BagDrawer({ lines, fragrances, placed, busy, error, onCl
   const subtotal = rows.reduce((s, r) => s + unit(r) * r.line.qty, 0);
   const crossSell = rows.find((r) => FORMAT_BY_KEY[r.line.format].group === "wear" && !lines.some((l) => l.fragranceId === r.frag.id && l.format === "car") && skuOf(r.frag, "car").buyable)?.frag;
 
-  // ── Australia Post postage ────────────────────────────────────────────────
+  // ── Delivery ──────────────────────────────────────────────────────────────
+  const [method, setMethod] = useState<"auspost" | "alternate">("auspost");
+  const [altName, setAltName] = useState("");
+  const [altPhone, setAltPhone] = useState("");
+  const [altNotes, setAltNotes] = useState("");
   const [postcode, setPostcode] = useState("");
   // The quote is tied to the bag it was priced for; change the bag and it
   // simply stops matching, so there is nothing to reset.
@@ -52,8 +69,16 @@ export default function BagDrawer({ lines, fragrances, placed, busy, error, onCl
   const [postageOff, setPostageOff] = useState(false);
   const bagKey = lines.map((l) => `${l.fragranceId}:${l.format}:${l.qty}`).sort().join("|");
   const rates = quote?.forBag === bagKey ? quote.rates : null;
-  const rate = rates?.find((r) => r.code === chosen) ?? null;
-  const total = subtotal + (rate?.chargeCents ?? 0);
+  const rate = method === "auspost" ? (rates?.find((r) => r.code === chosen) ?? null) : null;
+  // Alternate delivery is arranged directly, so nothing is charged for it.
+  const shippingCents = method === "alternate" ? 0 : (rate?.chargeCents ?? 0);
+  const total = subtotal + shippingCents;
+  const altReady = altName.trim() !== "" && altPhone.trim() !== "" && altNotes.trim() !== "";
+  const canCheckout = method === "alternate" ? altReady : true;
+  const delivery: CheckoutDelivery =
+    method === "alternate"
+      ? { method: "alternate", name: altName.trim(), phone: altPhone.trim(), notes: altNotes.trim() }
+      : { method: "auspost", ...(rate && postcode.trim().length === 4 ? { postcode: postcode.trim(), code: rate.code } : {}) };
 
   const getRates = async () => {
     setQuoting(true);
@@ -151,57 +176,105 @@ export default function BagDrawer({ lines, fragrances, placed, busy, error, onCl
                 <span>{money(subtotal)}</span>
               </div>
 
-              {!postageOff && (
-                <div style={{ display: "grid", gap: 10, borderTop: "1px solid #1f1f27", paddingTop: 12 }}>
-                  <span style={micro}>Postage · Australia Post</span>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      void getRates();
-                    }}
-                    style={{ display: "flex", gap: 8 }}
-                  >
-                    <input
-                      value={postcode}
-                      onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                      placeholder="Postcode"
-                      inputMode="numeric"
-                      aria-label="Delivery postcode"
-                      style={{ flex: 1, minWidth: 0, background: "none", border: "1px solid #1f1f27", outline: "none", height: 38, padding: "0 12px", color: CREAM, fontFamily: MONO, fontSize: 12 }}
+              <div style={{ display: "grid", gap: 10, borderTop: "1px solid #1f1f27", paddingTop: 12 }}>
+                <span style={micro}>Delivery</span>
+                {(
+                  [
+                    { key: "auspost" as const, title: "Ship via Australia Post", body: postageOff ? "We'll confirm the postage with you after checkout." : "Live rate to your address, calculated below." },
+                    { key: "alternate" as const, title: "Arrange alternate delivery", body: "Hand delivery or via a friend — no postage charged." },
+                  ]
+                ).map((o) => (
+                  <label key={o.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", border: `1px solid ${method === o.key ? "rgba(201,169,97,0.6)" : "#1f1f27"}`, padding: "11px 12px" }}>
+                    <input type="radio" name="mo-delivery" checked={method === o.key} onChange={() => setMethod(o.key)} style={{ marginTop: 3, accentColor: "#c9a961" }} />
+                    <span>
+                      <span style={{ display: "block", fontFamily: SERIF, fontSize: 17, color: CREAM, lineHeight: 1.2 }}>{o.title}</span>
+                      <span style={{ display: "block", marginTop: 3, fontSize: 11.5, lineHeight: 1.5, color: "rgba(243,236,220,0.55)" }}>{o.body}</span>
+                    </span>
+                  </label>
+                ))}
+
+                {method === "auspost" && !postageOff && (
+                  <>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void getRates();
+                      }}
+                      style={{ display: "flex", gap: 8 }}
+                    >
+                      <input
+                        value={postcode}
+                        onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        placeholder="Delivery postcode"
+                        inputMode="numeric"
+                        aria-label="Delivery postcode"
+                        style={{ flex: 1, minWidth: 0, background: "none", border: "1px solid #1f1f27", outline: "none", height: 38, padding: "0 12px", color: CREAM, fontFamily: MONO, fontSize: 12 }}
+                      />
+                      <button type="submit" className="mo-ghost" style={{ ...btnGhost, height: 38, fontSize: 9 }} disabled={quoting || postcode.trim().length !== 4}>
+                        {quoting ? "…" : rates ? "Recalculate" : "Calculate"}
+                      </button>
+                    </form>
+                    {quoteError && <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{quoteError}</div>}
+                    {rates?.map((r) => (
+                      <label key={r.code} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", border: `1px solid ${chosen === r.code ? "rgba(201,169,97,0.6)" : "#1f1f27"}`, padding: "9px 12px" }}>
+                        <input type="radio" name="mo-postage" checked={chosen === r.code} onChange={() => setChosen(r.code)} style={{ accentColor: "#c9a961" }} />
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block", fontFamily: SERIF, fontSize: 16, color: CREAM, lineHeight: 1.2 }}>{r.name}</span>
+                          {etaLabel(r) && <span style={{ display: "block", ...micro, fontSize: 8 }}>{etaLabel(r)}</span>}
+                        </span>
+                        <span style={{ fontFamily: MONO, fontSize: 12, color: r.chargeCents === 0 ? "#8bb98a" : CREAM }}>
+                          {r.chargeCents === 0 ? "Free" : moneyExact(r.chargeCents)}
+                        </span>
+                      </label>
+                    ))}
+                  </>
+                )}
+
+                {method === "alternate" && (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <input value={altName} onChange={(e) => setAltName(e.target.value)} placeholder="Full name" aria-label="Full name" style={altField} />
+                    <input value={altPhone} onChange={(e) => setAltPhone(e.target.value)} placeholder="Mobile number" aria-label="Mobile number" inputMode="tel" style={altField} />
+                    <textarea
+                      value={altNotes}
+                      onChange={(e) => setAltNotes(e.target.value)}
+                      placeholder="How should we get this to you? A hand delivery, a pickup time, or a friend's name and address."
+                      aria-label="Delivery details"
+                      rows={3}
+                      style={{ ...altField, height: "auto", padding: "10px 12px", lineHeight: 1.5, resize: "vertical" }}
                     />
-                    <button type="submit" className="mo-ghost" style={{ ...btnGhost, height: 38, fontSize: 9 }} disabled={quoting || postcode.trim().length !== 4}>
-                      {quoting ? "…" : rates ? "Recalculate" : "Calculate"}
-                    </button>
-                  </form>
-                  {quoteError && <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{quoteError}</div>}
-                  {rates?.map((r) => (
-                    <label key={r.code} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", border: `1px solid ${chosen === r.code ? "rgba(201,169,97,0.6)" : "#1f1f27"}`, padding: "9px 12px" }}>
-                      <input type="radio" name="mo-postage" checked={chosen === r.code} onChange={() => setChosen(r.code)} style={{ accentColor: "#c9a961" }} />
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: "block", fontFamily: SERIF, fontSize: 16, color: CREAM, lineHeight: 1.2 }}>{r.name}</span>
-                        {etaLabel(r) && <span style={{ display: "block", ...micro, fontSize: 8 }}>{etaLabel(r)}</span>}
-                      </span>
-                      <span style={{ fontFamily: MONO, fontSize: 12, color: r.chargeCents === 0 ? "#8bb98a" : CREAM }}>
-                        {r.chargeCents === 0 ? "Free" : moneyExact(r.chargeCents)}
-                      </span>
-                    </label>
-                  ))}
-                  {rate && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 14, color: CREAM, borderTop: "1px solid #1f1f27", paddingTop: 12 }}>
+                  </div>
+                )}
+
+                {(rate || method === "alternate") && (
+                  <div style={{ display: "grid", gap: 4, borderTop: "1px solid #1f1f27", paddingTop: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 12, color: "rgba(243,236,220,0.7)" }}>
+                      <span style={micro}>Shipping</span>
+                      <span style={{ color: shippingCents === 0 ? "#8bb98a" : CREAM }}>{shippingCents === 0 ? "Free" : moneyExact(shippingCents)}</span>
+                    </div>
+                    {method === "alternate" && <div style={{ ...micro, fontSize: 8 }}>Arranged with you — no postage charged</div>}
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 14, color: CREAM, marginTop: 4 }}>
                       <span style={micro}>Total</span>
                       <span>{moneyExact(total)}</span>
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
 
               <div style={{ ...micro, fontSize: 8, display: "flex", gap: 14 }}>
                 <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100</span>
                 <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
               </div>
-              <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} disabled={busy} onClick={() => onCheckout(rate && postcode.trim().length === 4 ? { postcode: postcode.trim(), code: rate.code } : undefined)}>
+              <button
+                className="mo-cta"
+                style={{ ...btnGold, justifyContent: "center", opacity: canCheckout ? 1 : 0.55, cursor: canCheckout && !busy ? "pointer" : "default" }}
+                disabled={busy || !canCheckout}
+                onClick={() => onCheckout(delivery)}
+              >
                 {busy ? "Opening secure checkout…" : "Checkout"} <Arrow />
               </button>
+              {method === "alternate" && !altReady && (
+                <div style={{ ...micro, fontSize: 8, color: "rgba(243,236,220,0.5)" }}>Add your name, mobile and delivery details to continue</div>
+              )}
               {error && <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{error}</div>}
               <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: "rgba(243,236,220,0.5)" }}>
                 Secure card checkout by Stripe. Free shipping over $100 and 30-day returns.

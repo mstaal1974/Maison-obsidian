@@ -248,6 +248,10 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   `/api/marketing` (admin-only, uses `ANTHROPIC_API_KEY`). Customers change or withdraw
   both consents under **Account → Privacy & preferences**. Email sends and unsubscribe links
   are your email tool's job; keep its list in step with the CSV export.
+- **Delivery method** — migration `0016_delivery_method.sql` records, per order, whether it
+  ships via Australia Post or is delivered by arrangement, along with the contact name,
+  mobile and instructions the customer gave. The console's Fulfillment tab flags the
+  arranged ones. Apply it after `0015`.
 - **Scent requests** — migration `0010_scent_requests.sql` adds the `scent_requests` table
   and the `request_scent` RPC. When **Find my match** has nothing for what a customer
   typed (or only nearest profiles), they can request it; the asks land in the admin

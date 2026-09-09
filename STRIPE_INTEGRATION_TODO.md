@@ -52,7 +52,7 @@ The Stripe client is created with no `apiVersion`, so your account's default API
      build time and is **not** visible to serverless functions at runtime, so set these unprefixed
      names in Vercel as well (same values).
    Hosted Checkout needs **no publishable key**: the browser never talks to Stripe directly. Environment variables apply to new deployments only, so redeploy after saving. See [.env.example](.env.example) for local development.
-2. **Database.** Apply `supabase/migrations/0015_stripe.sql` (after `0014`).
+2. **Database.** Apply `supabase/migrations/0015_stripe.sql`, then `0016_delivery_method.sql` (after `0014`).
 3. **Webhook.** Dashboard → Developers → Webhooks → Add endpoint `https://<your site>/api/stripe/webhook` with events `checkout.session.completed`, `invoice.upcoming`, `invoice.paid`, `customer.subscription.deleted`. Paste its signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. **Customer portal.** Dashboard → Settings → Billing → Customer portal → enable, so "Update card & invoices" works for subscribers.
 5. **Dependencies.** `stripe` (^22.6.1) is already in `package.json`. Nothing to load in the browser.
@@ -79,7 +79,9 @@ supabase/migrations/0015_stripe.sql
 
 ## How it works
 
-**Postage.** In the bag the customer enters their postcode and the site asks `/api/shipping/quote`, which prices the bag server-side, measures the parcel from per-format packed weights ([api/_lib/parcel.ts](api/_lib/parcel.ts)) and asks Australia Post for its services. Parcel Post and Express Post come back with prices and delivery estimates; orders at or above $100 get Parcel Post free. The chosen service is **re-quoted server-side at checkout**, so the amount charged is Australia Post's, never the browser's. It reaches Stripe as a shipping option, and Checkout collects an Australian delivery address.
+**Delivery.** The bag asks how the order should arrive. **Ship via Australia Post** quotes a live rate (below). **Arrange alternate delivery** charges no postage and asks for a name, a mobile number and how to get it to them — hand delivery, a pickup, a friend's address — which is recorded against the order and shown in the console's Fulfillment tab so the house knows to arrange it. Checkout only asks Stripe for a postal address on the Australia Post path.
+
+**Postage.** On the Australia Post path the customer enters their postcode and the site asks `/api/shipping/quote`, which prices the bag server-side, measures the parcel from per-format packed weights ([api/_lib/parcel.ts](api/_lib/parcel.ts)) and asks Australia Post for its services. Parcel Post and Express Post come back with prices and delivery estimates; orders at or above $100 get Parcel Post free. The chosen service is **re-quoted server-side at checkout**, so the amount charged is Australia Post's, never the browser's. It reaches Stripe as a shipping option, and Checkout collects an Australian delivery address.
 
 **Orders.** "Checkout" posts the bag to `/api/stripe/checkout`, which prices every line from the live catalogue and creates a hosted Checkout Session (`mode: "payment"`). The browser redirects to `session.url`. The card is charged when the customer pays. Stripe then returns them to `#/account?checkout=success&session_id=…`; the webhook and `/api/stripe/confirm` each record one paid order row per line, whichever runs first. Orders appear under **My Orders**, and the console's Fulfillment tab creates the shipment and tracking.
 
