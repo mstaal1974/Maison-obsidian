@@ -166,6 +166,8 @@ export async function adminSetFormatsAll(ids: string[], patch: FormatPatch): Pro
 
 export interface AdminCommitRow {
   id: string;
+  user_id?: string | null;
+  user_email?: string | null;
   fragrance_id: string;
   format?: string | null;
   size_ml: number;
@@ -181,7 +183,7 @@ export async function fetchAllCommits(): Promise<AdminCommitRow[] | null> {
   try {
     const { data, error } = await supabase
       .from("commits")
-      .select("id, fragrance_id, format, size_ml, charge_cents, engraving, status, created_at")
+      .select("id, user_id, user_email, fragrance_id, format, size_ml, charge_cents, engraving, status, created_at")
       .order("created_at", { ascending: false });
     if (error) return null;
     return (data ?? []) as AdminCommitRow[];

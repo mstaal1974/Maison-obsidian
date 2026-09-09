@@ -31,9 +31,17 @@ How the house works:
 
 Guidance: recommend from the catalogue below by notes, inspiration, or gender when asked. When you mention a fragrance, write its name EXACTLY as it appears in the catalogue (the app turns exact names into clickable product links). If asked something you don't know (order-specific details, stock for a size), say so and point them to the relevant page (the Vault, a product page, or My Reservations). Never invent prices, scents, or policies.`;
 
-function buildSystem(catalogue?: string): string {
+function buildSystem(catalogue?: string, profile?: string): string {
   const cat = catalogue && catalogue.trim().slice(0, 8000);
-  return cat ? `${BRAND}\n\nCurrent catalogue:\n${cat}` : BRAND;
+  // Only present when the signed-in customer opted in to personalisation; the
+  // client never sends it otherwise. Kept after the catalogue so the stable
+  // prefix stays cacheable.
+  const who = typeof profile === "string" && profile.trim() ? profile.trim().slice(0, 1200) : "";
+  let system = cat ? `${BRAND}\n\nCurrent catalogue:\n${cat}` : BRAND;
+  if (who) {
+    system += `\n\nAbout this customer (they opted in to personalised suggestions; use it to tailor what you recommend and to reference what they already own, but don't recite it back unless asked): ${who}`;
+  }
+  return system;
 }
 
 // ─── Best-effort per-IP rate limit ───────────────────────────────────────────
@@ -119,7 +127,7 @@ export default async function handler(req: any, res: any) {
       model: "claude-opus-4-8",
       max_tokens: 1024,
       thinking: { type: "disabled" }, // snappy concierge; system prompt keeps it to a final answer
-      system: buildSystem(body.catalogue),
+      system: buildSystem(body.catalogue, body.profile),
       messages,
     });
     stream.on("text", (delta: string) => res.write(delta));

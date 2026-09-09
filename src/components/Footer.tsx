@@ -3,6 +3,7 @@ import Logo from "./Logo";
 import { Arrow } from "./ui";
 import { MONO, SERIF } from "./styles";
 import { navigate, paths } from "../lib/route";
+import { joinInnerCircle } from "../lib/profile";
 import { GOLD, CREAM } from "../lib/data";
 
 const LINKS: { label: string; to: string }[] = [
@@ -36,11 +37,12 @@ export default function Footer() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (email.trim()) setJoined(true);
+            // Express consent to marketing email, recorded with source "footer".
+            if (email.trim()) void joinInnerCircle(email, "footer").then((ok) => ok && setJoined(true));
           }}
           style={{ display: "flex", alignItems: "center", gap: 14 }}
         >
-          <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.12em", color: "rgba(243,236,220,0.6)" }}>{joined ? "Welcome to the inner circle." : "Join our inner circle"}</span>
+          <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.12em", color: "rgba(243,236,220,0.6)" }}>{joined ? "Welcome to the inner circle. Unsubscribe any time from your account." : "Join our inner circle"}</span>
           {!joined && (
             <label style={{ display: "flex", alignItems: "center", border: "1px solid #2a2a33", height: 38, paddingLeft: 14 }}>
               <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Email</span>

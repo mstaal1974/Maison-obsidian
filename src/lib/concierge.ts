@@ -81,11 +81,13 @@ export async function streamChat(
   catalogue: string,
   onDelta: (text: string) => void,
   signal?: AbortSignal,
+  /** The customer's taste summary — only when they opted in to personalisation. */
+  profile?: string,
 ): Promise<void> {
   const res = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, catalogue }),
+    body: JSON.stringify({ messages, catalogue, ...(profile ? { profile } : {}) }),
     signal,
   });
   if (res.status === 429) throw new Error("rate_limited");

@@ -23,9 +23,11 @@ const SUGGESTIONS = ["How do batch commits work?", "Recommend something with oud
 interface ChatWidgetProps {
   fragrances: Fragrance[];
   onOpenProduct: (slug: string) => void;
+  /** Taste summary of the signed-in customer, present only with their AI consent. */
+  profile?: string;
 }
 
-export default function ChatWidget({ fragrances, onOpenProduct }: ChatWidgetProps) {
+export default function ChatWidget({ fragrances, onOpenProduct, profile }: ChatWidgetProps) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: GREETING }]);
   const [input, setInput] = useState("");
@@ -57,10 +59,16 @@ export default function ChatWidget({ fragrances, onOpenProduct }: ChatWidgetProp
     let acc = "";
     let source: "claude" | "fallback" = "claude";
     try {
-      await streamChat(history, catalogueSummary(fragrances), (delta) => {
-        acc += delta;
-        setLast(acc);
-      });
+      await streamChat(
+        history,
+        catalogueSummary(fragrances),
+        (delta) => {
+          acc += delta;
+          setLast(acc);
+        },
+        undefined,
+        profile,
+      );
       if (!acc.trim()) {
         acc = localFallbackReply(q, fragrances);
         source = "fallback";

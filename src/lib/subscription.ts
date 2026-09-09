@@ -34,6 +34,7 @@ export interface Delivery {
 
 export interface Subscription {
   id: string;
+  userId?: string | null;
   userEmail: string | null;
   format: FormatKey;
   months: number;
@@ -50,11 +51,20 @@ export interface Subscription {
  * it, skipping VIP-only scents and formats hidden for that scent. Falls back
  * to the whole catalogue once every scent has been sent.
  */
-export function drawSurpriseScent(frags: Fragrance[], format: FormatKey, sent: string[]): Fragrance | null {
+export function drawSurpriseScent(frags: Fragrance[], format: FormatKey, sent: string[], affinity?: (f: Fragrance) => number): Fragrance | null {
   if (!frags.length) return null;
   const pool = frags.filter((f) => !f.vipOnly && (f.formatStatus?.[format] ?? "live") !== "hidden" && !sent.includes(f.id));
   const from = pool.length ? pool : frags;
-  return from[Math.floor(Math.random() * from.length)];
+  if (!affinity) return from[Math.floor(Math.random() * from.length)];
+  // Weighted draw: a scent in the customer's taste is a few times likelier,
+  // but every scent keeps a chance so a surprise stays a surprise.
+  const weights = from.map((f) => Math.max(0.05, affinity(f)));
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < from.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return from[i];
+  }
+  return from[from.length - 1];
 }
 
 /** "$9" when every scent costs the same, else "$16–$22". */
@@ -138,6 +148,7 @@ const uid = () => `sub-${Date.now().toString(36)}-${Math.random().toString(36).s
 // ─── Row mapping (Supabase) ──────────────────────────────────────────────────
 interface SubRow {
   id: string;
+  user_id?: string | null;
   user_email: string | null;
   format: FormatKey;
   months: number;
@@ -159,6 +170,7 @@ interface DeliveryRow {
 function rowToSub(r: SubRow): Subscription {
   return {
     id: r.id,
+    userId: r.user_id ?? null,
     userEmail: r.user_email,
     format: r.format,
     months: r.months,
@@ -172,7 +184,7 @@ function rowToSub(r: SubRow): Subscription {
   };
 }
 
-const SELECT = "id, user_email, format, months, status, pick_mode, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
+const SELECT_ADMIN = "id, user_id, user_email, format, months, status, pick_mode, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -274,8 +286,8 @@ export async function cancelSubscription(id: string): Promise<boolean> {
  * mode a fresh draw. The caller prices the charge from it. (On Supabase the
  * RPC draws its own; the client draw is only for the charge amount and demo.)
  */
-export function scentForNextBill(s: Subscription, frags: Fragrance[]): Fragrance | null {
-  if (s.pickMode === "surprise") return drawSurpriseScent(frags, s.format, s.deliveries.map((d) => d.fragranceId));
+export function scentForNextBill(s: Subscription, frags: Fragrance[], affinity?: (f: Fragrance) => number): Fragrance | null {
+  if (s.pickMode === "surprise") return drawSurpriseScent(frags, s.format, s.deliveries.map((d) => d.fragranceId), affinity);
   return frags.find((f) => f.id === s.nextFragranceId) ?? null;
 }
 
@@ -300,7 +312,7 @@ export async function billSubscriptionMonth(id: string, fragranceId: string, cha
     return true;
   }
   try {
-    const { error } = await supabase.rpc("bill_subscription_month", { p_id: id, p_charge_cents: chargeCents, p_payment_intent_id: paymentIntentId });
+    const { error } = await supabase.rpc("bill_subscription_month", { p_id: id, p_charge_cents: chargeCents, p_payment_intent_id: paymentIntentId, p_fragrance_id: fragranceId });
     return !error;
   } catch {
     return false;
@@ -332,7 +344,7 @@ export function useSubscriptions(enabled: boolean) {
     if (!supabase || !enabled) return;
     void supabase
       .from("scent_subscriptions")
-      .select(SELECT)
+      .select(SELECT_ADMIN)
       .order("started_at", { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) setRemote((data as unknown as SubRow[]).map(rowToSub));

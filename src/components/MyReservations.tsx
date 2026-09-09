@@ -31,6 +31,8 @@ interface MyReservationsProps {
   onBackToVault: () => void;
   /** The Monthly Pour panel, rendered above the reservations. */
   subscriptionSlot?: ReactNode;
+  /** Privacy & preferences, rendered below the reservations. */
+  preferencesSlot?: ReactNode;
 }
 
 const STATUS: Record<Reservation["status"], { label: string; color: string; bg: string }> = {
@@ -40,7 +42,7 @@ const STATUS: Record<Reservation["status"], { label: string; color: string; bg: 
   void: { label: "Void", color: "rgba(243,236,220,0.5)", bg: "rgba(243,236,220,0.06)" },
 };
 
-export default function MyReservations({ reservations, loading, onOpen, onBackToVault, subscriptionSlot }: MyReservationsProps) {
+export default function MyReservations({ reservations, loading, onOpen, onBackToVault, subscriptionSlot, preferencesSlot }: MyReservationsProps) {
   return (
     <main data-screen-label="Account" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
       <div
@@ -244,6 +246,7 @@ export default function MyReservations({ reservations, loading, onOpen, onBackTo
           </div>
         )}
       </div>
+      {preferencesSlot}
     </main>
   );
 }
