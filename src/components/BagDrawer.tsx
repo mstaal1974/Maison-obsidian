@@ -1,11 +1,12 @@
-import { useEffect, useMemo } from "react";
-import { type Fragrance, GOLD, CREAM, money } from "../lib/data";
+import { useEffect, useMemo, useState } from "react";
+import { type Fragrance, GOLD, CREAM, money, moneyExact } from "../lib/data";
 import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
 import { Arrow, Icon } from "./ui";
 import { MONO, SERIF, btnGold, btnGhost, btnLink, micro } from "./styles";
+import { type ShippingRate, etaLabel, quoteShipping } from "../lib/shipping";
 
 interface BagDrawerProps {
   lines: BagLine[];
@@ -15,7 +16,8 @@ interface BagDrawerProps {
   /** Checkout could not start (Stripe declined the bag, network). */
   error?: string | null;
   onClose: () => void;
-  onCheckout: () => void;
+  /** The chosen postage, when the customer has quoted one. */
+  onCheckout: (shipping?: { postcode: string; code: string }) => void;
   onAddCar: (f: Fragrance) => void;
 }
 
@@ -36,6 +38,42 @@ export default function BagDrawer({ lines, fragrances, placed, busy, error, onCl
   const unit = (r: { line: BagLine; frag: Fragrance }) => r.line.unitPrice ?? skuOf(r.frag, r.line.format).price;
   const subtotal = rows.reduce((s, r) => s + unit(r) * r.line.qty, 0);
   const crossSell = rows.find((r) => FORMAT_BY_KEY[r.line.format].group === "wear" && !lines.some((l) => l.fragranceId === r.frag.id && l.format === "car") && skuOf(r.frag, "car").buyable)?.frag;
+
+  // ── Australia Post postage ────────────────────────────────────────────────
+  const [postcode, setPostcode] = useState("");
+  // The quote is tied to the bag it was priced for; change the bag and it
+  // simply stops matching, so there is nothing to reset.
+  const [quote, setQuote] = useState<{ forBag: string; rates: ShippingRate[] } | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  // Postage is unavailable (route not deployed, or no AusPost key): fall back
+  // to the flat promise rather than blocking checkout.
+  const [postageOff, setPostageOff] = useState(false);
+  const bagKey = lines.map((l) => `${l.fragranceId}:${l.format}:${l.qty}`).sort().join("|");
+  const rates = quote?.forBag === bagKey ? quote.rates : null;
+  const rate = rates?.find((r) => r.code === chosen) ?? null;
+  const total = subtotal + (rate?.chargeCents ?? 0);
+
+  const getRates = async () => {
+    setQuoting(true);
+    setQuoteError(null);
+    const r = await quoteShipping(
+      lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })),
+      postcode.trim(),
+    );
+    setQuoting(false);
+    if (r === null) {
+      setPostageOff(true);
+      return;
+    }
+    if (r.ok === false) {
+      setQuoteError(r.error);
+      return;
+    }
+    setQuote({ forBag: bagKey, rates: r.data.rates });
+    setChosen(r.data.rates[0]?.code ?? null);
+  };
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Your bag" style={{ position: "fixed", inset: 0, zIndex: 95, display: "flex", justifyContent: "flex-end" }}>
@@ -112,11 +150,56 @@ export default function BagDrawer({ lines, fragrances, placed, busy, error, onCl
                 <span style={micro}>Subtotal</span>
                 <span>{money(subtotal)}</span>
               </div>
+
+              {!postageOff && (
+                <div style={{ display: "grid", gap: 10, borderTop: "1px solid #1f1f27", paddingTop: 12 }}>
+                  <span style={micro}>Postage · Australia Post</span>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void getRates();
+                    }}
+                    style={{ display: "flex", gap: 8 }}
+                  >
+                    <input
+                      value={postcode}
+                      onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                      placeholder="Postcode"
+                      inputMode="numeric"
+                      aria-label="Delivery postcode"
+                      style={{ flex: 1, minWidth: 0, background: "none", border: "1px solid #1f1f27", outline: "none", height: 38, padding: "0 12px", color: CREAM, fontFamily: MONO, fontSize: 12 }}
+                    />
+                    <button type="submit" className="mo-ghost" style={{ ...btnGhost, height: 38, fontSize: 9 }} disabled={quoting || postcode.trim().length !== 4}>
+                      {quoting ? "…" : rates ? "Recalculate" : "Calculate"}
+                    </button>
+                  </form>
+                  {quoteError && <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{quoteError}</div>}
+                  {rates?.map((r) => (
+                    <label key={r.code} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", border: `1px solid ${chosen === r.code ? "rgba(201,169,97,0.6)" : "#1f1f27"}`, padding: "9px 12px" }}>
+                      <input type="radio" name="mo-postage" checked={chosen === r.code} onChange={() => setChosen(r.code)} style={{ accentColor: "#c9a961" }} />
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontFamily: SERIF, fontSize: 16, color: CREAM, lineHeight: 1.2 }}>{r.name}</span>
+                        {etaLabel(r) && <span style={{ display: "block", ...micro, fontSize: 8 }}>{etaLabel(r)}</span>}
+                      </span>
+                      <span style={{ fontFamily: MONO, fontSize: 12, color: r.chargeCents === 0 ? "#8bb98a" : CREAM }}>
+                        {r.chargeCents === 0 ? "Free" : moneyExact(r.chargeCents)}
+                      </span>
+                    </label>
+                  ))}
+                  {rate && (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 14, color: CREAM, borderTop: "1px solid #1f1f27", paddingTop: 12 }}>
+                      <span style={micro}>Total</span>
+                      <span>{moneyExact(total)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ ...micro, fontSize: 8, display: "flex", gap: 14 }}>
                 <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100</span>
                 <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
               </div>
-              <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} disabled={busy} onClick={onCheckout}>
+              <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} disabled={busy} onClick={() => onCheckout(rate && postcode.trim().length === 4 ? { postcode: postcode.trim(), code: rate.code } : undefined)}>
                 {busy ? "Opening secure checkout…" : "Checkout"} <Arrow />
               </button>
               {error && <div style={{ fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{error}</div>}

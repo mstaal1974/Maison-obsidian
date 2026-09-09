@@ -577,6 +577,14 @@ export function money(cents: number): string {
   return "$" + Math.round(cents / 100);
 }
 
+/**
+ * Money with the cents kept when they matter. Shelf prices are whole dollars,
+ * but postage rarely is, and rounding a charge is how you lose trust.
+ */
+export function moneyExact(cents: number): string {
+  return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
+}
+
 export function pad(n: number): string {
   return String(n).padStart(2, "0");
 }

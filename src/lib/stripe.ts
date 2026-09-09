@@ -108,9 +108,16 @@ export interface StripeLine {
   label?: string;
 }
 
-/** Bag → the hosted Checkout URL to redirect to. Null when Stripe isn't configured. */
-export async function stripeCheckout(lines: StripeLine[]) {
-  return call<{ url: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ lines }) });
+/**
+ * Bag → the hosted Checkout URL to redirect to. `shipping` is the Australia
+ * Post service the customer picked; the server re-quotes it before charging.
+ * Null when Stripe isn't configured.
+ */
+export async function stripeCheckout(lines: StripeLine[], shipping?: { postcode: string; code: string }) {
+  return call<{ url: string }>("/api/stripe/checkout", {
+    method: "POST",
+    body: JSON.stringify({ lines, ...(shipping ? { postcode: shipping.postcode, shippingCode: shipping.code } : {}) }),
+  });
 }
 
 /** Monthly Pour → the hosted Checkout URL (subscription). Null when not configured. */

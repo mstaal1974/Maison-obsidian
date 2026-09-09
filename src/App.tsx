@@ -110,7 +110,7 @@ export default function App() {
   // Checkout (a hold per reservation, recorded on return); otherwise the stub
   // authorises locally. Needs an account either way.
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const checkout = useCallback(async () => {
+  const checkout = useCallback(async (shipping?: { postcode: string; code: string }) => {
     setCheckingOut(true);
     setCheckoutError(null);
     try {
@@ -118,7 +118,10 @@ export default function App() {
       // stop and say so — recording an order nobody paid for would be worse
       // than failing. The local stub below is only for the offline demo.
       if (auth.configured) {
-        const r = await stripeCheckout(lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })));
+        const r = await stripeCheckout(
+          lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })),
+          shipping,
+        );
         if (r?.ok) {
           window.location.assign(r.data.url);
           return;
@@ -226,14 +229,20 @@ export default function App() {
     [auth.user, startSub],
   );
 
-  const requestCheckout = useCallback(() => {
-    if (!auth.user) {
-      setPendingCheckout(true);
-      setAuthOpen(true);
-      return;
-    }
-    void checkout();
-  }, [auth.user, checkout]);
+  // The postage the customer picked, carried across a sign-in if one is needed.
+  const pendingShipping = useRef<{ postcode: string; code: string } | undefined>(undefined);
+  const requestCheckout = useCallback(
+    (shipping?: { postcode: string; code: string }) => {
+      pendingShipping.current = shipping;
+      if (!auth.user) {
+        setPendingCheckout(true);
+        setAuthOpen(true);
+        return;
+      }
+      void checkout(shipping);
+    },
+    [auth.user, checkout],
+  );
 
   // ── Account: reservations ──────────────────────────────────────────────────
   const [remoteCommits, setRemoteCommits] = useState<CommitRow[] | null>(null);
@@ -474,7 +483,7 @@ export default function App() {
             }
             if (pendingCheckout) {
               setPendingCheckout(false);
-              void checkout();
+              void checkout(pendingShipping.current);
             }
             if (pendingSub) {
               // Runs before the auth state re-renders, so carry the email along.
