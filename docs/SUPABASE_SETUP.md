@@ -222,6 +222,23 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   `bill_subscription_month(id, charge_cents, payment_intent_id)`; until then the admin
   console's **Bill month N** button records a month by hand through the same RPC, using
   the `VITE_STRIPE_AUTHORIZE_URL` endpoint (or the stub) for the charge.
+- **Consent, profiles and marketing** — migration `0014_profiles_marketing.sql` adds
+  `customer_profiles` (two consents per account holder, both off by default: marketing
+  email and AI personalisation, each with the time and source of opt-in),
+  `marketing_signups` (the inner-circle list by email, fed by the footer box and mirrored
+  from account consents), the `marketing_audience` view for the console, the RPCs
+  `join_inner_circle` and `set_my_consents`, a customers-read-their-own policy on
+  `scent_requests`, and a `bill_subscription_month` that accepts a taste-led pick for
+  surprise subscriptions. Apply it after `0013`.
+
+  What the data is used for, and only with consent: the concierge (`/api/chat`) receives a
+  short taste summary built in the browser from the customer's own history when they have
+  allowed personalisation; the Monthly Pour surprise draw leans toward that taste; the
+  console's **Marketing** tab lists everyone who opted in to email with their taste
+  profile, exports a CSV for your email tool, and drafts a note per segment via
+  `/api/marketing` (admin-only, uses `ANTHROPIC_API_KEY`). Customers change or withdraw
+  both consents under **Account → Privacy & preferences**. Email sends and unsubscribe links
+  are your email tool's job; keep its list in step with the CSV export.
 - **Scent requests** — migration `0010_scent_requests.sql` adds the `scent_requests` table
   and the `request_scent` RPC. When **Find my match** has nothing for what a customer
   typed (or only nearest profiles), they can request it; the asks land in the admin

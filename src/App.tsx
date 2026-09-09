@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type Fragrance, type FormatKey } from "./lib/data";
 import { useFragrances, recordCommit, enrollVip, isVipSubscriber, fetchMyCommits, fetchMyShipments, type CommitRow, type ShipmentRow } from "./lib/store";
 import { useAuth } from "./lib/auth";
@@ -29,6 +29,9 @@ import Subscribe from "./components/Subscribe";
 import SubscribeBand from "./components/SubscribeBand";
 import SubscriptionPanel from "./components/SubscriptionPanel";
 import { type PickMode, drawSurpriseScent, startSubscription, subscriptionPrice, useSubscriptions } from "./lib/subscription";
+import PreferencesPanel from "./components/PreferencesPanel";
+import { type Consents, affinityOf, setConsents, useConsents, useMyTaste } from "./lib/profile";
+import { demoRequestQueries } from "./lib/requests";
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
@@ -130,13 +133,34 @@ export default function App() {
   const { subscriptions, loading: subsLoading, reload: reloadSubs } = useSubscriptions(!!auth.user);
   const hasActiveSub = subscriptions.some((s) => s.status === "active");
 
+  // ── Consent & taste ────────────────────────────────────────────────────────
+  // Both consents default off. The taste profile is built from the customer's
+  // own history and used only where they allowed it: the concierge prompt
+  // and the surprise draw.
+  const { consents, reload: reloadConsents } = useConsents(auth.user);
+  const signupConsents = useRef<{ marketing: boolean; ai: boolean } | null>(null);
+  const localPurchases = useMemo(() => orders.flatMap((o) => Array.from({ length: o.qty }, () => ({ fragranceId: o.fragranceId, format: o.format }))), [orders]);
+  const onAccountView = route.view === "account";
+  // Demo requests live in localStorage; re-read them whenever the account view opens.
+  const localRequests = useMemo(() => (auth.configured || !onAccountView ? [] : demoRequestQueries()), [auth.configured, onAccountView]);
+  const taste = useMyTaste(auth.user, fragrances, subscriptions, localPurchases, localRequests);
+  const aiProfile = consents.ai && taste && !taste.empty ? taste.summary : undefined;
+  const surpriseAffinity = consents.ai && taste ? affinityOf(taste) : undefined;
+  const saveConsents = useCallback(
+    async (c: Consents, source = "account") => {
+      await setConsents(c, source, auth.user?.email ?? null);
+      reloadConsents();
+    },
+    [auth.user, reloadConsents],
+  );
+
   const startSub = useCallback(
     async (format: FormatKey, pick: Fragrance | null, mode: PickMode, email?: string) => {
       setSubBusy(true);
       setSubError(null);
       try {
         // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
-        const frag = pick ?? drawSurpriseScent(fragrances, format, []);
+        const frag = pick ?? drawSurpriseScent(fragrances, format, [], surpriseAffinity);
         if (!frag) {
           setSubError("Choose a scent to start.");
           return;
@@ -154,7 +178,7 @@ export default function App() {
         setSubBusy(false);
       }
     },
-    [auth.user, fragrances, reloadSubs],
+    [auth.user, fragrances, reloadSubs, surpriseAffinity],
   );
 
   const requestSubscribe = useCallback(
@@ -329,6 +353,7 @@ export default function App() {
           onOpen={(slug) => navigate(paths.product(slug))}
           onBackToVault={() => navigate(paths.fragrances)}
           subscriptionSlot={<SubscriptionPanel subscriptions={subscriptions} fragrances={fragrances} loading={subsLoading} onChanged={reloadSubs} />}
+          preferencesSlot={<PreferencesPanel consents={consents} taste={taste} onChange={(c) => saveConsents(c)} />}
         />
       )}
 
@@ -367,7 +392,15 @@ export default function App() {
             setPendingCheckout(false);
             setPendingSub(null);
           }}
+          onConsents={(c) => {
+            signupConsents.current = c;
+          }}
           onAuthed={(email) => {
+            if (signupConsents.current) {
+              const c = signupConsents.current;
+              signupConsents.current = null;
+              void setConsents({ marketing: c.marketing, ai: c.ai }, "signup", email || null).then(() => reloadConsents());
+            }
             if (pendingCheckout) {
               setPendingCheckout(false);
               void checkout();
@@ -385,7 +418,7 @@ export default function App() {
         />
       )}
 
-      <ChatWidget fragrances={fragrances} onOpenProduct={(slug) => navigate(paths.product(slug))} />
+      <ChatWidget fragrances={fragrances} onOpenProduct={(slug) => navigate(paths.product(slug))} profile={aiProfile} />
     </div>
   );
 }

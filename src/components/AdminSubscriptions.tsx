@@ -16,6 +16,8 @@ import {
   subscriptionRange,
   useSubscriptions,
 } from "../lib/subscription";
+import { useAudience } from "../lib/audience";
+import { affinityOf } from "../lib/profile";
 import { btnGhost, chip, label } from "./adminStyles";
 
 const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
@@ -28,6 +30,12 @@ const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString(undefined, 
  */
 export default function AdminSubscriptions({ fragrances, configured }: { fragrances: Fragrance[]; configured: boolean }) {
   const { subscriptions, loading, reload } = useSubscriptions(true);
+  // Surprise draws lean on a customer's taste only where they allowed it.
+  const { members } = useAudience(fragrances, subscriptions);
+  const affinityFor = (s: Subscription) => {
+    const m = members.find((x) => (s.userId && x.userId === s.userId) || (s.userEmail && x.email === s.userEmail.toLowerCase()));
+    return m?.ai ? affinityOf(m.profile) : undefined;
+  };
   const [filter, setFilter] = useState<Subscription["status"] | "all">("active");
   const [busy, setBusy] = useState<string | null>(null);
   const shown = subscriptions.filter((s) => filter === "all" || s.status === filter);
@@ -40,7 +48,7 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
   }, 0);
 
   const bill = async (s: Subscription) => {
-    const f = scentForNextBill(s, fragrances);
+    const f = scentForNextBill(s, fragrances, affinityFor(s));
     if (!f) return;
     setBusy(s.id);
     const charge = subscriptionPrice(f, s.format);

@@ -9,6 +9,8 @@ interface AuthModalProps {
   onClose: () => void;
   /** Fired once, after authentication succeeds — before onClose — with the email used. */
   onAuthed?: (email: string) => void;
+  /** Sign-up only: the consents the person ticked (both default off). */
+  onConsents?: (c: { marketing: boolean; ai: boolean }) => void;
   signInEmail: (email: string, password: string) => Promise<AuthResult>;
   signUpEmail: (email: string, password: string) => Promise<AuthResult>;
   signInGoogle: () => Promise<AuthResult>;
@@ -21,6 +23,7 @@ export default function AuthModal({
   reason,
   onClose,
   onAuthed,
+  onConsents,
   signInEmail,
   signUpEmail,
   signInGoogle,
@@ -31,6 +34,9 @@ export default function AuthModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Consent is opt-in: nothing is ticked until the person ticks it.
+  const [marketing, setMarketing] = useState(false);
+  const [ai, setAi] = useState(false);
 
   const valid = EMAIL_RE.test(email.trim()) && password.length >= 6;
 
@@ -47,6 +53,7 @@ export default function AuthModal({
       setError(err);
       return;
     }
+    if (mode === "signup") onConsents?.({ marketing, ai });
     onAuthed?.(email.trim());
     onClose();
   };
@@ -211,6 +218,25 @@ export default function AuthModal({
             style={input}
           />
         </div>
+
+        {mode === "signup" && (
+          <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
+            {(
+              [
+                { key: "marketing", on: marketing, set: setMarketing, label: "Email me about new batches and offers.", hint: "A note when a scent you might like pours. Unsubscribe any time from your account." },
+                { key: "ai", on: ai, set: setAi, label: "Personalise suggestions from my history.", hint: "The concierge and Monthly Pour surprises can use what you've bought and asked for." },
+              ] as { key: string; on: boolean; set: (v: boolean) => void; label: string; hint: string }[]
+            ).map((c) => (
+              <label key={c.key} style={{ display: "grid", gridTemplateColumns: "18px 1fr", gap: 10, alignItems: "start", cursor: "pointer" }}>
+                <input type="checkbox" checked={c.on} onChange={(e) => c.set(e.target.checked)} aria-label={c.label} style={{ marginTop: 2, accentColor: "#c9a961" }} />
+                <span>
+                  <span style={{ display: "block", fontSize: 12.5, color: "#f3ecdc", lineHeight: 1.4 }}>{c.label}</span>
+                  <span style={{ display: "block", fontSize: 11, color: "rgba(243,236,220,0.5)", lineHeight: 1.5 }}>{c.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
 
         {error && <div style={{ marginTop: 12, fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{error}</div>}
 

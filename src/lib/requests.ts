@@ -57,6 +57,11 @@ function saveDemo(rows: ScentRequest[]) {
   listeners.forEach((l) => l());
 }
 
+/** Demo: every request this browser has lodged (for the taste profile). */
+export function demoRequestQueries(): string[] {
+  return loadDemo().map((r) => r.query);
+}
+
 function subscribeDemo(l: () => void) {
   listeners.add(l);
   return () => listeners.delete(l);

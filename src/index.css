@@ -202,6 +202,12 @@ body {
   .mo-subscribe-summary {
     position: static !important;
   }
+  .mo-marketing-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .mo-marketing-grid > aside {
+    position: static !important;
+  }
   .mo-subformats-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
