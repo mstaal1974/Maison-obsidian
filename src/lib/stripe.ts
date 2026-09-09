@@ -82,7 +82,7 @@ async function authHeaders(): Promise<Record<string, string>> {
  * route exists but Stripe isn't configured on Vercel: still a fallback to the
  * local flow, but reported so an admin can see why.
  */
-export type StripeCall<T> = { ok: true; data: T } | { ok: false; error: string; unconfigured?: boolean } | null;
+export type StripeCall<T> = { ok: true; data: T } | { ok: false; error: string; detail?: string; unconfigured?: boolean } | null;
 async function call<T>(path: string, init: RequestInit): Promise<StripeCall<T>> {
   if (!supabase) return null;
   try {
@@ -93,8 +93,8 @@ async function call<T>(path: string, init: RequestInit): Promise<StripeCall<T>> 
       return { ok: false, unconfigured: true, error: body.error ?? "Stripe isn't configured" };
     }
     if (res.status === 404 || !type.includes("application/json")) return null;
-    const data = (await res.json()) as T & { error?: string };
-    return res.ok ? { ok: true, data } : { ok: false, error: data.error ?? `Request failed (${res.status})` };
+    const data = (await res.json()) as T & { error?: string; detail?: string };
+    return res.ok ? { ok: true, data } : { ok: false, error: data.error ?? `Request failed (${res.status})`, detail: data.detail };
   } catch {
     return null;
   }

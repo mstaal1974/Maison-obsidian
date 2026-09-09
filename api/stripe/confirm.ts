@@ -4,12 +4,12 @@
 // and tells the page what was reserved or started. Only the session's owner
 // may confirm it.
 
-import { getStripe, json, serviceClient, userFromRequest } from "../_lib/stripe";
+import { getStripe, json, serviceClient, userFromRequest , route } from "../_lib/stripe";
 import { recordReservation, recordSubscriptionStart } from "../_lib/record";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req: any, res: any) {
+export default route("confirm", async function handler(req: any, res: any) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
@@ -32,4 +32,4 @@ export default async function handler(req: any, res: any) {
     return json(res, 200, { kind: "subscription" });
   }
   return json(res, 200, { kind: "other" });
-}
+});

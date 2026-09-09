@@ -128,7 +128,7 @@ export default function App() {
           return;
         }
         if (r?.ok === false && !r.unconfigured) {
-          setCheckoutError(r.error);
+          setCheckoutError(isAdmin && r.detail ? `${r.error} — ${r.detail}` : r.error);
           return;
         }
         // Stripe not configured on Vercel: fall back to the local hold, and
@@ -188,7 +188,7 @@ export default function App() {
             return;
           }
           if (r?.ok === false && !r.unconfigured) {
-            setSubError(r.error);
+            setSubError(isAdmin && r.detail ? `${r.error} — ${r.detail}` : r.error);
             return;
           }
           if (r?.ok === false && r.unconfigured && isAdmin) setSubError(`Stripe isn't configured on Vercel (${r.error}); this subscription is recorded without billing.`);

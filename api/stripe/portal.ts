@@ -1,11 +1,11 @@
 // POST /api/stripe/portal — a Stripe Billing Portal link for the signed-in
 // customer to update their card or see invoices.
 
-import { customerFor, getStripe, json, serviceClient, siteUrl, userFromRequest } from "../_lib/stripe";
+import { customerFor, getStripe, json, serviceClient, siteUrl, userFromRequest , route } from "../_lib/stripe";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req: any, res: any) {
+export default route("portal", async function handler(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   const stripe = getStripe();
   const db = serviceClient();
@@ -15,4 +15,4 @@ export default async function handler(req: any, res: any) {
   const customer = await customerFor(stripe, db, user);
   const portal = await stripe.billingPortal.sessions.create({ customer, return_url: `${siteUrl(req)}/#/account` });
   return json(res, 200, { url: portal.url });
-}
+});
