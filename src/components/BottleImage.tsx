@@ -1,8 +1,13 @@
 import { useState, type CSSProperties } from "react";
 import { bottleBackdrop } from "./adminStyles";
+import { isPhotoImage } from "../lib/conceive";
 
 interface BottleImageProps {
-  /** Transparent PNG render (admin upload or /assets/<slug>.png); falls back to the stock bottle photo. */
+  /**
+   * Bottle image: a transparent render (admin PNG/WebP upload or
+   * /assets/<slug>.png) shown on the tinted backdrop, or a JPG shown as
+   * full-frame photography. Falls back to the stock bottle photo.
+   */
   imageUrl?: string;
   fallbackSrc: string;
   alt: string;
@@ -32,6 +37,21 @@ export default function BottleImage({
   // A render that fails to load (no file for this slug yet) drops to the stock
   // photo. Keyed by URL so a later, different image gets its own attempt.
   const [failed, setFailed] = useState<string | null>(null);
+  const photo = !!imageUrl && failed !== imageUrl && isPhotoImage(imageUrl);
+  if (photo) {
+    // An uploaded JPG has no transparency: fill the frame like the stock shot.
+    return (
+      <div style={{ position: "relative", width: "100%", height, overflow: "hidden", background: "#0e0e12", ...style }}>
+        <img
+          src={imageUrl}
+          alt={alt}
+          loading="lazy"
+          onError={() => setFailed(imageUrl)}
+          style={{ display: "block", width: "100%", height: "100%", objectFit: "cover", objectPosition }}
+        />
+      </div>
+    );
+  }
   if (!imageUrl || failed === imageUrl) {
     // Stock photography is shot on a light set; a vignette and a touch less
     // brightness sit it into the near-black storefront until real renders land.

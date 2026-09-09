@@ -212,7 +212,7 @@ export default function App() {
         <main data-screen-label="Home">
           <Hero />
           <ChooseObsidian />
-          <FindYourScent fragrances={fragrances} onQuickView={openQuick} />
+          <FindYourScent fragrances={fragrances} onQuickView={openQuick} userEmail={auth.user?.email} />
           <MoodShop fragrances={fragrances} onQuickView={openQuick} />
           <RangeBanners />
         </main>
@@ -235,7 +235,7 @@ export default function App() {
         <Discovery fragrances={fragrances} vip={vip} discoveryIds={boxIds} onToggleDiscovery={onToggleDiscovery} onAddBox={addBox} onQuickView={openQuick} />
       )}
 
-      {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} />}
+      {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
 
       {route.view === "product" && selected && (
         <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} effectiveCommitted={effective(selected)} onAdd={add} onQuickView={openQuick} />

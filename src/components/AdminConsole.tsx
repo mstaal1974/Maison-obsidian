@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type Fragrance, money } from "../lib/data";
-import { inspectPng, uploadFragranceImage } from "../lib/conceive";
+import { IMAGE_ACCEPT, inspectImage, isPhotoImage, uploadFragranceImage } from "../lib/conceive";
 import ConceiveFragrance from "./ConceiveFragrance";
 import FormatMatrix from "./FormatMatrix";
 import { label, field, btnGold, btnGhost, bottleBackdrop } from "./adminStyles";
@@ -24,6 +24,7 @@ function emptyCounts(): { 10: number; 30: number; 50: number } {
   return { 10: 0, 30: 0, 50: 0 };
 }
 import { demoShipments, subscribeShipments } from "../lib/catalogue";
+import ScentRequests from "./ScentRequests";
 
 interface AdminConsoleProps {
   fragrances: Fragrance[];
@@ -61,7 +62,7 @@ const BLANK: Fragrance = {
 };
 
 export default function AdminConsole({ fragrances, configured, onReload, demoCommits }: AdminConsoleProps) {
-  const [tab, setTab] = useState<"catalogue" | "matrix" | "fulfillment">("catalogue");
+  const [tab, setTab] = useState<"catalogue" | "matrix" | "fulfillment" | "requests">("catalogue");
 
   return (
     <main data-screen-label="Admin" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
@@ -76,7 +77,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
       )}
 
       <div style={{ display: "flex", gap: 22, margin: "28px 0 30px", borderBottom: "1px solid #1f1f27" }}>
-        {(["catalogue", "matrix", "fulfillment"] as const).map((t) => (
+        {(["catalogue", "matrix", "fulfillment", "requests"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -93,7 +94,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
               fontWeight: 600,
             }}
           >
-            {t === "catalogue" ? "Catalogue & Inventory" : t === "matrix" ? "Product Matrix" : "Fulfillment"}
+            {t === "catalogue" ? "Catalogue & Inventory" : t === "matrix" ? "Product Matrix" : t === "fulfillment" ? "Fulfillment" : "Requests"}
           </button>
         ))}
       </div>
@@ -102,8 +103,10 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
         <Catalogue fragrances={fragrances} configured={configured} onReload={onReload} demoCommits={demoCommits} />
       ) : tab === "matrix" ? (
         <FormatMatrix fragrances={fragrances} configured={configured} onReload={onReload} />
-      ) : (
+      ) : tab === "fulfillment" ? (
         <Fulfillment fragrances={fragrances} configured={configured} demoCommits={demoCommits} />
+      ) : (
+        <ScentRequests configured={configured} />
       )}
     </main>
   );
@@ -121,7 +124,7 @@ function Catalogue({
   demoCommits: AdminCommitRow[];
 }) {
   const [editing, setEditing] = useState<Fragrance | null>(null);
-  // A PNG chosen in the AI panel travels with the draft into the editor.
+  // An image chosen in the AI panel travels with the draft into the editor.
   const [editingImage, setEditingImage] = useState<File | null>(null);
   const [conceiving, setConceiving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -158,7 +161,7 @@ function Catalogue({
 
   const counts = configured ? remoteCounts ?? {} : demoCounts;
 
-  // Saves a fragrance, uploading a freshly chosen bottle PNG first so the row
+  // Saves a fragrance, uploading a freshly chosen bottle image first so the row
   // is written with its final image URL.
   const save = async (f: Fragrance, image: File | null = null) => {
     setBusy(true);
@@ -407,6 +410,7 @@ function Editor({
   const [f, setF] = useState<Fragrance>(initial);
   const [image, setImage] = useState<File | null>(initialImage);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [imageNote, setImageNote] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Object URL for the preview; revoked when the file changes or we unmount.
@@ -417,15 +421,24 @@ function Editor({
 
   const pickImage = async (file: File | null) => {
     if (!file) return;
-    const info = await inspectPng(file);
+    const info = await inspectImage(file);
     if (!info.ok) {
-      setImageError(info.reason ?? "Invalid PNG.");
+      setImageError(info.reason ?? "Invalid image.");
       return;
     }
-    setImageError(info.transparent ? null : "No alpha channel — a transparent background looks best on the tiles.");
+    setImageNote(
+      info.format === "jpeg"
+        ? "JPG — shown as full-frame photography on the tiles. A transparent PNG sits on the tinted backdrop instead."
+        : info.transparent
+          ? null
+          : "No transparency — a transparent PNG looks best on the tiles.",
+    );
+    setImageError(null);
     setImage(file);
   };
   const shownImage = preview ?? f.imageUrl;
+  // A chosen JPG (or a stored one) fills the preview edge to edge like a photo.
+  const shownAsPhoto = image ? image.type === "image/jpeg" : isPhotoImage(f.imageUrl);
   const set = <K extends keyof Fragrance>(k: K, v: Fragrance[K]) => setF((p) => ({ ...p, [k]: v }));
   const dollars = (cents: number) => (cents ? String(cents / 100) : "");
   const notes = (arr: string[]) => arr.join(", ");
@@ -501,17 +514,21 @@ function Editor({
             }}
           >
             {shownImage ? (
-              <img src={shownImage} alt="Bottle" style={{ width: "100%", height: "100%", objectFit: "contain", padding: "8% 12%", boxSizing: "border-box" }} />
+              <img
+                src={shownImage}
+                alt="Bottle"
+                style={shownAsPhoto ? { width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" } : { width: "100%", height: "100%", objectFit: "contain", padding: "8% 12%", boxSizing: "border-box" }}
+              />
             ) : (
               <img src="/assets/bottle-portrait.webp" alt="Placeholder bottle" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", opacity: 0.35 }} />
             )}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1, minWidth: 220 }}>
-            <span style={label}>Bottle image (transparent PNG)</span>
-            <input ref={fileInput} type="file" accept="image/png" hidden onChange={(e) => void pickImage(e.target.files?.[0] ?? null)} />
+            <span style={label}>Bottle image (PNG, JPG or WebP)</span>
+            <input ref={fileInput} type="file" accept={IMAGE_ACCEPT} hidden onChange={(e) => void pickImage(e.target.files?.[0] ?? null)} />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button type="button" style={{ ...btnGhost, height: 34 }} onClick={() => fileInput.current?.click()}>
-                {shownImage ? "Replace PNG" : "Choose PNG"}
+                {shownImage ? "Replace image" : "Choose image"}
               </button>
               {(image || f.imageUrl) && (
                 <button
@@ -521,6 +538,7 @@ function Editor({
                     setImage(null);
                     set("imageUrl", undefined);
                     setImageError(null);
+                    setImageNote(null);
                     if (fileInput.current) fileInput.current.value = "";
                   }}
                 >
@@ -531,7 +549,7 @@ function Editor({
             <span style={{ fontSize: 11.5, lineHeight: 1.5, color: imageError ? "#d98a6a" : "rgba(243,236,220,0.45)" }}>
               {imageError ??
                 (image
-                  ? `${image.name} — uploads when you save.`
+                  ? `${image.name} — uploads when you save.${imageNote ? ` ${imageNote}` : ""}`
                   : f.imageUrl
                     ? "Current render kept — replace or remove it here."
                     : "Without an image the placeholder bottle photography is shown.")}

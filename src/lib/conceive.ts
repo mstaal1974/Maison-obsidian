@@ -5,7 +5,7 @@
 // three panels — Brand Conception, Copywriting, Olfactory Breakdown — and can
 // turn into a catalogue entry with `conceptionToFragrance()`.
 //
-// `uploadFragranceImage()` stores the admin's transparent PNG in the
+// `uploadFragranceImage()` stores the admin's bottle image (PNG/JPG/WebP) in the
 // `fragrance-images` Supabase bucket (public URL) or, in the offline demo,
 // inlines it as a data URL so the tile and product page still show it.
 
@@ -154,49 +154,131 @@ function uniqueSlug(base: string, catalogue: Fragrance[]): string {
   return `${base}-${Date.now().toString(36)}`;
 }
 
-// ─── Transparent PNG handling ────────────────────────────────────────────────
+// ─── Bottle image handling ───────────────────────────────────────────────────
 
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 
-export interface PngInfo {
+export type ImageFormat = "png" | "jpeg" | "webp";
+
+/** The formats a bottle image may be uploaded in, as a file-input accept list. */
+export const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp";
+
+export interface ImageInfo {
   ok: boolean;
   reason?: string;
+  format?: ImageFormat;
   width?: number;
   height?: number;
-  /** Colour type carries an alpha channel (RGBA / grey+alpha) or a tRNS chunk. */
+  /**
+   * The file can carry transparency (PNG with alpha / tRNS, WebP with an alpha
+   * flag). JPEGs never do: they render as full-frame photography instead of a
+   * cut-out on the tinted backdrop.
+   */
   transparent?: boolean;
 }
 
+/** @deprecated Kept for older imports; the validator now takes PNG, JPEG and WebP. */
+export type PngInfo = ImageInfo;
+
+const MIME: Record<ImageFormat, string> = { png: "image/png", jpeg: "image/jpeg", webp: "image/webp" };
+const EXT: Record<ImageFormat, string> = { png: "png", jpeg: "jpg", webp: "webp" };
+
 /**
- * Validates a PNG by its header: signature, IHDR dimensions and whether the
- * colour type carries transparency. Palette PNGs count as transparent when a
- * tRNS chunk is present.
+ * Validates a bottle image by its header rather than its extension: PNG
+ * (signature + IHDR), JPEG (SOI + a SOF frame for the size) or WebP (RIFF
+ * container; VP8X/VP8L chunks say whether alpha is present).
  */
-export async function inspectPng(file: File): Promise<PngInfo> {
-  if (file.size > MAX_IMAGE_BYTES) return { ok: false, reason: "PNG must be 4 MB or smaller." };
+export async function inspectImage(file: File): Promise<ImageInfo> {
+  if (file.size > MAX_IMAGE_BYTES) return { ok: false, reason: "Image must be 4 MB or smaller." };
   const buf = new Uint8Array(await file.slice(0, Math.min(file.size, 64 * 1024)).arrayBuffer());
-  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-  if (buf.length < 33 || !sig.every((b, i) => buf[i] === b)) return { ok: false, reason: "That file isn't a PNG." };
   const dv = new DataView(buf.buffer);
-  const width = dv.getUint32(16);
-  const height = dv.getUint32(20);
-  const colourType = buf[25];
-  let transparent = colourType === 4 || colourType === 6;
-  if (!transparent && colourType === 3) {
-    // Walk chunks looking for tRNS (before IDAT).
-    let off = 8;
-    while (off + 8 <= buf.length) {
-      const len = dv.getUint32(off);
-      const type = String.fromCharCode(buf[off + 4], buf[off + 5], buf[off + 6], buf[off + 7]);
-      if (type === "tRNS") {
-        transparent = true;
+
+  // PNG
+  const pngSig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (buf.length >= 33 && pngSig.every((b, i) => buf[i] === b)) {
+    const width = dv.getUint32(16);
+    const height = dv.getUint32(20);
+    const colourType = buf[25];
+    let transparent = colourType === 4 || colourType === 6;
+    if (!transparent && colourType === 3) {
+      // Walk chunks looking for tRNS (before IDAT).
+      let off = 8;
+      while (off + 8 <= buf.length) {
+        const len = dv.getUint32(off);
+        const type = String.fromCharCode(buf[off + 4], buf[off + 5], buf[off + 6], buf[off + 7]);
+        if (type === "tRNS") {
+          transparent = true;
+          break;
+        }
+        if (type === "IDAT") break;
+        off += 12 + len;
+      }
+    }
+    return { ok: true, format: "png", width, height, transparent };
+  }
+
+  // JPEG
+  if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    let width: number | undefined;
+    let height: number | undefined;
+    let off = 2;
+    while (off + 9 <= buf.length) {
+      if (buf[off] !== 0xff) break;
+      const marker = buf[off + 1];
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+        off += 2;
+        continue;
+      }
+      const len = dv.getUint16(off + 2);
+      // SOF0..SOF15 except DHT (C4), JPG (C8), DAC (CC) carry the frame size.
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        height = dv.getUint16(off + 5);
+        width = dv.getUint16(off + 7);
         break;
       }
-      if (type === "IDAT") break;
-      off += 12 + len;
+      off += 2 + len;
     }
+    return { ok: true, format: "jpeg", width, height, transparent: false };
   }
-  return { ok: true, width, height, transparent };
+
+  // WebP
+  const ascii = (o: number, n: number) => String.fromCharCode(...buf.slice(o, o + n));
+  if (buf.length >= 30 && ascii(0, 4) === "RIFF" && ascii(8, 4) === "WEBP") {
+    const chunk = ascii(12, 4);
+    let transparent = false;
+    let width: number | undefined;
+    let height: number | undefined;
+    if (chunk === "VP8X") {
+      transparent = (buf[20] & 0x10) !== 0;
+      width = 1 + (buf[24] | (buf[25] << 8) | (buf[26] << 16));
+      height = 1 + (buf[27] | (buf[28] << 8) | (buf[29] << 16));
+    } else if (chunk === "VP8L") {
+      const b = dv.getUint32(21, true);
+      width = 1 + (b & 0x3fff);
+      height = 1 + ((b >> 14) & 0x3fff);
+      transparent = ((b >> 28) & 1) === 1;
+    } else if (chunk === "VP8 ") {
+      width = dv.getUint16(26, true) & 0x3fff;
+      height = dv.getUint16(28, true) & 0x3fff;
+    }
+    return { ok: true, format: "webp", width, height, transparent };
+  }
+
+  return { ok: false, reason: "That file isn't a PNG, JPG or WebP image." };
+}
+
+/** @deprecated Use inspectImage; kept so older call sites keep compiling. */
+export const inspectPng = inspectImage;
+
+/**
+ * True for a stored bottle image that has no transparency (a JPEG), so the
+ * tiles show it as full-frame photography rather than a cut-out on a
+ * gradient. Judged from the URL: uploads carry their real extension and demo
+ * data URLs their MIME type.
+ */
+export function isPhotoImage(url: string | undefined): boolean {
+  if (!url) return false;
+  return /^data:image\/jpe?g[;,]/i.test(url) || /\.jpe?g(\?|#|$)/i.test(url);
 }
 
 function readAsDataUrl(file: File): Promise<string> {
@@ -209,15 +291,19 @@ function readAsDataUrl(file: File): Promise<string> {
 }
 
 /**
- * Uploads the bottle PNG and returns a URL to store on the fragrance. In the
- * configured app this is the public URL of the object in `fragrance-images`;
- * in the demo it's a data URL kept in memory for the session.
+ * Uploads the bottle image (PNG, JPEG or WebP) and returns a URL to store on
+ * the fragrance. In the configured app this is the public URL of the object in
+ * `fragrance-images`; in the demo it's a data URL kept in memory for the
+ * session. The object keeps the real extension so the storefront can tell a
+ * photo from a cut-out.
  */
 export async function uploadFragranceImage(file: File, slug: string): Promise<string> {
   if (!supabase) return readAsDataUrl(file);
-  const path = `${slug || "fragrance"}-${Date.now().toString(36)}.png`;
+  const info = await inspectImage(file);
+  if (!info.ok || !info.format) throw new Error(info.reason ?? "Unsupported image.");
+  const path = `${slug || "fragrance"}-${Date.now().toString(36)}.${EXT[info.format]}`;
   const { error } = await supabase.storage.from("fragrance-images").upload(path, file, {
-    contentType: "image/png",
+    contentType: MIME[info.format],
     cacheControl: "31536000",
     upsert: false,
   });

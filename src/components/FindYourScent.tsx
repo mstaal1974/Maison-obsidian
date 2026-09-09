@@ -1,6 +1,7 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { type Fragrance, GOLD, CREAM } from "../lib/data";
-import { findMatches, MOODS, fromLabel, profileOf, availableIn, referenceOf } from "../lib/formats";
+import { findMatches, isStrongMatch, MOODS, fromLabel, profileOf, availableIn, referenceOf } from "../lib/formats";
+import { submitScentRequest } from "../lib/requests";
 import { navigate, paths } from "../lib/route";
 import { Arrow, Container, Icon, Chip, InspiredBy } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
@@ -11,6 +12,8 @@ interface FindYourScentProps {
   mode?: "section" | "page";
   initialQuery?: string;
   onQuickView?: (f: Fragrance) => void;
+  /** Signed-in customer's email, prefilled on the request form. */
+  userEmail?: string;
 }
 
 /**
@@ -19,10 +22,14 @@ interface FindYourScentProps {
  * Renders inline on the homepage (mode="section") and as the full
  * #/find page (mode="page").
  */
-export default function FindYourScent({ fragrances, mode = "section", initialQuery = "", onQuickView }: FindYourScentProps) {
+export default function FindYourScent({ fragrances, mode = "section", initialQuery = "", onQuickView, userEmail }: FindYourScentProps) {
   const [q, setQ] = useState(initialQuery);
   const [submitted, setSubmitted] = useState(initialQuery);
   const matches = useMemo(() => (submitted.trim() ? findMatches(submitted, fragrances, mode === "page" ? 4 : 3) : []), [submitted, fragrances, mode]);
+  // We carry it when the top result is the scent they named; otherwise the
+  // results are nearest profiles and the ask becomes a request.
+  const carried = matches.length > 0 && isStrongMatch(matches[0]);
+  const [askAnyway, setAskAnyway] = useState(false);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -88,7 +95,20 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
 
   const noResults = submitted.trim() && !matches.length && (
     <p style={{ marginTop: 18, fontSize: 13, color: "rgba(243,236,220,0.6)" }}>
-      Nothing in the house matches “{submitted}” yet. Our concierge can search the 3,000+ fragrance library — or browse by mood below.
+      Nothing in the house matches “{submitted}” yet.
+    </p>
+  );
+
+  // Request panel: shown whenever we can't put the named scent in their hands.
+  const request = submitted.trim() && (!carried || askAnyway) && (
+    <RequestScent key={submitted} query={submitted} email={userEmail} closest={carried ? undefined : matches[0]?.frag} />
+  );
+  // Carried: results first, then the "not the one?" escape hatch. Not carried:
+  // the request leads and the nearest profiles follow as consolation.
+  const notTheOne = submitted.trim() && carried && !askAnyway && (
+    <p style={{ marginTop: 14, fontSize: 12.5, color: "rgba(243,236,220,0.5)" }}>
+      Not the scent you meant?{" "}
+      <button style={{ ...btnLink, fontSize: 11 }} onClick={() => setAskAnyway(true)}>Request “{submitted}”</button>
     </p>
   );
 
@@ -102,8 +122,10 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
             Search a fragrance or brand you wear — we'll show the Maison Obsidian scent built on the same profile, and every way you can take it with you.
           </p>
           {bar}
-          {results}
           {noResults}
+          {carried ? results : request}
+          {carried ? request : results}
+          {notTheOne}
           <div style={{ marginTop: 44, display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
             <span style={micro}>Or explore our scent profiles</span>
             {MOODS.map((m) => (
@@ -142,9 +164,67 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
             </button>
           </div>
         </div>
-        {results}
         {noResults}
+        {carried ? results : request}
+        {carried ? request : results}
+        {notTheOne}
       </Container>
     </section>
+  );
+}
+
+interface RequestScentProps {
+  query: string;
+  email?: string;
+  /** Nearest profile we do carry, if any — named so the ask reads as informed. */
+  closest?: Fragrance;
+}
+
+/**
+ * "We don't carry it yet — request it." One field (email, optional) and a
+ * button. Submits to the scent_requests store; the admin console triages it.
+ */
+function RequestScent({ query, email: initialEmail = "", closest }: RequestScentProps) {
+  const [email, setEmail] = useState(initialEmail);
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
+    setState("busy");
+    const ok = await submitScentRequest(query, email);
+    setState(ok ? "done" : "error");
+  };
+
+  return (
+    <div style={{ marginTop: 22, border: "1px solid rgba(201,169,97,0.45)", background: "#101015", padding: "18px 20px", display: "grid", gap: 10, maxWidth: 640 }}>
+      <div style={{ ...micro, color: GOLD }}>Request a scent</div>
+      {state === "done" ? (
+        <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: CREAM }}>
+          Noted. We've added “{query}” to the atelier's request list{email.trim() ? " and will let you know when it's in the house" : ""}.
+        </p>
+      ) : (
+        <>
+          <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: CREAM }}>
+            We don't carry “{query}” yet.{closest ? ` ${closest.name} is the closest profile in the house, below.` : ""} Request it and we'll look at sourcing it for a coming batch.
+          </p>
+          <form onSubmit={send} className="mo-request-form" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Your email (optional) — to hear when it lands"
+              aria-label="Email for updates"
+              style={{ flex: "1 1 260px", height: 44, background: "none", border: "1px solid #1f1f27", outline: "none", padding: "0 14px", color: CREAM, fontFamily: MONO, fontSize: 11.5 }}
+            />
+            <button type="submit" className="mo-cta" disabled={state === "busy"} style={{ ...btnGold, height: 44, padding: "0 22px", opacity: state === "busy" ? 0.7 : 1 }}>
+              {state === "busy" ? "Sending…" : "Request it"} <Arrow />
+            </button>
+          </form>
+          {state === "error" && (
+            <div style={{ fontSize: 11.5, color: "#d98a6a" }}>That didn't go through. Please try again in a moment.</div>
+          )}
+        </>
+      )}
+    </div>
   );
 }

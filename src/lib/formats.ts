@@ -239,6 +239,15 @@ export interface Match {
   reason: string;
 }
 
+/**
+ * True when the match is the scent the customer actually named (a whole-phrase
+ * hit on the reference, or a full name hit), as opposed to a nearest profile.
+ * Anything weaker is shown as "closest" and offered as a request instead.
+ */
+export function isStrongMatch(m: Match): boolean {
+  return m.score >= 0.9;
+}
+
 const STOP = new Set(["the", "de", "by", "eau", "parfum", "edp", "edt", "pour", "homme", "femme", "for", "and", "of", "intense", "absolu", "le", "la"]);
 
 function tokens(s: string): string[] {
