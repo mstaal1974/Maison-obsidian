@@ -131,6 +131,9 @@ with (security_invoker = true) as
 -- ─── Monthly Pour: an admin may hand the surprise draw a taste-led pick ──────
 -- The processor's monthly run passes no pick and gets the uniform random draw;
 -- the console passes one leaning on the customer's taste when they opted in.
+-- The three-argument version goes so a call without p_fragrance_id isn't
+-- ambiguous between two overloads.
+drop function if exists public.bill_subscription_month(uuid, integer, text);
 create or replace function public.bill_subscription_month(
   p_id                uuid,
   p_charge_cents      integer,
