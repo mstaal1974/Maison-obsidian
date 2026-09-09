@@ -673,6 +673,21 @@ function FulfillRow({
           {commit.format ? commit.format.toUpperCase() : `${commit.size_ml} ml`} · {commit.charge_cents != null ? money(commit.charge_cents) : "—"}
           {commit.engraving ? ` · “${commit.engraving}”` : ""} · {commit.status}
         </div>
+        {commit.delivery_method !== "alternate" && (commit.ship_address || commit.delivery_name) && (
+          <div style={{ marginTop: 8, border: "1px solid #1f1f27", padding: "8px 10px", maxWidth: 460 }}>
+            <div style={{ ...label, color: GOLD }}>Ship to</div>
+            <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#f3ecdc", marginTop: 4, lineHeight: 1.6 }}>
+              {commit.delivery_name ?? "—"}
+              {commit.ship_address ? <><br />{commit.ship_address}</> : null}
+              {commit.ship_city || commit.ship_region || commit.ship_postcode ? (
+                <>
+                  <br />
+                  {[commit.ship_city, commit.ship_region, commit.ship_postcode].filter(Boolean).join(" ")}
+                </>
+              ) : null}
+            </div>
+          </div>
+        )}
         {commit.delivery_method === "alternate" && (
           <div style={{ marginTop: 8, border: "1px solid rgba(201,169,97,0.45)", padding: "8px 10px", maxWidth: 460 }}>
             <div style={{ ...label, color: GOLD }}>Alternate delivery — arrange directly</div>

@@ -52,7 +52,7 @@ The Stripe client is created with no `apiVersion`, so your account's default API
      build time and is **not** visible to serverless functions at runtime, so set these unprefixed
      names in Vercel as well (same values).
    Hosted Checkout needs **no publishable key**: the browser never talks to Stripe directly. Environment variables apply to new deployments only, so redeploy after saving. See [.env.example](.env.example) for local development.
-2. **Database.** Apply `supabase/migrations/0015_stripe.sql`, then `0016_delivery_method.sql` (after `0014`).
+2. **Database.** Apply `supabase/migrations/0015_stripe.sql`, then `0016_delivery_method.sql`, then `0017_checkout_address.sql` (after `0014`).
 3. **Webhook.** Dashboard → Developers → Webhooks → Add endpoint `https://<your site>/api/stripe/webhook` with events `checkout.session.completed`, `invoice.upcoming`, `invoice.paid`, `customer.subscription.deleted`. Paste its signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. **Customer portal.** Dashboard → Settings → Billing → Customer portal → enable, so "Update card & invoices" works for subscribers.
 5. **Dependencies.** `stripe` (^22.6.1) is already in `package.json`. Nothing to load in the browser.

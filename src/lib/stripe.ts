@@ -122,7 +122,20 @@ export async function stripeCheckout(lines: StripeLine[], delivery?: CheckoutDel
       lines,
       ...(delivery?.postcode ? { postcode: delivery.postcode } : {}),
       ...(delivery?.code ? { shippingCode: delivery.code } : {}),
-      ...(delivery ? { delivery: { method: delivery.method, name: delivery.name, phone: delivery.phone, notes: delivery.notes } } : {}),
+      ...(delivery
+        ? {
+            delivery: {
+              method: delivery.method,
+              email: delivery.email,
+              name: delivery.name,
+              phone: delivery.phone,
+              notes: delivery.notes,
+              address: delivery.address,
+              city: delivery.city,
+              region: delivery.region,
+            },
+          }
+        : {}),
     }),
   });
 }

@@ -25,6 +25,7 @@ import About from "./components/About";
 import ProductDetail from "./components/ProductDetail";
 import QuickView from "./components/QuickView";
 import BagDrawer from "./components/BagDrawer";
+import Checkout from "./components/Checkout";
 import Footer from "./components/Footer";
 import Subscribe from "./components/Subscribe";
 import SubscribeBand from "./components/SubscribeBand";
@@ -111,7 +112,7 @@ export default function App() {
   // Checkout (a hold per reservation, recorded on return); otherwise the stub
   // authorises locally. Needs an account either way.
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const checkout = useCallback(async (delivery?: CheckoutDelivery) => {
+  const checkout = useCallback(async (delivery: CheckoutDelivery) => {
     setCheckingOut(true);
     setCheckoutError(null);
     try {
@@ -146,6 +147,7 @@ export default function App() {
         done.push({ fragranceId: frag.id, format: l.format, sizeMl: s.def.sizeMl, qty: l.qty, chargeCents: unit, engraving: l.engraving });
       }
       setPlaced(recordOrders(done));
+      setBagOpen(true);
     } finally {
       setCheckingOut(false);
     }
@@ -231,9 +233,9 @@ export default function App() {
   );
 
   // The postage the customer picked, carried across a sign-in if one is needed.
-  const pendingShipping = useRef<CheckoutDelivery | undefined>(undefined);
+  const pendingShipping = useRef<CheckoutDelivery | null>(null);
   const requestCheckout = useCallback(
-    (delivery?: CheckoutDelivery) => {
+    (delivery: CheckoutDelivery) => {
       pendingShipping.current = delivery;
       if (!auth.user) {
         setPendingCheckout(true);
@@ -402,6 +404,18 @@ export default function App() {
         />
       )}
 
+      {route.view === "checkout" && (
+        <Checkout
+          lines={lines}
+          fragrances={fragrances}
+          email={auth.user?.email ?? null}
+          busy={checkingOut}
+          error={checkoutError}
+          cancelled={route.cancelled}
+          onPlaceOrder={requestCheckout}
+        />
+      )}
+
       {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
 
       {route.view === "product" && selected && (
@@ -456,10 +470,11 @@ export default function App() {
           lines={lines}
           fragrances={fragrances}
           placed={placed}
-          busy={checkingOut}
-          error={checkoutError}
           onClose={() => setBagOpen(false)}
-          onCheckout={requestCheckout}
+          onCheckout={() => {
+            setBagOpen(false);
+            navigate(paths.checkout);
+          }}
           onAddCar={(f) => addToBag(f.id, "car", 1)}
         />
       )}
@@ -482,7 +497,7 @@ export default function App() {
               signupConsents.current = null;
               void setConsents({ marketing: c.marketing, ai: c.ai }, "signup", email || null).then(() => reloadConsents());
             }
-            if (pendingCheckout) {
+            if (pendingCheckout && pendingShipping.current) {
               setPendingCheckout(false);
               void checkout(pendingShipping.current);
             }
