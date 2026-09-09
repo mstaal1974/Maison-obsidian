@@ -10,7 +10,7 @@
 // without a backend.
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { Fragrance, FormatKey } from "./data";
+import { type Fragrance, type FormatKey, money } from "./data";
 import { formatPrice, FORMAT_BY_KEY } from "./formats";
 import { supabase } from "./supabase";
 
@@ -19,6 +19,8 @@ export const SUBSCRIPTION_MONTHS = 12;
 export const SUBSCRIPTION_DISCOUNT = 0.1;
 
 export type SubscriptionStatus = "active" | "cancelled" | "completed";
+/** Who picks each month's scent: the customer, or the house at random. */
+export type PickMode = "choose" | "surprise";
 export type DeliveryStatus = "paid" | "shipped" | "delivered";
 
 export interface Delivery {
@@ -36,9 +38,34 @@ export interface Subscription {
   format: FormatKey;
   months: number;
   status: SubscriptionStatus;
+  pickMode: PickMode;
+  /** In surprise mode this is the last drawn scent, not a preview of the next. */
   nextFragranceId: string | null;
   startedAt: string; // ISO
   deliveries: Delivery[];
+}
+
+/**
+ * The house's random draw for a subscription: any scent not already sent on
+ * it, skipping VIP-only scents and formats hidden for that scent. Falls back
+ * to the whole catalogue once every scent has been sent.
+ */
+export function drawSurpriseScent(frags: Fragrance[], format: FormatKey, sent: string[]): Fragrance | null {
+  if (!frags.length) return null;
+  const pool = frags.filter((f) => !f.vipOnly && (f.formatStatus?.[format] ?? "live") !== "hidden" && !sent.includes(f.id));
+  const from = pool.length ? pool : frags;
+  return from[Math.floor(Math.random() * from.length)];
+}
+
+/** "$9" when every scent costs the same, else "$16–$22". */
+export function rangeLabel([lo, hi]: [number, number]): string {
+  return lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`;
+}
+
+/** Member price range across the catalogue for a format, for surprise mode. */
+export function subscriptionRange(frags: Fragrance[], key: FormatKey): [number, number] {
+  const prices = frags.map((f) => subscriptionPrice(f, key));
+  return prices.length ? [Math.min(...prices), Math.max(...prices)] : [0, 0];
 }
 
 /** Member price for one month: 10% under the format's shelf price, rounded to the cent. */
@@ -115,6 +142,7 @@ interface SubRow {
   format: FormatKey;
   months: number;
   status: SubscriptionStatus;
+  pick_mode?: PickMode | null;
   next_fragrance_id: string | null;
   started_at: string;
   subscription_deliveries?: DeliveryRow[];
@@ -135,6 +163,7 @@ function rowToSub(r: SubRow): Subscription {
     format: r.format,
     months: r.months,
     status: r.status,
+    pickMode: r.pick_mode ?? "choose",
     nextFragranceId: r.next_fragrance_id,
     startedAt: r.started_at,
     deliveries: (r.subscription_deliveries ?? [])
@@ -143,7 +172,7 @@ function rowToSub(r: SubRow): Subscription {
   };
 }
 
-const SELECT = "id, user_email, format, months, status, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
+const SELECT = "id, user_email, format, months, status, pick_mode, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -153,9 +182,10 @@ export interface StartResult {
 }
 
 /**
- * Starts a subscription with the first month paid. `chargeCents` is the
- * member price of the first pick; `paymentIntentId` is whatever the processor
- * returned (or the stub). One active subscription per customer.
+ * Starts a subscription with the first month paid. `fragranceId` is the
+ * customer's month-1 pick, or in surprise mode the scent the house drew for
+ * month 1 (drawn client-side so the charge matches a real bottle);
+ * `chargeCents` is its member price. One active subscription per customer.
  */
 export async function startSubscription(
   format: FormatKey,
@@ -163,6 +193,7 @@ export async function startSubscription(
   chargeCents: number,
   paymentIntentId: string | null,
   userEmail: string | null,
+  pickMode: PickMode = "choose",
 ): Promise<StartResult> {
   if (!supabase) {
     const rows = loadDemo();
@@ -175,6 +206,7 @@ export async function startSubscription(
         format,
         months: SUBSCRIPTION_MONTHS,
         status: "active",
+        pickMode,
         nextFragranceId: fragranceId,
         startedAt: now,
         deliveries: [{ id: uid(), month: 1, fragranceId, chargeCents, status: "paid", billedAt: now }],
@@ -190,6 +222,7 @@ export async function startSubscription(
       p_charge_cents: chargeCents,
       p_payment_intent_id: paymentIntentId,
       p_months: SUBSCRIPTION_MONTHS,
+      p_pick_mode: pickMode,
     });
     return error ? { ok: false, error: error.message } : { ok: true };
   } catch (e) {
@@ -210,6 +243,19 @@ export async function setSubscriptionPick(id: string, fragranceId: string): Prom
   }
 }
 
+export async function setSubscriptionMode(id: string, pickMode: PickMode): Promise<boolean> {
+  if (!supabase) {
+    saveDemo(loadDemo().map((s) => (s.id === id ? { ...s, pickMode } : s)));
+    return true;
+  }
+  try {
+    const { error } = await supabase.rpc("set_subscription_mode", { p_id: id, p_pick_mode: pickMode });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 export async function cancelSubscription(id: string): Promise<boolean> {
   if (!supabase) {
     saveDemo(loadDemo().map((s) => (s.id === id ? { ...s, status: "cancelled" } : s)));
@@ -224,19 +270,31 @@ export async function cancelSubscription(id: string): Promise<boolean> {
 }
 
 /**
+ * The scent the next bill will send: the customer's pick, or in surprise
+ * mode a fresh draw. The caller prices the charge from it. (On Supabase the
+ * RPC draws its own; the client draw is only for the charge amount and demo.)
+ */
+export function scentForNextBill(s: Subscription, frags: Fragrance[]): Fragrance | null {
+  if (s.pickMode === "surprise") return drawSurpriseScent(frags, s.format, s.deliveries.map((d) => d.fragranceId));
+  return frags.find((f) => f.id === s.nextFragranceId) ?? null;
+}
+
+/**
  * Records the next month's charge as a delivery. In production the payment
  * processor's monthly charge (Stripe Subscriptions webhook or a scheduled
- * job) calls the same RPC; the admin console calls it by hand.
+ * job) calls the same RPC; the admin console calls it by hand. `fragranceId`
+ * is what ships this month (see scentForNextBill); the RPC re-draws in
+ * surprise mode so the demo and the backend agree on the rule, not the pick.
  */
-export async function billSubscriptionMonth(id: string, chargeCents: number, paymentIntentId: string | null): Promise<boolean> {
+export async function billSubscriptionMonth(id: string, fragranceId: string, chargeCents: number, paymentIntentId: string | null): Promise<boolean> {
   if (!supabase) {
     saveDemo(
       loadDemo().map((s) => {
-        if (s.id !== id || s.status !== "active" || !s.nextFragranceId) return s;
+        if (s.id !== id || s.status !== "active") return s;
         const month = s.deliveries.length + 1;
         if (month > s.months) return s;
-        const deliveries = [...s.deliveries, { id: uid(), month, fragranceId: s.nextFragranceId, chargeCents, status: "paid" as const, billedAt: new Date().toISOString() }];
-        return { ...s, deliveries, status: month === s.months ? "completed" : "active" };
+        const deliveries = [...s.deliveries, { id: uid(), month, fragranceId, chargeCents, status: "paid" as const, billedAt: new Date().toISOString() }];
+        return { ...s, deliveries, nextFragranceId: fragranceId, status: month === s.months ? "completed" : "active" };
       }),
     );
     return true;

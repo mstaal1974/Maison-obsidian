@@ -7,9 +7,12 @@ import {
   monthsBilled,
   nextBillingDate,
   nextMonth,
+  setSubscriptionMode,
   setSubscriptionPick,
   subscriptionLabel,
+  rangeLabel,
   subscriptionPrice,
+  subscriptionRange,
 } from "../lib/subscription";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
@@ -48,6 +51,12 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
     setBusy(false);
     onChanged();
   };
+  const toggleMode = async (s: Subscription) => {
+    setBusy(true);
+    await setSubscriptionMode(s.id, s.pickMode === "surprise" ? "choose" : "surprise");
+    setBusy(false);
+    onChanged();
+  };
   const cancel = async (s: Subscription) => {
     setBusy(true);
     await cancelSubscription(s.id);
@@ -82,7 +91,9 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
       ) : (
         <div style={{ marginTop: 20, display: "grid", gap: 16 }}>
           {subscriptions.map((s) => {
-            const next = fragrances.find((f) => f.id === s.nextFragranceId) ?? null;
+            const surprise = s.pickMode === "surprise";
+            const next = surprise ? null : (fragrances.find((f) => f.id === s.nextFragranceId) ?? null);
+            const range = rangeLabel(subscriptionRange(fragrances, s.format));
             const n = nextMonth(s);
             const billing = nextBillingDate(s);
             const st = STATUS[s.status];
@@ -92,7 +103,7 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                   <div>
                     <div style={{ fontFamily: SERIF, fontSize: 28, color: CREAM, lineHeight: 1 }}>{subscriptionLabel(s)}</div>
                     <div style={{ marginTop: 8, fontFamily: MONO, fontSize: 11, color: "rgba(243,236,220,0.6)" }}>
-                      Month {Math.min(monthsBilled(s), s.months)} of {s.months} · started {fmtDate(s.startedAt)}
+                      Month {Math.min(monthsBilled(s), s.months)} of {s.months} · started {fmtDate(s.startedAt)} · {surprise ? "the house chooses" : "you choose"}
                     </div>
                   </div>
                   <span style={{ ...micro, color: st.color, border: `1px solid ${st.color}`, padding: "5px 10px" }}>{st.label}</span>
@@ -107,11 +118,18 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                     {next ? (
                       <BottleImage imageUrl={next.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={next.accent} liquid={next.liquid} height={104} />
                     ) : (
-                      <div style={{ height: 104, border: "1px dashed #1f1f27" }} />
+                      <div style={{ height: 104, border: `1px dashed ${surprise ? "rgba(201,169,97,0.5)" : "#1f1f27"}`, display: "grid", placeItems: "center", fontFamily: SERIF, fontSize: 30, color: GOLD }}>
+                        {surprise ? "?" : ""}
+                      </div>
                     )}
                     <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
                       <div style={{ ...micro, color: GOLD }}>Month {n} · {billing ? `bills ${fmtDate(billing)}` : ""}</div>
-                      <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>{next ? next.name : "Choose a scent"}</div>
+                      <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>{surprise ? "The house chooses." : next ? next.name : "Choose a scent"}</div>
+                      {surprise && (
+                        <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.6)" }}>
+                          A random scent you haven't received yet, revealed when it ships. <span style={{ fontFamily: MONO, fontSize: 11, color: GOLD }}>{range}</span>
+                        </div>
+                      )}
                       {next && <InspiredBy {...referenceOf(next)} size="sm" />}
                       {next && (
                         <div style={{ fontFamily: MONO, fontSize: 11, color: "rgba(243,236,220,0.6)" }}>
@@ -119,20 +137,27 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                         </div>
                       )}
                     </div>
-                    <label style={{ display: "grid", gap: 6 }}>
-                      <span style={micro}>Change next scent</span>
-                      <select
-                        value={s.nextFragranceId ?? ""}
-                        disabled={busy}
-                        onChange={(e) => void pick(s, e.target.value)}
-                        style={{ background: "#0b0b0d", color: CREAM, border: "1px solid #1f1f27", height: 40, padding: "0 12px", fontFamily: MONO, fontSize: 11.5, minWidth: 220 }}
-                      >
-                        <option value="" disabled>Pick a fragrance</option>
-                        {fragrances.map((f) => (
-                          <option key={f.id} value={f.id}>{f.name} — {money(subscriptionPrice(f, s.format))}</option>
-                        ))}
-                      </select>
-                    </label>
+                    <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
+                      {!surprise && (
+                        <label style={{ display: "grid", gap: 6 }}>
+                          <span style={micro}>Change next scent</span>
+                          <select
+                            value={s.nextFragranceId ?? ""}
+                            disabled={busy}
+                            onChange={(e) => void pick(s, e.target.value)}
+                            style={{ background: "#0b0b0d", color: CREAM, border: "1px solid #1f1f27", height: 40, padding: "0 12px", fontFamily: MONO, fontSize: 11.5, minWidth: 220 }}
+                          >
+                            <option value="" disabled>Pick a fragrance</option>
+                            {fragrances.map((f) => (
+                              <option key={f.id} value={f.id}>{f.name} — {money(subscriptionPrice(f, s.format))}</option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <button style={btnLink} disabled={busy} onClick={() => void toggleMode(s)}>
+                        {surprise ? "I'll choose instead" : "Let the house choose"} <Arrow size={10} />
+                      </button>
+                    </div>
                   </div>
                 )}
 

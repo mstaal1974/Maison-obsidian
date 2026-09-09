@@ -10,8 +10,10 @@ import {
   monthsBilled,
   nextBillingDate,
   nextMonth,
+  scentForNextBill,
   setDeliveryStatus,
   subscriptionPrice,
+  subscriptionRange,
   useSubscriptions,
 } from "../lib/subscription";
 import { btnGhost, chip, label } from "./adminStyles";
@@ -30,18 +32,20 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
   const [busy, setBusy] = useState<string | null>(null);
   const shown = subscriptions.filter((s) => filter === "all" || s.status === filter);
   const active = subscriptions.filter((s) => s.status === "active");
+  // Surprise subscriptions count at the catalogue's lowest member price.
   const monthly = active.reduce((sum, s) => {
+    if (s.pickMode === "surprise") return sum + subscriptionRange(fragrances, s.format)[0];
     const f = fragrances.find((x) => x.id === s.nextFragranceId);
     return sum + (f ? subscriptionPrice(f, s.format) : 0);
   }, 0);
 
   const bill = async (s: Subscription) => {
-    const f = fragrances.find((x) => x.id === s.nextFragranceId);
+    const f = scentForNextBill(s, fragrances);
     if (!f) return;
     setBusy(s.id);
     const charge = subscriptionPrice(f, s.format);
     const { paymentIntentId } = await authorizePayment(f.id, charge);
-    await billSubscriptionMonth(s.id, charge, paymentIntentId);
+    await billSubscriptionMonth(s.id, f.id, charge, paymentIntentId);
     setBusy(null);
     reload();
   };
@@ -85,7 +89,8 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
           <div style={{ border: "1px solid #1f1f27", padding: 22, fontSize: 12, color: "rgba(243,236,220,0.5)" }}>No subscriptions here yet.</div>
         ) : (
           shown.map((s) => {
-            const next = fragrances.find((x) => x.id === s.nextFragranceId);
+            const surprise = s.pickMode === "surprise";
+            const next = surprise ? undefined : fragrances.find((x) => x.id === s.nextFragranceId);
             const n = nextMonth(s);
             const billing = nextBillingDate(s);
             return (
@@ -101,15 +106,19 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
                   </div>
                   <div>
                     <div style={label}>Next pick</div>
-                    <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, color: "#f3ecdc" }}>{next?.name ?? "—"}</div>
-                    {next && <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: GOLD }}>{money(subscriptionPrice(next, s.format))}</div>}
+                    <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, color: "#f3ecdc" }}>{surprise ? "Surprise — house draws" : (next?.name ?? "—")}</div>
+                    {surprise ? (
+                      <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: GOLD }}>random, no repeats</div>
+                    ) : (
+                      next && <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: GOLD }}>{money(subscriptionPrice(next, s.format))}</div>
+                    )}
                   </div>
                   <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: "rgba(243,236,220,0.65)" }}>
                     <div style={label}>Bills</div>
                     {billing ? fmtDate(billing) : "—"}
                   </div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                    {s.status === "active" && n !== null && next && (
+                    {s.status === "active" && n !== null && (surprise || next) && (
                       <button style={{ ...btnGhost, height: 32, padding: "0 12px" }} disabled={busy === s.id} onClick={() => void bill(s)}>
                         Bill month {n}
                       </button>

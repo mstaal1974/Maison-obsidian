@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { formatPrice, FORMAT_BY_KEY, MOODS, moodsOf, profileOf, referenceOf } from "../lib/formats";
-import { SUBSCRIPTION_FORMATS, SUBSCRIPTION_MONTHS, subscriptionFrom, subscriptionPrice } from "../lib/subscription";
+import { type PickMode, SUBSCRIPTION_FORMATS, SUBSCRIPTION_MONTHS, rangeLabel, subscriptionFrom, subscriptionPrice, subscriptionRange } from "../lib/subscription";
 import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
 import { FormatGlyph } from "./ProductGlyphs";
@@ -19,12 +19,13 @@ interface SubscribeProps {
   /** Just started: show the confirmation instead of the builder. */
   started: boolean;
   error?: string | null;
-  onStart: (format: FormatKey, frag: Fragrance) => void;
+  /** `frag` is the customer's month-1 pick; null means the house draws it. */
+  onStart: (format: FormatKey, frag: Fragrance | null, mode: PickMode) => void;
 }
 
 const STEPS = [
   { n: "01", title: "Choose your format", body: "A 10, 30 or 50 ml Eau de Parfum, or the car diffuser. The same format arrives every month." },
-  { n: "02", title: "Pick this month's scent", body: "Any fragrance in the house. Change next month's pick from your account whenever you like." },
+  { n: "02", title: "Choose, or be surprised", body: "Pick each month's scent yourself, or let the house draw one at random — never the same scent twice." },
   { n: "03", title: "Twelve months, billed monthly", body: "Each month you pay 10% under that bottle's shelf price. Cancel any time; paid months still ship." },
 ];
 
@@ -40,7 +41,10 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
   const pool = useMemo(() => fragrances.filter((f) => !f.vipOnly || vip), [fragrances, vip]);
   const [slug, setSlug] = useState<string | null>(initialSlug ?? null);
   const [mood, setMood] = useState<string | null>(null);
-  const frag = pool.find((f) => f.slug === slug) ?? null;
+  const [mode, setMode] = useState<PickMode>("choose");
+  const frag = mode === "choose" ? (pool.find((f) => f.slug === slug) ?? null) : null;
+  const range = rangeLabel(subscriptionRange(pool, format));
+  const ready = mode === "surprise" || !!frag;
   const shown = mood ? pool.filter((f) => moodsOf(f).includes(mood as ReturnType<typeof moodsOf>[number])) : pool;
 
   const shelf = frag ? formatPrice(frag, format) : null;
@@ -131,8 +135,34 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
               })}
             </div>
 
-            {/* Step 2: this month's scent */}
-            <div style={{ ...micro, color: GOLD, marginTop: 40 }}>02 · This month's scent</div>
+            {/* Step 2: who picks */}
+            <div style={{ ...micro, color: GOLD, marginTop: 40 }}>02 · Who chooses each month</div>
+            <div className="mo-submode-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 14 }}>
+              {(
+                [
+                  { key: "choose", title: "I'll choose", body: "Pick this month's scent below, and change next month's from your account whenever you like." },
+                  { key: "surprise", title: "Surprise me", body: `The house draws a scent at random each month — never one you've already received. ${range} a month, 10% under shelf.` },
+                ] as { key: PickMode; title: string; body: string }[]
+              ).map((o) => {
+                const active = mode === o.key;
+                return (
+                  <button
+                    key={o.key}
+                    onClick={() => setMode(o.key)}
+                    aria-pressed={active}
+                    style={{ textAlign: "left", cursor: "pointer", background: "#101015", border: `1px solid ${active ? GOLD : "#1f1f27"}`, padding: "16px 18px", color: CREAM, display: "grid", gap: 6 }}
+                  >
+                    <div style={{ fontFamily: SERIF, fontSize: 22, lineHeight: 1.05 }}>{o.title}</div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.6)" }}>{o.body}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Step 3: this month's scent (choose mode) */}
+            {mode === "choose" && (
+              <>
+            <div style={{ ...micro, color: GOLD, marginTop: 40 }}>03 · This month's scent</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
               <Chip active={!mood} onClick={() => setMood(null)}>All</Chip>
               {MOODS.map((m) => (
@@ -162,6 +192,8 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
                 );
               })}
             </div>
+              </>
+            )}
           </div>
 
           {/* Summary */}
@@ -172,7 +204,13 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
               <div style={{ fontFamily: MONO, fontSize: 10.5, color: "rgba(243,236,220,0.55)", marginTop: 6 }}>Every month for {SUBSCRIPTION_MONTHS} months</div>
             </div>
             <div style={{ borderTop: "1px solid #1f1f27", paddingTop: 16 }}>
-              {frag ? (
+              {mode === "surprise" ? (
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={{ ...micro, fontSize: 8.5 }}>Every month</div>
+                  <div style={{ fontFamily: SERIF, fontSize: 21, color: CREAM, lineHeight: 1.05 }}>The house chooses.</div>
+                  <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.6)" }}>A random scent from the collection, never repeated. Revealed when it ships.</div>
+                </div>
+              ) : frag ? (
                 <div style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 14, alignItems: "center" }}>
                   <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={88} />
                   <div style={{ display: "grid", gap: 6 }}>
@@ -182,32 +220,50 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
                   </div>
                 </div>
               ) : (
-                <div style={{ fontSize: 13, color: "rgba(243,236,220,0.55)", lineHeight: 1.6 }}>Pick this month's scent from the house to see your price.</div>
+                <div style={{ fontSize: 13, color: "rgba(243,236,220,0.55)", lineHeight: 1.6 }}>Pick this month's scent below to see your price, or let the house choose.</div>
               )}
             </div>
             <div style={{ borderTop: "1px solid #1f1f27", paddingTop: 16, display: "grid", gap: 8, fontFamily: MONO, fontSize: 11.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "rgba(243,236,220,0.55)" }}>
-                <span>Shelf price</span>
-                <span style={{ textDecoration: "line-through" }}>{shelf !== null ? money(shelf) : "—"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "rgba(243,236,220,0.55)" }}>
-                <span>Member discount</span>
-                <span style={{ color: GOLD }}>−10%</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: CREAM, fontSize: 15, marginTop: 4 }}>
-                <span>This month</span>
-                <span>{member !== null ? money(member) : "—"}</span>
-              </div>
-              <div style={{ fontSize: 10.5, lineHeight: 1.6, color: "rgba(243,236,220,0.45)", fontFamily: "inherit" }}>
-                Then monthly at 10% under the shelf price of each month's pick. Your card is charged today for month 1.
-              </div>
+              {mode === "surprise" ? (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "rgba(243,236,220,0.55)" }}>
+                    <span>Member discount</span>
+                    <span style={{ color: GOLD }}>−10%</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: CREAM, fontSize: 15, marginTop: 4 }}>
+                    <span>Each month</span>
+                    <span>{range}</span>
+                  </div>
+                  <div style={{ fontSize: 10.5, lineHeight: 1.6, color: "rgba(243,236,220,0.45)", fontFamily: "inherit" }}>
+                    10% under the shelf price of whichever bottle the house draws. Month 1 is drawn and charged today.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "rgba(243,236,220,0.55)" }}>
+                    <span>Shelf price</span>
+                    <span style={{ textDecoration: "line-through" }}>{shelf !== null ? money(shelf) : "—"}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: "rgba(243,236,220,0.55)" }}>
+                    <span>Member discount</span>
+                    <span style={{ color: GOLD }}>−10%</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", color: CREAM, fontSize: 15, marginTop: 4 }}>
+                    <span>This month</span>
+                    <span>{member !== null ? money(member) : "—"}</span>
+                  </div>
+                  <div style={{ fontSize: 10.5, lineHeight: 1.6, color: "rgba(243,236,220,0.45)", fontFamily: "inherit" }}>
+                    Then monthly at 10% under the shelf price of each month's pick. Your card is charged today for month 1.
+                  </div>
+                </>
+              )}
             </div>
             {error && <div style={{ fontSize: 11.5, color: "#d98a6a", lineHeight: 1.5 }}>{error}</div>}
             <button
               className="mo-cta"
-              disabled={!frag || busy || hasActive}
-              onClick={() => frag && onStart(format, frag)}
-              style={{ ...btnGold, width: "100%", justifyContent: "center", height: 50, opacity: !frag || busy || hasActive ? 0.55 : 1, cursor: !frag || busy || hasActive ? "default" : "pointer" }}
+              disabled={!ready || busy || hasActive}
+              onClick={() => ready && onStart(format, frag, mode)}
+              style={{ ...btnGold, width: "100%", justifyContent: "center", height: 50, opacity: !ready || busy || hasActive ? 0.55 : 1, cursor: !ready || busy || hasActive ? "default" : "pointer" }}
             >
               {busy ? "Starting…" : "Start my subscription"} <Arrow />
             </button>

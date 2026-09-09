@@ -28,7 +28,7 @@ import Footer from "./components/Footer";
 import Subscribe from "./components/Subscribe";
 import SubscribeBand from "./components/SubscribeBand";
 import SubscriptionPanel from "./components/SubscriptionPanel";
-import { startSubscription, subscriptionPrice, useSubscriptions } from "./lib/subscription";
+import { type PickMode, drawSurpriseScent, startSubscription, subscriptionPrice, useSubscriptions } from "./lib/subscription";
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
@@ -40,7 +40,7 @@ export default function App() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [placed, setPlaced] = useState<Order[] | null>(null);
   // The Monthly Pour: builder state and the sign-in hand-off, like checkout.
-  const [pendingSub, setPendingSub] = useState<{ format: FormatKey; frag: Fragrance } | null>(null);
+  const [pendingSub, setPendingSub] = useState<{ format: FormatKey; frag: Fragrance | null; mode: PickMode } | null>(null);
   const [subBusy, setSubBusy] = useState(false);
   const [subStarted, setSubStarted] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
@@ -131,13 +131,19 @@ export default function App() {
   const hasActiveSub = subscriptions.some((s) => s.status === "active");
 
   const startSub = useCallback(
-    async (format: FormatKey, frag: Fragrance, email?: string) => {
+    async (format: FormatKey, pick: Fragrance | null, mode: PickMode, email?: string) => {
       setSubBusy(true);
       setSubError(null);
       try {
+        // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
+        const frag = pick ?? drawSurpriseScent(fragrances, format, []);
+        if (!frag) {
+          setSubError("Choose a scent to start.");
+          return;
+        }
         const charge = subscriptionPrice(frag, format);
         const { paymentIntentId } = await authorizePayment(frag.id, charge);
-        const res = await startSubscription(format, frag.id, charge, paymentIntentId, email || auth.user?.email || null);
+        const res = await startSubscription(format, frag.id, charge, paymentIntentId, email || auth.user?.email || null, mode);
         if (!res.ok) {
           setSubError(res.error ?? "Could not start the subscription.");
           return;
@@ -148,17 +154,17 @@ export default function App() {
         setSubBusy(false);
       }
     },
-    [auth.user, reloadSubs],
+    [auth.user, fragrances, reloadSubs],
   );
 
   const requestSubscribe = useCallback(
-    (format: FormatKey, frag: Fragrance) => {
+    (format: FormatKey, frag: Fragrance | null, mode: PickMode) => {
       if (!auth.user) {
-        setPendingSub({ format, frag });
+        setPendingSub({ format, frag, mode });
         setAuthOpen(true);
         return;
       }
-      void startSub(format, frag);
+      void startSub(format, frag, mode);
     },
     [auth.user, startSub],
   );
@@ -368,9 +374,9 @@ export default function App() {
             }
             if (pendingSub) {
               // Runs before the auth state re-renders, so carry the email along.
-              const { format, frag } = pendingSub;
+              const { format, frag, mode } = pendingSub;
               setPendingSub(null);
-              void startSub(format, frag, email);
+              void startSub(format, frag, mode, email);
             }
           }}
           signInEmail={auth.signInEmail}

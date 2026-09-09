@@ -212,7 +212,10 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   and `bill_subscription_month` (admin / payment processor; records the next month's
   charge and delivery, marking the subscription complete on month 12). Customers see
   and manage their subscription under **Account**; admins triage every subscription
-  under the console's **Monthly Pour** tab. Apply it after `0011`.
+  under the console's **Monthly Pour** tab. Apply it after `0011`. Migration
+  `0013_subscription_surprise.sql` adds the pick mode: **choose** (the customer picks each
+  month) or **surprise** (the house draws at random via `draw_subscription_scent`, never
+  repeating a scent already sent on that subscription), plus `set_subscription_mode`.
 
   The monthly charge itself is the payment processor's job. Wire Stripe Subscriptions
   (or a scheduled job) so that each successful monthly payment calls
