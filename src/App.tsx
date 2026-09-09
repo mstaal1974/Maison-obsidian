@@ -127,10 +127,13 @@ export default function App() {
           setCheckoutSecret(r.data.client_secret);
           return;
         }
-        if (r?.ok === false) {
+        if (r?.ok === false && !r.unconfigured) {
           setCheckoutError(r.error);
           return;
         }
+        // Stripe not configured on Vercel: fall back to the local hold, and
+        // tell an admin why so it isn't a silent mystery.
+        if (r?.ok === false && r.unconfigured && isAdmin) setCheckoutError(`Stripe isn't configured on Vercel (${r.error}). Set STRIPE_SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY and VITE_STRIPE_PUBLISHABLE_KEY, then redeploy. Recording a demo hold instead.`);
       }
       const done: Omit<Order, "id" | "createdAt">[] = [];
       for (const l of lines) {
@@ -146,7 +149,7 @@ export default function App() {
     } finally {
       setCheckingOut(false);
     }
-  }, [lines, fragrances, auth.configured]);
+  }, [lines, fragrances, auth.configured, isAdmin]);
 
   // ── Monthly Pour ───────────────────────────────────────────────────────────
   const { subscriptions, loading: subsLoading, reload: reloadSubs } = useSubscriptions(!!auth.user);
@@ -184,10 +187,11 @@ export default function App() {
             setSubSecret(r.data.client_secret);
             return;
           }
-          if (r?.ok === false) {
+          if (r?.ok === false && !r.unconfigured) {
             setSubError(r.error);
             return;
           }
+          if (r?.ok === false && r.unconfigured && isAdmin) setSubError(`Stripe isn't configured on Vercel (${r.error}); this subscription is recorded without billing.`);
         }
         // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
         const frag = pick ?? drawSurpriseScent(fragrances, format, [], surpriseAffinity);
@@ -208,7 +212,7 @@ export default function App() {
         setSubBusy(false);
       }
     },
-    [auth.user, auth.configured, fragrances, reloadSubs, surpriseAffinity],
+    [auth.user, auth.configured, fragrances, reloadSubs, surpriseAffinity, isAdmin],
   );
 
   const requestSubscribe = useCallback(
