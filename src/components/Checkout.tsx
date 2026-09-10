@@ -12,6 +12,9 @@ interface CheckoutProps {
   fragrances: Fragrance[];
   /** Signed-in email, used to prefill the contact field. */
   email?: string | null;
+  /** An account is optional — signing in only prefills and keeps history. */
+  signedIn: boolean;
+  onSignIn: () => void;
   busy: boolean;
   /** Checkout could not start (Stripe declined the bag, network). */
   error?: string | null;
@@ -40,14 +43,15 @@ const blockLabel: CSSProperties = { ...micro, display: "block", marginBottom: 10
  * touches this site. Postage is quoted live from Australia Post as soon as a
  * postcode is typed, and re-quoted server-side before the charge.
  */
-export default function Checkout({ lines, fragrances, email, busy, error, cancelled, onPlaceOrder }: CheckoutProps) {
+export default function Checkout({ lines, fragrances, email, signedIn, onSignIn, busy, error, cancelled, onPlaceOrder }: CheckoutProps) {
   const byId = useMemo(() => new Map(fragrances.map((f) => [f.id, f])), [fragrances]);
   const rows = lines.map((l) => ({ line: l, frag: byId.get(l.fragranceId) })).filter((r): r is { line: BagLine; frag: Fragrance } => !!r.frag);
   const unit = (r: { line: BagLine; frag: Fragrance }) => r.line.unitPrice ?? skuOf(r.frag, r.line.format).price;
   const subtotal = rows.reduce((s, r) => s + unit(r) * r.line.qty, 0);
 
   const [method, setMethod] = useState<"auspost" | "alternate">("auspost");
-  const [contact, setContact] = useState(email ?? "");
+  const [typedEmail, setTypedEmail] = useState<string | null>(null);
+  const contact = typedEmail ?? email ?? "";
   const [fullName, setFullName] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
@@ -180,7 +184,20 @@ export default function Checkout({ lines, fragrances, email, busy, error, cancel
         <div style={{ display: "grid", gap: 26 }}>
           <div>
             <span style={blockLabel}>Contact</span>
-            <input type="email" value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} />
+            <input type="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} />
+            <p style={{ margin: "8px 0 0", fontSize: 11.5, lineHeight: 1.6, color: "rgba(243,236,220,0.5)" }}>
+              {signedIn ? (
+                "Your receipt and any delivery questions go here."
+              ) : (
+                <>
+                  No account needed — checking out as a guest is fine.{" "}
+                  <button onClick={onSignIn} style={{ ...btnLink, fontSize: 11.5, letterSpacing: 0, textTransform: "none", fontFamily: "inherit", padding: 0 }}>
+                    Sign in
+                  </button>{" "}
+                  if you have one, for order history and faster checkout.
+                </>
+              )}
+            </p>
           </div>
 
           <div>

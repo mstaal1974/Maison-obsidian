@@ -18,8 +18,9 @@ export default route("checkout", async function handler(req: any, res: any) {
   const stripe = getStripe();
   const db = serviceClient();
   if (!stripe || !db) return notConfigured(res, "Stripe checkout", ["stripe", "service"]);
+  // An account is optional: a guest checks out with just an email address,
+  // which is where the receipt and any delivery questions go.
   const user = await userFromRequest(req);
-  if (!user) return json(res, 401, { error: "Sign in to reserve" });
 
   const body = readBody(req);
   const lines = (Array.isArray(body.lines) ? body.lines : []) as CheckoutLine[];
@@ -51,6 +52,10 @@ export default route("checkout", async function handler(req: any, res: any) {
   const deliveryPhone = clean(delivery.phone, 40);
   const deliveryNotes = clean(delivery.notes, 450);
   const contactEmail = clean(delivery.email, 200);
+  const email = contactEmail || user?.email || "";
+  if (!user && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return json(res, 400, { error: "Enter an email address so we can send your receipt." });
+  }
   if (alternate && (!deliveryName || !deliveryPhone || !deliveryNotes)) {
     return json(res, 400, { error: "Tell us your name, a mobile number, and how we should get this to you." });
   }
@@ -74,7 +79,9 @@ export default route("checkout", async function handler(req: any, res: any) {
     shipping = { name: chosen.name, chargeCents: chosen.chargeCents, etaDays: chosen.etaDays };
   }
 
-  const customer = await customerFor(stripe, db, user);
+  // A signed-in customer keeps their Stripe customer record; a guest is billed
+  // against the email they gave.
+  const customer = user ? await customerFor(stripe, db, user) : undefined;
   const site = siteUrl(req);
   const compact = priced.map((l) => ({ f: l.fragranceId, k: l.format, q: l.qty, e: l.engraving, s: l.sizeMl, u: l.unitCents }));
 
@@ -107,6 +114,7 @@ export default route("checkout", async function handler(req: any, res: any) {
         }
       : {}),
     customer,
+    ...(customer ? {} : { customer_email: email }),
     line_items: priced.map((l) => ({
       quantity: l.qty,
       price_data: {
@@ -119,14 +127,14 @@ export default route("checkout", async function handler(req: any, res: any) {
       },
     })),
     payment_intent_data: {
-      metadata: { user_id: user.id, kind: "order" },
+      metadata: { user_id: user?.id ?? "", kind: "order" },
       ...(haveAddress
         ? { shipping: { name: deliveryName, address: { line1: shipAddress, city: shipCity, state: shipRegion || undefined, postal_code: postcode, country: "AU" } } }
         : {}),
     },
     metadata: {
-      user_id: user.id,
-      user_email: user.email ?? "",
+      user_id: user?.id ?? "",
+      user_email: email,
       kind: "order",
       lines: JSON.stringify(compact).slice(0, 490),
       delivery_method: alternate ? "alternate" : "auspost",
@@ -135,7 +143,7 @@ export default route("checkout", async function handler(req: any, res: any) {
       ...(alternate ? { delivery_phone: deliveryPhone, delivery_notes: deliveryNotes } : {}),
       ...(haveAddress ? { ship_address: shipAddress, ship_city: shipCity, ship_region: shipRegion, ship_postcode: postcode } : {}),
     },
-    success_url: `${site}/#/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${site}/#/thanks?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${site}/#/checkout?cancelled=1`,
   });
   return json(res, 200, { url: session.url, sessionId: session.id });

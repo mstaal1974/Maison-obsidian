@@ -11,6 +11,7 @@ export type Route =
   | { view: "find"; query: string }
   | { view: "subscribe"; slug: string | null; format: string | null }
   | { view: "checkout"; cancelled: boolean }
+  | { view: "thanks"; sessionId: string | null }
   | { view: "product"; slug: string }
   | { view: "about" }
   | { view: "account"; checkout: "success" | null; subscribed: boolean; sessionId: string | null }
@@ -45,6 +46,10 @@ export function parseHash(hash: string): Route {
     case "checkout": {
       const qs = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)) : null;
       return { view: "checkout", cancelled: qs?.get("cancelled") === "1" };
+    }
+    case "thanks": {
+      const qs = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)) : null;
+      return { view: "thanks", sessionId: qs?.get("session_id") ?? null };
     }
     case "fragrance":
       return tail ? { view: "product", slug: decodeURIComponent(tail) } : { view: "fragrances" };
@@ -83,6 +88,7 @@ export const paths = {
     return qs ? `#/subscribe?${qs}` : "#/subscribe";
   },
   checkout: "#/checkout",
+  thanks: "#/thanks",
   about: "#/about",
   account: "#/account",
   admin: "#/admin",

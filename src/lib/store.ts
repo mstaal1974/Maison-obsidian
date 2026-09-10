@@ -118,13 +118,21 @@ export interface CommitRow {
  * Fetches the signed-in user's commits (RLS restricts rows to their own).
  * Returns null when Supabase isn't configured so callers use local state.
  */
-export async function fetchMyCommits(userId: string): Promise<CommitRow[] | null> {
+/**
+ * A customer's orders: the ones placed under their account, plus any they
+ * placed as a guest with this email before making one (those rows carry no
+ * user_id, and the same match is enforced by the row-level policy).
+ */
+export async function fetchMyCommits(userId: string, email?: string | null): Promise<CommitRow[] | null> {
   if (!supabase) return null;
   try {
+    // Quote the email so PostgREST reads it as one value, dots and all.
+    const quoted = email ? `"${email.replace(/"/g, '\\"')}"` : "";
+    const mine = email ? `user_id.eq.${userId},and(user_id.is.null,user_email.ilike.${quoted})` : `user_id.eq.${userId}`;
     const { data, error } = await supabase
       .from("commits")
       .select("fragrance_id, engraving, format, size_ml, charge_cents, status, created_at")
-      .eq("user_id", userId)
+      .or(mine)
       .order("created_at", { ascending: false });
     if (error) return null;
     return (data ?? []) as CommitRow[];
