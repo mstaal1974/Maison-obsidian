@@ -25,6 +25,8 @@ import About from "./components/About";
 import ProductDetail from "./components/ProductDetail";
 import QuickView from "./components/QuickView";
 import BagDrawer from "./components/BagDrawer";
+import Checkout from "./components/Checkout";
+import Thanks, { type ThanksState } from "./components/Thanks";
 import Footer from "./components/Footer";
 import Subscribe from "./components/Subscribe";
 import SubscribeBand from "./components/SubscribeBand";
@@ -38,7 +40,8 @@ export default function App() {
   const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
   const [vip, setVip] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [pendingCheckout, setPendingCheckout] = useState(false);
+  // Signing in was offered at checkout (never required), so the dialog says so.
+  const [authFromCheckout, setAuthFromCheckout] = useState(false);
   const [quick, setQuick] = useState<{ frag: Fragrance; format?: FormatKey } | null>(null);
   const [bagOpen, setBagOpen] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -107,11 +110,11 @@ export default function App() {
     if (!toggleDiscovery(f.id, DISCOVERY_BOX_SIZE)) navigate(paths.discovery);
   }, []);
 
-  // Reserve every line. With Stripe configured the bag goes to hosted
-  // Checkout (a hold per reservation, recorded on return); otherwise the stub
-  // authorises locally. Needs an account either way.
+  // Place the order. With Stripe configured the bag goes to hosted Checkout
+  // and comes back to the thank-you page; otherwise the stub records it
+  // locally. An account is optional — a guest checks out with an email.
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const checkout = useCallback(async (delivery?: CheckoutDelivery) => {
+  const checkout = useCallback(async (delivery: CheckoutDelivery) => {
     setCheckingOut(true);
     setCheckoutError(null);
     try {
@@ -146,6 +149,7 @@ export default function App() {
         done.push({ fragranceId: frag.id, format: l.format, sizeMl: s.def.sizeMl, qty: l.qty, chargeCents: unit, engraving: l.engraving });
       }
       setPlaced(recordOrders(done));
+      setBagOpen(true);
     } finally {
       setCheckingOut(false);
     }
@@ -230,20 +234,9 @@ export default function App() {
     [auth.user, startSub],
   );
 
-  // The postage the customer picked, carried across a sign-in if one is needed.
-  const pendingShipping = useRef<CheckoutDelivery | undefined>(undefined);
-  const requestCheckout = useCallback(
-    (delivery?: CheckoutDelivery) => {
-      pendingShipping.current = delivery;
-      if (!auth.user) {
-        setPendingCheckout(true);
-        setAuthOpen(true);
-        return;
-      }
-      void checkout(delivery);
-    },
-    [auth.user, checkout],
-  );
+  // An account is optional at checkout, so nothing is gated here: the order
+  // is placed for whoever is (or isn't) signed in.
+  const requestCheckout = useCallback((delivery: CheckoutDelivery) => void checkout(delivery), [checkout]);
 
   // ── Account: reservations ──────────────────────────────────────────────────
   const [remoteCommits, setRemoteCommits] = useState<CommitRow[] | null>(null);
@@ -256,40 +249,49 @@ export default function App() {
   useEffect(() => {
     if (!onAccount || !usingRemote || !auth.user?.id) return;
     let active = true;
-    void fetchMyCommits(auth.user.id).then((rows) => active && setRemoteCommits(rows));
+    void fetchMyCommits(auth.user.id, auth.user.email ?? null).then((rows) => active && setRemoteCommits(rows));
     void fetchMyShipments(auth.user.id).then((rows) => active && setRemoteShipments(rows));
     return () => {
       active = false;
     };
-  }, [onAccount, usingRemote, auth.user?.id, orders, commitsVersion]);
+  }, [onAccount, usingRemote, auth.user?.id, auth.user?.email, orders, commitsVersion]);
 
   // Back from Stripe Checkout: confirm the session (records it if the webhook
   // hasn't yet), clear the bag, and say what happened.
   const [stripeNotice, setStripeNotice] = useState<{ kind: "order" | "subscription"; detail: string } | null>(null);
-  const sessionId = route.view === "account" ? route.sessionId : null;
-  const sessionUserId = auth.user?.id ?? null;
+  const [thanks, setThanks] = useState<ThanksState>({ status: "checking" });
+  const onThanks = route.view === "thanks";
+  const sessionId = route.view === "account" ? route.sessionId : route.view === "thanks" ? route.sessionId : null;
   useEffect(() => {
-    if (!sessionId || !sessionUserId) return;
+    if (!sessionId) return;
     let active = true;
     void confirmStripeSession(sessionId).then((r) => {
       if (!active) return;
       if (r?.ok && r.data.kind === "order") {
         clearBag();
-        setStripeNotice({ kind: "order", detail: `${(r.data.lines ?? []).reduce((n, l) => n + l.q, 0)} item(s) · ${money(r.data.amountTotal ?? 0)} paid` });
+        const itemCount = (r.data.lines ?? []).reduce((n, l) => n + l.q, 0);
+        setStripeNotice({ kind: "order", detail: `${itemCount} item(s) · ${money(r.data.amountTotal ?? 0)} paid` });
+        setThanks({ status: "paid", itemCount, amountTotal: r.data.amountTotal });
         setCommitsVersion((v) => v + 1);
       } else if (r?.ok && r.data.kind === "subscription") {
         setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });
+        setThanks({ status: "paid" });
         reloadSubs();
       } else if (r?.ok === false) {
         setStripeNotice({ kind: "order", detail: r.error });
+        setThanks({ status: "error", message: r.error });
+      } else {
+        // No backend to ask (the offline demo): the payment stands on its own.
+        clearBag();
+        setThanks({ status: "paid" });
       }
       // Drop the session id from the URL so a refresh doesn't re-confirm.
-      window.history.replaceState(null, "", "#/account");
+      window.history.replaceState(null, "", onThanks ? "#/thanks" : "#/account");
     });
     return () => {
       active = false;
     };
-  }, [sessionId, sessionUserId, reloadSubs]);
+  }, [sessionId, onThanks, reloadSubs]);
 
   const shipmentFor = useCallback(
     (fragranceId: string): Partial<AccountOrder> => {
@@ -402,6 +404,35 @@ export default function App() {
         />
       )}
 
+      {route.view === "thanks" && (
+        <Thanks
+          state={thanks}
+          sessionId={route.sessionId}
+          signedIn={!!auth.user}
+          onJoin={() => {
+            setAuthFromCheckout(true);
+            setAuthOpen(true);
+          }}
+        />
+      )}
+
+      {route.view === "checkout" && (
+        <Checkout
+          lines={lines}
+          fragrances={fragrances}
+          email={auth.user?.email ?? null}
+          signedIn={!!auth.user}
+          onSignIn={() => {
+            setAuthFromCheckout(true);
+            setAuthOpen(true);
+          }}
+          busy={checkingOut}
+          error={checkoutError}
+          cancelled={route.cancelled}
+          onPlaceOrder={requestCheckout}
+        />
+      )}
+
       {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
 
       {route.view === "product" && selected && (
@@ -456,10 +487,11 @@ export default function App() {
           lines={lines}
           fragrances={fragrances}
           placed={placed}
-          busy={checkingOut}
-          error={checkoutError}
           onClose={() => setBagOpen(false)}
-          onCheckout={requestCheckout}
+          onCheckout={() => {
+            setBagOpen(false);
+            navigate(paths.checkout);
+          }}
           onAddCar={(f) => addToBag(f.id, "car", 1)}
         />
       )}
@@ -467,10 +499,10 @@ export default function App() {
       {authOpen && (
         <AuthModal
           configured={auth.configured}
-          reason={pendingCheckout ? "checkout" : pendingSub ? "subscribe" : null}
+          reason={authFromCheckout ? "checkout" : pendingSub ? "subscribe" : null}
           onClose={() => {
             setAuthOpen(false);
-            setPendingCheckout(false);
+            setAuthFromCheckout(false);
             setPendingSub(null);
           }}
           onConsents={(c) => {
@@ -481,10 +513,6 @@ export default function App() {
               const c = signupConsents.current;
               signupConsents.current = null;
               void setConsents({ marketing: c.marketing, ai: c.ai }, "signup", email || null).then(() => reloadConsents());
-            }
-            if (pendingCheckout) {
-              setPendingCheckout(false);
-              void checkout(pendingShipping.current);
             }
             if (pendingSub) {
               // Runs before the auth state re-renders, so carry the email along.

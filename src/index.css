@@ -219,6 +219,16 @@ body {
   }
 }
 
+@media (max-width: 900px) {
+  /* Checkout: summary drops beneath the form. */
+  .mo-checkout-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .mo-checkout-grid > aside {
+    position: static !important;
+  }
+}
+
 @media (max-width: 720px) {
   .mo-vault-grid,
   .mo-method-grid,
@@ -254,6 +264,9 @@ body {
   }
   .mo-auth-title {
     font-size: 28px !important;
+  }
+  .mo-checkout-triple {
+    grid-template-columns: 1fr 1fr !important;
   }
 }
 

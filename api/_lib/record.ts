@@ -27,6 +27,7 @@ export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: S
     fragrance_id: l.f,
     user_id: session.metadata?.user_id || null,
     user_email: session.metadata?.user_email || session.customer_details?.email || null,
+    contact_email: session.metadata?.contact_email || session.customer_details?.email || null,
     engraving: l.e,
     size_ml: l.s,
     charge_cents: l.u,
@@ -41,6 +42,11 @@ export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: S
     delivery_name: session.metadata?.delivery_name ?? null,
     delivery_phone: session.metadata?.delivery_phone ?? null,
     delivery_notes: session.metadata?.delivery_notes ?? null,
+    // The address typed at checkout, or the one Stripe collected on its page.
+    ship_address: session.metadata?.ship_address ?? session.customer_details?.address?.line1 ?? null,
+    ship_city: session.metadata?.ship_city ?? session.customer_details?.address?.city ?? null,
+    ship_region: session.metadata?.ship_region ?? session.customer_details?.address?.state ?? null,
+    ship_postcode: session.metadata?.ship_postcode ?? session.customer_details?.address?.postal_code ?? null,
   }));
   const { error } = await db.from("commits").insert(rows);
   if (error) throw new Error(error.message);

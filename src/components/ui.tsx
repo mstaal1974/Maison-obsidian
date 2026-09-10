@@ -73,7 +73,7 @@ export function SideCaption({ lines, style }: { lines: string[]; style?: CSSProp
   );
 }
 
-export type IconName = "flame" | "moon" | "star" | "hourglass" | "tree" | "sun" | "drop" | "leaf" | "bag" | "search" | "heart" | "truck" | "refresh" | "play";
+export type IconName = "flame" | "moon" | "star" | "hourglass" | "tree" | "sun" | "drop" | "leaf" | "bag" | "search" | "heart" | "truck" | "refresh" | "play" | "lock";
 
 export function Icon({ name, size = 18, color = GOLD }: { name: IconName; size?: number; color?: string }) {
   const p = { fill: "none", stroke: color, strokeWidth: 1.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -104,6 +104,8 @@ export function Icon({ name, size = 18, color = GOLD }: { name: IconName; size?:
       return <svg width={size} height={size} viewBox="0 0 24 24" {...p}><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="1.5" /><circle cx="17" cy="18" r="1.5" /></svg>;
     case "refresh":
       return <svg width={size} height={size} viewBox="0 0 24 24" {...p}><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" /></svg>;
+    case "lock":
+      return <svg width={size} height={size} viewBox="0 0 24 24" {...p}><rect x="4.5" y="10" width="15" height="10.5" rx="1.6" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>;
     case "play":
       return <svg width={size} height={size} viewBox="0 0 24 24" {...p}><path d="m9 6 9 6-9 6z" /></svg>;
   }

@@ -18,8 +18,9 @@ export default route("checkout", async function handler(req: any, res: any) {
   const stripe = getStripe();
   const db = serviceClient();
   if (!stripe || !db) return notConfigured(res, "Stripe checkout", ["stripe", "service"]);
+  // An account is optional: a guest checks out with just an email address,
+  // which is where the receipt and any delivery questions go.
   const user = await userFromRequest(req);
-  if (!user) return json(res, 401, { error: "Sign in to reserve" });
 
   const body = readBody(req);
   const lines = (Array.isArray(body.lines) ? body.lines : []) as CheckoutLine[];
@@ -35,11 +36,26 @@ export default route("checkout", async function handler(req: any, res: any) {
   // How it gets there: posted by Australia Post at a live rate, or arranged
   // directly with the customer, in which case no postage is charged and they
   // tell us how to deliver it.
-  const delivery = (body.delivery ?? {}) as { method?: string; name?: string; phone?: string; notes?: string };
+  const delivery = (body.delivery ?? {}) as {
+    method?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+    notes?: string;
+    address?: string;
+    city?: string;
+    region?: string;
+  };
   const alternate = delivery.method === "alternate";
-  const deliveryName = String(delivery.name ?? "").trim().slice(0, 120);
-  const deliveryPhone = String(delivery.phone ?? "").trim().slice(0, 40);
-  const deliveryNotes = String(delivery.notes ?? "").trim().slice(0, 450);
+  const clean = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+  const deliveryName = clean(delivery.name, 120);
+  const deliveryPhone = clean(delivery.phone, 40);
+  const deliveryNotes = clean(delivery.notes, 450);
+  const contactEmail = clean(delivery.email, 200);
+  const email = contactEmail || user?.email || "";
+  if (!user && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return json(res, 400, { error: "Enter an email address so we can send your receipt." });
+  }
   if (alternate && (!deliveryName || !deliveryPhone || !deliveryNotes)) {
     return json(res, 400, { error: "Tell us your name, a mobile number, and how we should get this to you." });
   }
@@ -48,6 +64,12 @@ export default route("checkout", async function handler(req: any, res: any) {
   // rate charged is the one Australia Post actually returns for this parcel.
   const postcode = String(body.postcode ?? "").trim();
   const serviceCode = String(body.shippingCode ?? "").trim();
+  // The postal address the customer typed at checkout. When it is complete we
+  // put it on the payment rather than asking Stripe to collect it again.
+  const shipAddress = alternate ? "" : clean(delivery.address, 200);
+  const shipCity = alternate ? "" : clean(delivery.city, 100);
+  const shipRegion = alternate ? "" : clean(delivery.region, 100);
+  const haveAddress = !alternate && !!deliveryName && !!shipAddress && !!shipCity && /^\d{4}$/.test(postcode);
   let shipping: { name: string; chargeCents: number; etaDays?: { min: number; max: number } } | null = null;
   if (!alternate && auspostConfigured() && /^\d{4}$/.test(postcode) && serviceCode) {
     const subtotalCents = priced.reduce((n, l) => n + l.unitCents * l.qty, 0);
@@ -57,7 +79,9 @@ export default route("checkout", async function handler(req: any, res: any) {
     shipping = { name: chosen.name, chargeCents: chosen.chargeCents, etaDays: chosen.etaDays };
   }
 
-  const customer = await customerFor(stripe, db, user);
+  // A signed-in customer keeps their Stripe customer record; a guest is billed
+  // against the email they gave.
+  const customer = user ? await customerFor(stripe, db, user) : undefined;
   const site = siteUrl(req);
   const compact = priced.map((l) => ({ f: l.fragranceId, k: l.format, q: l.qty, e: l.engraving, s: l.sizeMl, u: l.unitCents }));
 
@@ -72,8 +96,9 @@ export default route("checkout", async function handler(req: any, res: any) {
     integration_identifier: "hosted_web_0001",
     origin_context: "web",
     mode: "payment",
-    // Arranged delivery needs no postal address; Stripe collects one otherwise.
-    ...(alternate ? {} : { shipping_address_collection: { allowed_countries: ["AU"] as const } }),
+    // Arranged delivery needs no postal address, and one given at checkout is
+    // carried through rather than asked for twice.
+    ...(alternate || haveAddress ? {} : { shipping_address_collection: { allowed_countries: ["AU"] as const } }),
     ...(shipping
       ? {
           shipping_options: [
@@ -89,6 +114,7 @@ export default route("checkout", async function handler(req: any, res: any) {
         }
       : {}),
     customer,
+    ...(customer ? {} : { customer_email: email }),
     line_items: priced.map((l) => ({
       quantity: l.qty,
       price_data: {
@@ -100,17 +126,25 @@ export default route("checkout", async function handler(req: any, res: any) {
         },
       },
     })),
-    payment_intent_data: { metadata: { user_id: user.id, kind: "order" } },
+    payment_intent_data: {
+      metadata: { user_id: user?.id ?? "", kind: "order" },
+      ...(haveAddress
+        ? { shipping: { name: deliveryName, address: { line1: shipAddress, city: shipCity, state: shipRegion || undefined, postal_code: postcode, country: "AU" } } }
+        : {}),
+    },
     metadata: {
-      user_id: user.id,
-      user_email: user.email ?? "",
+      user_id: user?.id ?? "",
+      user_email: email,
       kind: "order",
       lines: JSON.stringify(compact).slice(0, 490),
       delivery_method: alternate ? "alternate" : "auspost",
-      ...(alternate ? { delivery_name: deliveryName, delivery_phone: deliveryPhone, delivery_notes: deliveryNotes } : {}),
+      ...(contactEmail ? { contact_email: contactEmail } : {}),
+      ...(deliveryName ? { delivery_name: deliveryName } : {}),
+      ...(alternate ? { delivery_phone: deliveryPhone, delivery_notes: deliveryNotes } : {}),
+      ...(haveAddress ? { ship_address: shipAddress, ship_city: shipCity, ship_region: shipRegion, ship_postcode: postcode } : {}),
     },
-    success_url: `${site}/#/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${site}/#/?checkout=cancelled`,
+    success_url: `${site}/#/thanks?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${site}/#/checkout?cancelled=1`,
   });
   return json(res, 200, { url: session.url, sessionId: session.id });
 });

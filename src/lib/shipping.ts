@@ -52,14 +52,19 @@ export async function quoteShipping(lines: QuoteLine[], postcode: string): Promi
   }
 }
 
-/** How an order reaches the customer, as chosen in the bag. */
+/** How an order reaches the customer, as filled in at checkout. */
 export interface CheckoutDelivery {
   method: "auspost" | "alternate";
-  /** Australia Post: the quoted postcode and the service picked. */
+  /** Where the receipt goes, and the name on the parcel. */
+  email?: string;
+  name?: string;
+  /** Australia Post: the address, the quoted postcode and the service picked. */
+  address?: string;
+  city?: string;
+  region?: string;
   postcode?: string;
   code?: string;
-  /** Alternate: who to contact and how to get it to them. */
-  name?: string;
+  /** Alternate: how to reach them and how to get it to them. */
   phone?: string;
   notes?: string;
 }

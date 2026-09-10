@@ -29,7 +29,7 @@ export default function AuthModal({
   signInGoogle,
 }: AuthModalProps) {
   // A reservation attempt lands new visitors on the sign-up tab by default.
-  const [mode, setMode] = useState<"signin" | "signup">(reason === "checkout" || reason === "subscribe" ? "signup" : "signin");
+  const [mode, setMode] = useState<"signin" | "signup">(reason === "subscribe" ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -166,8 +166,8 @@ export default function AuthModal({
         <h2 className="mo-auth-title" style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
           {reason === "checkout"
             ? mode === "signin"
-              ? "Sign in to check out."
-              : "Join to check out."
+              ? "Welcome back."
+              : "Keep your orders together."
             : reason === "subscribe"
               ? mode === "signin"
                 ? "Sign in to subscribe."
@@ -178,7 +178,7 @@ export default function AuthModal({
         </h2>
         {reason === "checkout" ? (
           <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
-            Your orders live under your account, with tracking for every parcel. Sign in or create one to check out — your bag picks up right where you left off.
+            An account is optional — you're welcome to check out as a guest. With one, your details fill themselves in and every order, with its tracking, stays in one place.
           </p>
         ) : reason === "subscribe" ? (
           <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
