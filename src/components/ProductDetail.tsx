@@ -37,11 +37,10 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
   const profile = profileOf(frag);
   const related = useMemo(() => relatedTo(frag, fragrances, 4), [frag, fragrances]);
 
+  // The bottle itself, and one alternate shot.
   const gallery = [
     { kind: "bottle" as const, label: "Bottle" },
     { kind: "img" as const, src: "/assets/bottle-pdp.jpg", label: "Detail" },
-    { kind: "img" as const, src: "/assets/bottle-square.jpg", label: "Texture" },
-    { kind: "img" as const, src: "/assets/bottle-pair.png", label: "Scene" },
   ];
 
   const canEngrave = chosen.def.group === "wear";
@@ -105,7 +104,7 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
             )}
             <SideCaption lines={[...profile, "—", "A bolder", "you"]} style={{ position: "absolute", left: 18, top: 20, background: "rgba(11,11,13,0.55)", padding: "10px 12px", backdropFilter: "blur(2px)" }} />
           </div>
-          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             {gallery.map((g, i) => (
               <button key={g.label} onClick={() => setShot(i)} aria-label={g.label} aria-pressed={shot === i} style={{ padding: 0, border: `1px solid ${shot === i ? GOLD : "#1f1f27"}`, background: "#0e0e12", cursor: "pointer", height: 96, overflow: "hidden" }}>
                 {g.kind === "bottle" ? (
