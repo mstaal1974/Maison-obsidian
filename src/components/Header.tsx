@@ -137,7 +137,8 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
           <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.car)}>Car</button>
           <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.body)}>Body &amp; Sets</button>
           <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.subscribe())}>Subscribe</button>
-          <button className="mo-navlink" style={{ ...navLink, color: GOLD }} onClick={() => navigate(paths.find())}>Find your scent</button>
+          <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.find())}>Find your scent</button>
+          <button className="mo-navlink" style={{ ...navLink, color: GOLD }} onClick={() => navigate(paths.discover)}>Scent DNA</button>
         </nav>
 
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>

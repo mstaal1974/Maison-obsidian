@@ -48,9 +48,9 @@ Signature Pour, Car Diffuser, Body Wash, Moisturiser, the Complete Ritual set �
 is a *format* (SKU) of that fragrance, not a separate listing.
 
 - **Navigation** — `SHOP` (mega-menu: shop by fragrance / shop by format) ·
-  `FRAGRANCES` · `DISCOVERY` · `CAR` · `BODY & SETS` · `FIND YOUR SCENT`, plus a
-  persistent search icon and **Your bag (n)**. Gender is a filter, not the
-  architecture.
+  `FRAGRANCES` · `DISCOVERY` · `CAR` · `BODY & SETS` · `FIND YOUR SCENT` ·
+  `SCENT DNA`, plus a persistent search icon and **Your bag (n)**. Gender is a
+  filter, not the architecture.
 - **Homepage** — hero (*Wear it. Live it. Take it with you.*), the four ranges
   (Discover / Wear / Drive / Ritual), **Find your fragrance** (type a scent you
   love → your Maison Obsidian match with a % score), **Shop by mood** chips with
@@ -73,6 +73,59 @@ is a *format* (SKU) of that fragrance, not a separate listing.
   (live / coming soon / hidden) and price per cell, with bulk actions (enable car
   diffuser for all, mark / launch the body range, change a format's price for all).
   Bundles are intelligent: the Ritual's availability is the min of its parts.
+
+### Discover Your Scent DNA (`/discover`)
+
+A standalone campaign experience — its own chrome, no storefront navigation
+required — built for social acquisition, lead generation and personalised
+matching. Reachable at **`/discover`**, **`/scent-dna`** and, for a shared
+result, **`/scent/<code>`** (clean paths rewritten to the app in `vercel.json`;
+the hash forms `#/discover` and `#/scent/<code>` work identically).
+
+`DISCOVER → SCENTPRINT → MATCH → SCENT UNIVERSE → EXPLORE`, with a four-step
+progress rail (`01 Discover — 02 Scent DNA — 03 Matches — 04 Explore`).
+
+- **Hero** — *What does your personality smell like?* over drifting vapour, a
+  molecule lattice and an obsidian horizon, with an animated miniature
+  Scentprint under the CTA so a visitor can see what they'll be given, and
+  *Already have a Scentprint? → View My Profile* for the returning visitor.
+- **The experience** — twelve visual questions: seven scene / material choices
+  that advance themselves (keys `1`–`4` work), three sliders (*Personal →
+  Commanding*, *Dry → Sweet*, *Familiar → Adventurous*), a multi-select of
+  occasions, and an optional searchable "a fragrance you already love".
+- **Scentprint™** — sixteen scent dimensions scored 0–100 (fresh, citrus,
+  aquatic, aromatic, green, floral, fruity, sweet, gourmand, spicy, woody,
+  amber, musk, leather/smoky, powdery, clean) plus eight behavioural attributes
+  (projection, longevity, sweetness, intensity, familiarity, adventurousness,
+  day/night, casual/formal). Revealed on a timed build sequence, then drawn as a
+  radar over a fingerprint motif — the strongest ten dimensions only, so it
+  stays a shape rather than a chart.
+- **Shareable card** — the result rendered to a 1080 × 1350 canvas (the
+  Instagram portrait), offered through the native Share sheet where the browser
+  has one, plus **Download my Scentprint** and **Copy link**.
+- **Matching engine** — every fragrance carries its own Scentprint, derived from
+  its notes, so a scent added by an admin is matched without anyone filling in a
+  sheet. Compatibility is a *weighted* similarity: the dimensions the customer
+  actually cares about dominate, a fragrance loud in something they never reach
+  for is punished harder than one that is merely quiet, and sweetness,
+  intensity, projection and the chosen occasions are scored on top.
+- **Scent Universe™** — the customer at the centre, the whole house placed
+  around them: distance is compatibility, bearing is the fragrance's own family
+  on a wheel that runs fresh (north) through sweet, amber and leather to woody
+  (south) and back up through green, floral and clean. Family lenses, a detail
+  panel with *View fragrance* / *Add 10 ml*, and the same data as a ranked list
+  underneath for anyone without a pointer.
+- **Explore** — email capture (*have your Scentprint sent to you*) with a
+  separate, unticked marketing consent, *Shop your closest match*, *Build my
+  5-scent discovery set* (drops the top five into the bag as a Discovery Box)
+  and *Retake*.
+
+Privacy: a share code carries numbers only — never a name or an email. With
+Supabase configured the result is stored and a six-character code minted
+(`…/scent/7HD92K`); without it the whole Scentprint is encoded into the code so
+the link still opens on any device. An email is attached to the stored profile
+only when the visitor asks for it, and express consent to marketing is recorded
+separately, exactly as the footer signup does.
 
 ### Imagery from the design comp
 
@@ -143,6 +196,9 @@ src/
 │   ├── stripe.ts          authorizePayment() — authorize-later hold (stub + real seam)
 │   ├── conceive.ts        AI conception client, PNG inspection, bottle image upload
 │   ├── formats.ts         Format/SKU model, moods, experience tags, find-my-match scoring
+│   ├── scentdna.ts        Scentprint™ model, note→dimension lexicon, matching engine, Scent Universe™
+│   ├── scentQuiz.ts       The twelve discovery questions and their weights → a Scentprint
+│   ├── scentShare.ts      Share codes, local persistence, lead capture
 │   ├── bag.ts             Bag lines, orders, Discovery Box picks (localStorage store)
 │   ├── route.ts           Hash router + path helpers
 │   ├── concierge.ts       Chatbot: catalogue summary, streaming client, offline fallback
@@ -155,6 +211,16 @@ src/
     ├── AuthModal.tsx  MyReservations.tsx  AdminConsole.tsx  ChatWidget.tsx
     ├── ConceiveFragrance.tsx  BottleImage.tsx  adminStyles.ts
     ├── Footer.tsx  LayoutSwitch.tsx  Logo.tsx
+    ├── ScentDna.tsx                  /discover — hero, experience, reveal, result
+    └── scent/
+        ├── Atmosphere.tsx            Vapour, molecule lattice, obsidian horizon
+        ├── DiscoverQuiz.tsx          The twelve questions
+        ├── Glyph.tsx                 Abstract line art for the answer cards
+        ├── ScentprintRing.tsx        The radar over the fingerprint motif
+        ├── ScentUniverse.tsx         The interactive map
+        ├── ScentResult.tsx           Scentprint · matches · universe · explore
+        ├── ShareCard.tsx             1080 × 1350 canvas card + Share / Download / Copy
+        └── theme.ts                  Palette and surfaces for the experience
 api/
 ├── chat.ts                Vercel serverless proxy → Claude (streams the concierge reply)
 └── conceive.ts            Vercel serverless → Claude structured output (AI fragrance conception)
@@ -169,7 +235,9 @@ supabase/
 │   ├── 0006_oil_inventory.sql   oil_ml + admin_set_oil; commit_size_counts (per-size demand)
 │   ├── 0007_reconcile_committed.sql  committed recomputed from real rows; batch = per-size sum
 │   ├── 0008_ai_conception.sql   image_url + profile columns, fragrance-images bucket, upsert RPC
-│   └── 0009_formats.sql         format_prices/format_status + car/wash/moist stock, commits.format, admin_set_formats
+│   ├── 0009_formats.sql         format_prices/format_status + car/wash/moist stock, commits.format, admin_set_formats
+│   ├── 0010–0018                scent requests · JPEG renders · subscriptions · profiles & consent · Stripe · delivery · guest orders
+│   └── 0019_scent_dna.sql       scent_profiles + save_scentprint / get_scentprint / attach_scentprint_email
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -193,6 +261,7 @@ as ordered migrations under `supabase/migrations/`:
 | `fragrances` | Catalogue (25 scents); columns mirror the `Fragrance` type 1:1, with per-size pricing (`price_10ml_cents` / `_30ml_` / `_50ml_`). Public read. |
 | `commits` | Batch reservations (engraving, chosen `size_ml` + `charge_cents`, `authorized`/`captured`/`released`/`void`, optional `payment_intent_id`). Anyone may insert; users read their own. |
 | `subscribers` | General list + `vip` tier (gates VIP-only batches). |
+| `scent_profiles` | Scentprints from `/discover`, keyed by a six-character share code: the sixteen dimensions, the eight behavioural attributes, the occasions chosen, and an email only when the visitor asked for their result. Read through `get_scentprint` (which never returns the email); customers read their own rows, admins read all. |
 | `sync_fragrance_committed()` trigger | Keeps `fragrances.committed` in step as commits are inserted / released. |
 | `commit_to_batch(fragrance_id, engraving, size_ml, charge_cents, payment_intent_id)` | `SECURITY DEFINER` RPC that inserts a commit and returns `(committed, moq, met)` atomically; rejects VIP-only batches unless the caller is a VIP subscriber. |
 | `enroll_subscriber(email, tier)` | `SECURITY DEFINER` RPC that upserts a subscriber (default `vip`), tying it to the signed-in user when present. |

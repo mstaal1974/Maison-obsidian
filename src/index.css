@@ -148,7 +148,7 @@ body {
 /* ─── Responsive: the design is a desktop comp; degrade gracefully ────────── */
 
 @media (max-width: 1180px) {
-  /* Seven primary links: tighten the nav until it hides at 1000px. */
+  /* Eight primary links: tighten the nav until it hides at 1000px. */
   .mo-nav {
     gap: 16px !important;
   }
@@ -276,4 +276,101 @@ body {
   .mo-grain::before {
     animation: none;
   }
+}
+
+/* ─── Discover Your Scent DNA (/discover) ────────────────────────────────────
+   A standalone campaign experience: slow ambient motion, black glass, gold edge
+   lighting. Every animation here is switched off under prefers-reduced-motion. */
+
+@keyframes sdDriftA {
+  0% { transform: translate3d(-6%, 2%, 0) scale(1); }
+  50% { transform: translate3d(7%, -6%, 0) scale(1.16); }
+  100% { transform: translate3d(-6%, 2%, 0) scale(1); }
+}
+@keyframes sdDriftB {
+  0% { transform: translate3d(4%, -3%, 0) scale(1.08); }
+  50% { transform: translate3d(-8%, 6%, 0) scale(0.94); }
+  100% { transform: translate3d(4%, -3%, 0) scale(1.08); }
+}
+@keyframes sdDriftC {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6%, 8%, 0) scale(1.22); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes sdSpin { to { transform: rotate(360deg); } }
+@keyframes sdRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes sdGrow { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+@keyframes sdFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sdBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes sdPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.9; } }
+@keyframes sdTrace { from { stroke-dashoffset: var(--sd-dash, 700); } to { stroke-dashoffset: 0; } }
+@keyframes sdSweep { 0% { transform: translateX(-140%); } 100% { transform: translateX(240%); } }
+
+.sd-rise { animation: sdRise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sd-grow { animation: sdGrow 1.3s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sd-fade { animation: sdFade 1.1s ease both; }
+.sd-pulse { animation: sdPulse 4.5s ease-in-out infinite; }
+.sd-breathe { animation: sdBreathe 7.5s ease-in-out infinite; transform-origin: 50% 50%; }
+.sd-trace { stroke-dasharray: var(--sd-dash, 700); animation: sdTrace 1.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sd-vapour { position: absolute; border-radius: 50%; filter: blur(70px); will-change: transform; pointer-events: none; }
+.sd-vapour-a { animation: sdDriftA 58s ease-in-out infinite; }
+.sd-vapour-b { animation: sdDriftB 76s ease-in-out infinite; }
+.sd-vapour-c { animation: sdDriftC 94s ease-in-out infinite; }
+.sd-lattice { animation: sdSpin 260s linear infinite; transform-origin: 50% 50%; }
+.sd-orbit { animation: sdSpin 190s linear infinite; transform-origin: 50% 50%; }
+.sd-orbit-slow { animation: sdSpin 300s linear infinite reverse; transform-origin: 50% 50%; }
+.sd-sweep { animation: sdSweep 7s ease-in-out infinite; }
+
+.sd-card {
+  transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+.sd-card:hover { transform: translateY(-4px); border-color: rgba(201, 163, 91, 0.55) !important; }
+.sd-card:focus-visible { outline: 1px solid #c9a35b; outline-offset: 3px; }
+.sd-cta { transition: filter 0.2s ease, transform 0.15s ease, border-color 0.2s ease, color 0.2s ease; }
+.sd-cta:hover { filter: brightness(1.08); border-color: rgba(201, 163, 91, 0.8) !important; }
+.sd-cta:active { transform: translateY(1px); }
+.sd-node { transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.25s ease; cursor: pointer; }
+.sd-node:hover, .sd-node:focus-visible { transform: scale(1.22); outline: none; }
+.sd-chip { transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease; }
+.sd-chip:hover { border-color: rgba(201, 163, 91, 0.7) !important; color: #e6c989 !important; }
+
+.sd-range { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; background: transparent; cursor: pointer; }
+.sd-range::-webkit-slider-runnable-track { height: 2px; border-radius: 2px; background: linear-gradient(90deg, rgba(0, 191, 255, 0.45), rgba(201, 163, 91, 0.9)); }
+.sd-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e6c989, #c9a35b 62%, #8a6a33);
+  box-shadow: 0 0 0 1px rgba(8, 11, 15, 0.9), 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 22px rgba(201, 163, 91, 0.45);
+}
+.sd-range::-moz-range-track { height: 2px; border-radius: 2px; background: linear-gradient(90deg, rgba(0, 191, 255, 0.45), rgba(201, 163, 91, 0.9)); }
+.sd-range::-moz-range-thumb {
+  width: 22px; height: 22px; border: 0; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e6c989, #c9a35b 62%, #8a6a33);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+.sd-range:focus-visible { outline: 1px solid #c9a35b; outline-offset: 6px; }
+
+@media (max-width: 1080px) {
+  .sd-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .sd-result-grid, .sd-share-grid, .sd-universe-grid, .sd-lead-grid { grid-template-columns: 1fr !important; }
+  .sd-rail { display: none !important; }
+}
+@media (max-width: 760px) {
+  .sd-grid-4, .sd-grid-3 { grid-template-columns: 1fr !important; }
+  .sd-wordmark { font-size: 13.5px !important; letter-spacing: 0.11em !important; }
+  .sd-quiet-note { display: none !important; }
+  .sd-pad { padding-left: 20px !important; padding-right: 20px !important; }
+  .sd-hero-cta { flex-direction: column !important; align-items: stretch !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-rise, .sd-grow, .sd-fade, .sd-pulse, .sd-breathe, .sd-trace, .sd-sweep,
+  .sd-vapour-a, .sd-vapour-b, .sd-vapour-c, .sd-lattice, .sd-orbit, .sd-orbit-slow {
+    animation: none !important;
+  }
+}
+
+/* Universe: a node's name surfaces on hover and on keyboard focus. */
+.sd-node:hover .sd-node-label,
+.sd-node:focus-visible .sd-node-label {
+  opacity: 1 !important;
 }
