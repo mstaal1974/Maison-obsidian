@@ -7,6 +7,7 @@ import { joinInnerCircle } from "../lib/profile";
 import { GOLD, CREAM } from "../lib/data";
 
 const LINKS: { label: string; to: string }[] = [
+  { label: "Scent DNA", to: paths.discover },
   { label: "About", to: paths.about },
   { label: "Sustainability", to: paths.about },
   { label: "Journal", to: paths.about },
