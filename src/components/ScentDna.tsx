@@ -8,6 +8,8 @@ import { discoverUrl, fetchScentprint, loadScentCode, loadScentprint, publishSce
 import Logo from "./Logo";
 import Atmosphere from "./scent/Atmosphere";
 import DiscoverQuiz from "./scent/DiscoverQuiz";
+import ScentConversation from "./scent/ScentConversation";
+import ScentMemory from "./scent/ScentMemory";
 import ScentResult, { type ResultSection } from "./scent/ScentResult";
 import ScentprintRing from "./scent/ScentprintRing";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, goldA, ink, micro } from "./scent/theme";
@@ -21,7 +23,7 @@ interface ScentDnaProps {
   onAddDiscoveryBox: (frags: Fragrance[]) => void;
 }
 
-type Stage = "hero" | "quiz" | "building" | "result" | "opening";
+type Stage = "hero" | "quiz" | "converse" | "memory" | "building" | "result" | "opening";
 
 const STEPS = ["Discover", "Scent DNA", "Matches", "Explore"];
 
@@ -108,21 +110,25 @@ export default function ScentDna({ fragrances, code: initialCode, onOpenProduct,
     window.scrollTo({ top: 0 });
   }, [stored]);
 
+  /** The reveal, whichever door they came through. */
+  const reveal = useCallback((p: Scentprint, source: string) => {
+    setPrint(p);
+    setStage("building");
+    storeScentprint(p, null);
+    window.scrollTo({ top: 0 });
+    // Mint the share code while the reveal plays, so Share is ready on arrival.
+    void publishScentprint(p, { source }).then((minted) => {
+      setCode(minted);
+      storeScentprint(p, minted);
+    });
+  }, []);
+
   const complete = useCallback(
     (a: QuizAnswers) => {
-      const p = computeScentprint(a, fragrances);
       setAnswers(a);
-      setPrint(p);
-      setStage("building");
-      storeScentprint(p, null);
-      window.scrollTo({ top: 0 });
-      // Mint the share code while the reveal plays, so Share is ready on arrival.
-      void publishScentprint(p, { source: "discover" }).then((minted) => {
-        setCode(minted);
-        storeScentprint(p, minted);
-      });
+      reveal(computeScentprint(a, fragrances), "discover");
     },
-    [fragrances],
+    [fragrances, reveal],
   );
 
   // Switching shelf keeps the Scentprint and re-mints the share code, so the
@@ -150,7 +156,7 @@ export default function ScentDna({ fragrances, code: initialCode, onOpenProduct,
     window.scrollTo({ top: 0 });
   }, []);
 
-  const step = stage === "hero" || stage === "quiz" || stage === "opening" ? 0 : stage === "building" || section === "scentprint" ? 1 : section === "matches" ? 2 : 3;
+  const step = stage === "hero" || stage === "quiz" || stage === "converse" || stage === "memory" || stage === "opening" ? 0 : stage === "building" || section === "scentprint" ? 1 : section === "matches" ? 2 : 3;
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", color: SD.text, overflowX: "hidden" }}>
@@ -193,9 +199,32 @@ export default function ScentDna({ fragrances, code: initialCode, onOpenProduct,
         </div>
       </header>
 
-      {stage === "hero" && <Hero notice={notice} hasStored={!!stored} onBegin={begin} onOpenStored={openStored} />}
+      {stage === "hero" && (
+        <Hero
+          notice={notice}
+          hasStored={!!stored}
+          onBegin={begin}
+          onOpenStored={openStored}
+          onConverse={() => {
+            setNotice(null);
+            setStage("converse");
+            window.scrollTo({ top: 0 });
+          }}
+          onMemory={() => {
+            setNotice(null);
+            setStage("memory");
+            window.scrollTo({ top: 0 });
+          }}
+        />
+      )}
       {stage === "opening" && <Opening />}
       {stage === "quiz" && <DiscoverQuiz fragrances={fragrances} initial={answers} onComplete={complete} onExit={() => setStage("hero")} />}
+      {stage === "converse" && (
+        <ScentConversation fragrances={fragrances} onComplete={(p) => reveal(p, "conversation")} onExit={() => setStage("quiz")} />
+      )}
+      {stage === "memory" && (
+        <ScentMemory fragrances={fragrances} onComplete={(p) => reveal(p, "memory")} onExit={() => setStage("quiz")} />
+      )}
       {stage === "building" && print && <Building onDone={() => setStage("result")} />}
       {stage === "result" && print && (
         <>
@@ -243,7 +272,21 @@ function meta(attr: "name" | "property", key: string, content: string): () => vo
   return () => el.remove();
 }
 
-function Hero({ notice, hasStored, onBegin, onOpenStored }: { notice: string | null; hasStored: boolean; onBegin: () => void; onOpenStored: () => void }) {
+function Hero({
+  notice,
+  hasStored,
+  onBegin,
+  onOpenStored,
+  onConverse,
+  onMemory,
+}: {
+  notice: string | null;
+  hasStored: boolean;
+  onBegin: () => void;
+  onOpenStored: () => void;
+  onConverse: () => void;
+  onMemory: () => void;
+}) {
   return (
     <section
       data-screen-label="Scent DNA — hero"
@@ -270,6 +313,17 @@ function Hero({ notice, hasStored, onBegin, onOpenStored }: { notice: string | n
           </button>
         </div>
         <p className="sd-fade" style={{ ...micro, marginTop: 18, color: ink(0.4) }}>2 minutes · No fragrance knowledge required</p>
+
+        {/* Three doors to the same Scentprint — some people would rather talk
+            than tap, and some arrive with a photograph. */}
+        <div className="sd-fade sd-hero-cta" style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 22, flexWrap: "wrap", animationDelay: "0.32s" }}>
+          <button className="sd-cta" style={{ ...ctaGhost, height: 44 }} onClick={onConverse}>
+            Or just talk to me
+          </button>
+          <button className="sd-cta" style={{ ...ctaGhost, height: 44 }} onClick={onMemory}>
+            Or start from a photo
+          </button>
+        </div>
 
         {/* Proof of the prize: they will receive something visual. */}
         <div className="sd-fade" style={{ display: "grid", placeItems: "center", marginTop: 34, animationDelay: "0.4s" }}>

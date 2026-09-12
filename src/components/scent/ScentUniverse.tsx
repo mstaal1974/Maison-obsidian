@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Fragrance } from "../../lib/data";
 import { fromLabel, profileOf, referenceOf } from "../../lib/formats";
 import {
@@ -13,6 +13,7 @@ import {
   type Scentprint,
   type UniverseNode,
 } from "../../lib/scentdna";
+import { exploreMatches, type ExplorePick, type Stretch } from "../../lib/scentai";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, cyanA, eyebrow, glass, goldA, ink, micro } from "./theme";
 
 interface UniverseProps {
@@ -25,6 +26,21 @@ interface UniverseProps {
 const VIEW = 1000;
 const CENTRE = VIEW / 2;
 const MAX_R = 350;
+
+const STRETCH_COLOUR: Record<Stretch, string> = {
+  home: "#8FD98A",
+  step: SD.softGold,
+  leap: SD.cyan,
+};
+const STRETCH_LABEL: Record<Stretch, string> = {
+  home: "Close to home",
+  step: "A step out",
+  leap: "A leap",
+};
+
+function clampPct(n: number): number {
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
 
 const LENSES: { id: string; label: string; dims: ScentDim[] }[] = [
   { id: "all", label: "Everything", dims: [] },
@@ -48,6 +64,34 @@ export default function ScentUniverse({ print, matches, onOpen, onAddSample }: U
   const [lens, setLens] = useState("all");
   const identity = identityOf(print);
 
+  // Familiar ↔ Adventurous. Seeded from their own Scentprint, because the
+  // experience already asked how far they like to stray — then theirs to move.
+  // Distance on the map stays compatibility and bearing stays family; this
+  // changes which scents the map argues for, not where they sit.
+  const [appetite, setAppetite] = useState(() => clampPct(print.behaviour.adventurousness));
+  const [picks, setPicks] = useState<ExplorePick[]>([]);
+  const [guiding, setGuiding] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    // Debounced: dragging the slider shouldn't fire a call per pixel, and the
+    // busy flag is set when the call actually starts, not while we wait.
+    const t = window.setTimeout(() => {
+      if (!live) return;
+      setGuiding(true);
+      void exploreMatches(print, matches, matches.map((m) => m.frag), appetite).then((r) => {
+        if (!live) return;
+        setPicks(r.ok ? r.result : []);
+        setGuiding(false);
+      });
+    }, 420);
+    return () => {
+      live = false;
+      window.clearTimeout(t);
+    };
+  }, [print, matches, appetite]);
+
+  const pickBySlug = useMemo(() => new Map(picks.map((p) => [p.slug, p])), [picks]);
   const active = nodes.find((n) => n.match.frag.id === selectedId) ?? nodes[0];
   const lensDims = LENSES.find((l) => l.id === lens)?.dims ?? [];
   // Only the three closest carry a standing label; the rest surface on hover.
@@ -82,6 +126,8 @@ export default function ScentUniverse({ print, matches, onOpen, onAddSample }: U
           </button>
         ))}
       </div>
+
+      <AppetiteControl value={appetite} busy={guiding} onChange={setAppetite} />
 
       <div className="sd-universe-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 400px", gap: 32, alignItems: "start" }}>
         <div style={{ ...glass, padding: 14, position: "relative" }}>
@@ -194,6 +240,18 @@ export default function ScentUniverse({ print, matches, onOpen, onAddSample }: U
                   <line x1={CENTRE} y1={CENTRE} x2={x} y2={y} stroke={isActive ? goldA(0.5) : cyanA(0.09)} strokeWidth={isActive ? 1.2 : 0.7} />
                   {isActive && <circle cx={x} cy={y} r={r + 12} fill="none" stroke={goldA(0.55)} strokeWidth="1" className="sd-pulse" />}
                   <circle cx={x} cy={y} r={r} fill={`${colour}26`} stroke={isActive ? SD.softGold : colour} strokeWidth={isActive ? 2 : 1.2} />
+                  {pickBySlug.get(n.match.frag.slug) && (
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={r + 7}
+                      fill="none"
+                      stroke={STRETCH_COLOUR[pickBySlug.get(n.match.frag.slug)!.stretch]}
+                      strokeWidth="1.4"
+                      strokeDasharray="3 4"
+                      opacity={0.85}
+                    />
+                  )}
                   <circle cx={x} cy={y} r={r * 0.34} fill={isActive ? SD.softGold : colour} />
                   <text
                     className="sd-node-label"
@@ -230,7 +288,7 @@ export default function ScentUniverse({ print, matches, onOpen, onAddSample }: U
           </p>
         </div>
 
-        {active && <NodePanel node={active} onOpen={onOpen} onAddSample={onAddSample} />}
+        {active && <NodePanel node={active} pick={pickBySlug.get(active.match.frag.slug)} onOpen={onOpen} onAddSample={onAddSample} />}
       </div>
 
       <RankedList nodes={nodes} activeId={active?.match.frag.id ?? ""} onSelect={setSelectedId} />
@@ -238,7 +296,7 @@ export default function ScentUniverse({ print, matches, onOpen, onAddSample }: U
   );
 }
 
-function NodePanel({ node, onOpen, onAddSample }: { node: UniverseNode; onOpen: (f: Fragrance) => void; onAddSample: (f: Fragrance) => void }) {
+function NodePanel({ node, pick, onOpen, onAddSample }: { node: UniverseNode; pick?: ExplorePick; onOpen: (f: Fragrance) => void; onAddSample: (f: Fragrance) => void }) {
   const { frag, percent, reason, families, dna } = node.match;
   const ref = referenceOf(frag);
   return (
@@ -254,6 +312,12 @@ function NodePanel({ node, onOpen, onAddSample }: { node: UniverseNode; onOpen: 
       <p style={{ margin: "8px 0 0", ...micro, color: goldA(0.8) }}>
         {families.join(" · ")}
       </p>
+      {pick && (
+        <p style={{ margin: "16px 0 0", fontSize: 13.5, lineHeight: 1.65, color: STRETCH_COLOUR[pick.stretch] }}>
+          <span style={{ ...micro, color: STRETCH_COLOUR[pick.stretch], marginRight: 8 }}>{STRETCH_LABEL[pick.stretch]}</span>
+          {pick.reason}
+        </p>
+      )}
       <p style={{ margin: "16px 0 0", fontSize: 14, lineHeight: 1.7, color: ink(0.62) }}>{reason}</p>
       <p style={{ margin: "14px 0 0", fontSize: 12.5, lineHeight: 1.65, color: ink(0.42) }}>
         Inspired by the scent profile of {ref.brand}
@@ -372,4 +436,38 @@ function placeLabels(nodes: UniverseNode[], activeId: string | undefined, primar
     }
   }
   return out;
+}
+
+/**
+ * How far from themselves they want to be taken. The map's geometry doesn't
+ * move — distance is still compatibility — but which scents it argues for does,
+ * and each one comes with what it keeps and what it changes.
+ */
+function AppetiteControl({ value, busy, onChange }: { value: number; busy: boolean; onChange: (v: number) => void }) {
+  return (
+    <div style={{ ...glass, padding: "18px 22px 14px", marginBottom: 26 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <span style={{ ...micro, color: ink(0.5) }}>How far from yourself?</span>
+        <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.18em", color: goldA(0.85), textTransform: "uppercase" }}>
+          {busy ? "Reading the field…" : value < 34 ? "Familiar" : value > 66 ? "Adventurous" : "Distinctive"}
+        </span>
+      </div>
+      <input
+        className="sd-range"
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label="How far from your Scentprint to explore, familiar to adventurous"
+        aria-valuetext={value < 34 ? "Familiar" : value > 66 ? "Adventurous" : "Distinctive"}
+        style={{ marginTop: 6 }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <span style={{ ...micro, fontSize: 8, color: ink(value < 34 ? 0.5 : 0.24) }}>Familiar</span>
+        <span style={{ ...micro, fontSize: 8, color: ink(value > 66 ? 0.5 : 0.24) }}>Adventurous</span>
+      </div>
+    </div>
+  );
 }
