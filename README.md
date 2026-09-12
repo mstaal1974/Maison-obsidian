@@ -89,10 +89,12 @@ progress rail (`01 Discover — 02 Scent DNA — 03 Matches — 04 Explore`).
   molecule lattice and an obsidian horizon, with an animated miniature
   Scentprint under the CTA so a visitor can see what they'll be given, and
   *Already have a Scentprint? → View My Profile* for the returning visitor.
-- **The experience** — twelve visual questions: seven scene / material choices
-  that advance themselves (keys `1`–`4` work), three sliders (*Personal →
-  Commanding*, *Dry → Sweet*, *Familiar → Adventurous*), a multi-select of
-  occasions, and an optional searchable "a fragrance you already love".
+- **The experience** — thirteen visual questions, opening with **who we are
+  pouring for** (*For him* · *For her* · no preference), then seven scene /
+  material choices that advance themselves (keys `1`–`4` work), three sliders
+  (*Personal → Commanding*, *Dry → Sweet*, *Familiar → Adventurous*), a
+  multi-select of occasions, and an optional searchable "a fragrance you
+  already love".
 - **Scentprint™** — sixteen scent dimensions scored 0–100 (fresh, citrus,
   aquatic, aromatic, green, floral, fruity, sweet, gourmand, spicy, woody,
   amber, musk, leather/smoky, powdery, clean) plus eight behavioural attributes
@@ -109,6 +111,14 @@ progress rail (`01 Discover — 02 Scent DNA — 03 Matches — 04 Explore`).
   actually cares about dominate, a fragrance loud in something they never reach
   for is punished harder than one that is merely quiet, and sweetness,
   intensity, projection and the chosen occasions are scored on top.
+- **The shelf** — the opening answer decides which bottles come back: masculine
+  + unisex for him (32 of the 53), feminine + unisex for her (35), everything
+  when no preference is given. It filters the catalogue and nothing else — the
+  Scentprint is built from what the person actually chose, so two people who
+  answer the questions identically get the same profile and a different shelf.
+  Matches, the Scent Universe and the share card all read the same filter, and a
+  chip row on the matches section switches shelf in place rather than making
+  anyone retake the experience.
 - **Scent Universe™** — the customer at the centre, the whole house placed
   around them: distance is compatibility, bearing is the fragrance's own family
   on a wheel that runs fresh (north) through sweet, amber and leather to woody
@@ -197,7 +207,7 @@ src/
 │   ├── conceive.ts        AI conception client, PNG inspection, bottle image upload
 │   ├── formats.ts         Format/SKU model, moods, experience tags, find-my-match scoring
 │   ├── scentdna.ts        Scentprint™ model, note→dimension lexicon, matching engine, Scent Universe™
-│   ├── scentQuiz.ts       The twelve discovery questions and their weights → a Scentprint
+│   ├── scentQuiz.ts       The thirteen discovery questions and their weights → a Scentprint
 │   ├── scentShare.ts      Share codes, local persistence, lead capture
 │   ├── bag.ts             Bag lines, orders, Discovery Box picks (localStorage store)
 │   ├── route.ts           Hash router + path helpers
@@ -214,7 +224,7 @@ src/
     ├── ScentDna.tsx                  /discover — hero, experience, reveal, result
     └── scent/
         ├── Atmosphere.tsx            Vapour, molecule lattice, obsidian horizon
-        ├── DiscoverQuiz.tsx          The twelve questions
+        ├── DiscoverQuiz.tsx          The thirteen questions
         ├── Glyph.tsx                 Abstract line art for the answer cards
         ├── ScentprintRing.tsx        The radar over the fingerprint motif
         ├── ScentUniverse.tsx         The interactive map
@@ -228,7 +238,7 @@ public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
 ├── migrations/
 │   ├── 0001_init.sql            Schema, committed-sync trigger, commit_to_batch RPC, RLS
-│   ├── 0002_seed.sql            Seed catalogue — 25 fragrances (mirrors src/lib/data.ts)
+│   ├── 0002_seed.sql            Seed catalogue — the original 25 (mirrors src/lib/data.ts)
 │   ├── 0003_admin_inventory.sql admins + is_admin(), stock columns, fragrance CRUD RPCs
 │   ├── 0004_shipments.sql       shipments table, RLS, admin fulfillment RPCs
 │   ├── 0005_chat.sql            concierge transcripts + log_chat_message RPC, RLS
@@ -237,7 +247,9 @@ supabase/
 │   ├── 0008_ai_conception.sql   image_url + profile columns, fragrance-images bucket, upsert RPC
 │   ├── 0009_formats.sql         format_prices/format_status + car/wash/moist stock, commits.format, admin_set_formats
 │   ├── 0010–0018                scent requests · JPEG renders · subscriptions · profiles & consent · Stripe · delivery · guest orders
-│   └── 0019_scent_dna.sql       scent_profiles + save_scentprint / get_scentprint / attach_scentprint_email
+│   ├── 0019_scent_dna.sql       scent_profiles + save_scentprint / get_scentprint / attach_scentprint_email
+│   ├── 0020_scent_dna_wearer.sql  scent_profiles.wearer (him / her / all) carried through both RPCs
+│   └── 0021_audience_catalogue.sql  +32 scents with a Him/Her/Unisex audience; retires the 4 superseded
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -258,10 +270,10 @@ as ordered migrations under `supabase/migrations/`:
 
 | Object | Purpose |
 | --- | --- |
-| `fragrances` | Catalogue (25 scents); columns mirror the `Fragrance` type 1:1, with per-size pricing (`price_10ml_cents` / `_30ml_` / `_50ml_`). Public read. |
+| `fragrances` | Catalogue (53 scents); columns mirror the `Fragrance` type 1:1, with per-size pricing (`price_10ml_cents` / `_30ml_` / `_50ml_`). Public read. |
 | `commits` | Batch reservations (engraving, chosen `size_ml` + `charge_cents`, `authorized`/`captured`/`released`/`void`, optional `payment_intent_id`). Anyone may insert; users read their own. |
 | `subscribers` | General list + `vip` tier (gates VIP-only batches). |
-| `scent_profiles` | Scentprints from `/discover`, keyed by a six-character share code: the sixteen dimensions, the eight behavioural attributes, the occasions chosen, and an email only when the visitor asked for their result. Read through `get_scentprint` (which never returns the email); customers read their own rows, admins read all. |
+| `scent_profiles` | Scentprints from `/discover`, keyed by a six-character share code: the sixteen dimensions, the eight behavioural attributes, the occasions chosen, the shelf (`wearer`), and an email only when the visitor asked for their result. Read through `get_scentprint` (which never returns the email); customers read their own rows, admins read all. |
 | `sync_fragrance_committed()` trigger | Keeps `fragrances.committed` in step as commits are inserted / released. |
 | `commit_to_batch(fragrance_id, engraving, size_ml, charge_cents, payment_intent_id)` | `SECURITY DEFINER` RPC that inserts a commit and returns `(committed, moq, met)` atomically; rejects VIP-only batches unless the caller is a VIP subscriber. |
 | `enroll_subscriber(email, tier)` | `SECURITY DEFINER` RPC that upserts a subscriber (default `vip`), tying it to the signed-in user when present. |
@@ -419,15 +431,36 @@ Three refinements on top:
 
 ### Catalogue data
 
-The 25-scent catalogue is imported from the *Fragrance upload* spreadsheet — name,
-inspiration, description, top/heart/base notes, and per-size prices (10 / 30 / 50 ml)
-come straight from the sheet. The sheet omits a few fields the app needs, so:
+The 53-scent catalogue comes from two sheets:
 
-- **gender** is assigned from the (well-known) inspiration reference — the sheet has
-  no gender column, and inferring it from the description text is unreliable;
+- the original *Fragrance upload* sheet — name, inspiration, description,
+  top/heart/base notes and per-size prices (10 / 30 / 50 ml);
+- the *Fragrance Audience* sheet (2026), which added 32 scents **with an explicit
+  Him / Her / Unisex audience column** — the one `/discover` reads to decide whose
+  shelf a fragrance sits on.
+
+Four of the originals were retired when the audience sheet arrived, each a
+different edition of a fragrance the new sheet already carries: Fiery Spice
+(Spicebomb Extreme) → **Midnight Spice Noir** (Dark Leather), Imperial Vintage
+(Aventus Absolu) → **Ventus** (Aventus), Fierce Amber → **Infinite Devotion**
+(both Armani *Stronger With You Intensely*), and Shadowed Oud (Oud Wood Intense)
+→ **Smoky Timber** (Oud Wood).
+
+Neither sheet carries every field the app needs, so:
+
+- **gender** is the audience sheet's Him / Her / Unisex column for the 32; the
+  original scents keep the reading assigned from their inspiration reference,
+  which is where the sheet had no gender column at all;
+- **price** — the audience sheet has no prices, so its 32 are flat across the
+  range at $21 / $34 / $47; the original scents keep their own pricing;
 - **moq / committed** are deterministic demo batch values;
-- **liquid / accent** swatch colours are derived from each scent's notes;
+- **liquid / accent** swatch colours are derived from each scent's notes by the
+  same lexicon the matching engine reads (`lib/scentdna.ts`), so a card's colour
+  and its Scentprint never disagree;
 - **vipOnly** flags the single most expensive scent, so the VIP gate stays demoable.
+
+The 32 newest scents have no bottle render in `public/assets/<slug>.png` yet, so
+`BottleImage` shows them on stock photography until those files are dropped in.
 
 Regenerate both `src/lib/data.ts` and `0002_seed.sql` from a new sheet with the
 importer under `scripts/` (see below) to keep the live DB and offline seed identical.

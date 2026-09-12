@@ -3,7 +3,7 @@ import type { Fragrance } from "../lib/data";
 import { navigate, paths } from "../lib/route";
 import type { QuizAnswers } from "../lib/scentQuiz";
 import { computeScentprint } from "../lib/scentQuiz";
-import type { ScentDim, Scentprint } from "../lib/scentdna";
+import { encodeScentprint, type ScentDim, type Scentprint, type Wearer } from "../lib/scentdna";
 import { discoverUrl, fetchScentprint, loadScentCode, loadScentprint, publishScentprint, storeScentprint } from "../lib/scentShare";
 import Logo from "./Logo";
 import Atmosphere from "./scent/Atmosphere";
@@ -125,6 +125,25 @@ export default function ScentDna({ fragrances, code: initialCode, onOpenProduct,
     [fragrances],
   );
 
+  // Switching shelf keeps the Scentprint and re-mints the share code, so the
+  // link someone shares opens on the shelf they were actually looking at.
+  const changeWearer = useCallback(
+    (next: Wearer) => {
+      setPrint((current) => {
+        if (!current || current.wearer === next) return current;
+        const updated = { ...current, wearer: next };
+        storeScentprint(updated, null);
+        setCode(encodeScentprint(updated));
+        void publishScentprint(updated, { source: "discover" }).then((minted) => {
+          setCode(minted);
+          storeScentprint(updated, minted);
+        });
+        return updated;
+      });
+    },
+    [],
+  );
+
   const retake = useCallback(() => {
     setStage("quiz");
     setShared(false);
@@ -192,6 +211,7 @@ export default function ScentDna({ fragrances, code: initialCode, onOpenProduct,
             onRetake={retake}
             onSection={setSection}
             onCode={setCode}
+            onWearer={changeWearer}
           />
         </>
       )}

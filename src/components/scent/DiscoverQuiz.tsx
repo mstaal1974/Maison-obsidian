@@ -11,8 +11,9 @@ import {
   type MultiQuestion,
   type QuizAnswers,
   type SliderQuestion,
+  type WearerQuestion,
 } from "../../lib/scentQuiz";
-import type { OccasionKey } from "../../lib/scentdna";
+import type { OccasionKey, Wearer } from "../../lib/scentdna";
 import Glyph from "./Glyph";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, glass, goldA, ink, micro } from "./theme";
 
@@ -54,15 +55,21 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
 
   const finish = useCallback((a: QuizAnswers) => onComplete(a), [onComplete]);
 
-  const choose = useCallback(
-    (q: ChoiceQuestion, optionId: string) => {
-      const next = { ...answers, choices: { ...answers.choices, [q.id]: optionId } };
+  // A beat to register the choice, then move on — no Continue tax.
+  const advance = useCallback(
+    (next: QuizAnswers) => {
       setAnswers(next);
-      // A beat to register the choice, then move on — no Continue tax.
       advancing.current = window.setTimeout(() => (last ? finish(next) : setIndex((i) => Math.min(QUESTIONS.length - 1, i + 1))), 340);
     },
-    [answers, last, finish],
+    [last, finish],
   );
+
+  const choose = useCallback(
+    (q: ChoiceQuestion, optionId: string) => advance({ ...answers, choices: { ...answers.choices, [q.id]: optionId } }),
+    [answers, advance],
+  );
+
+  const chooseWearer = useCallback((wearer: Wearer) => advance({ ...answers, wearer }), [answers, advance]);
 
   // 1–4 pick an answer; ← → move between questions.
   useEffect(() => {
@@ -73,11 +80,16 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
         if (opt) choose(question, opt.id);
         return;
       }
+      if (question.kind === "wearer" && /^[1-9]$/.test(e.key)) {
+        const opt = question.options[Number(e.key) - 1];
+        if (opt) chooseWearer(opt.id);
+        return;
+      }
       if (e.key === "ArrowLeft") go(index - 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [question, choose, go, index]);
+  }, [question, choose, chooseWearer, go, index]);
 
   const answered = isAnswered(question, answers);
 
@@ -95,6 +107,7 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
 
           <div style={{ marginTop: 38 }}>
             {question.kind === "choice" && <ChoiceGrid question={question} selected={answers.choices[question.id]} onPick={(id) => choose(question, id)} />}
+            {question.kind === "wearer" && <WearerField question={question} selected={answers.wearer} onPick={chooseWearer} />}
             {question.kind === "slider" && (
               <SliderField
                 question={question}
@@ -123,7 +136,7 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
             <button className="sd-cta" style={{ ...ctaQuiet, height: 46 }} onClick={() => go(index - 1)}>
               {index === 0 ? "Back to start" : "Back"}
             </button>
-            {question.kind !== "choice" && (
+            {question.kind !== "choice" && question.kind !== "wearer" && (
               <button
                 className="sd-cta"
                 style={{ ...(last ? ctaGold : ctaGhost), opacity: answered ? 1 : 0.45, cursor: answered ? "pointer" : "not-allowed" }}
@@ -138,7 +151,7 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
                 Skip — I'm new to this
               </button>
             )}
-            {question.kind === "choice" && (
+            {(question.kind === "choice" || question.kind === "wearer") && (
               <span style={{ ...micro, color: ink(0.3) }}>Pick one · keys 1–{question.options.length}</span>
             )}
           </div>
@@ -188,7 +201,9 @@ function ChoiceGrid({ question, selected, onPick }: { question: ChoiceQuestion; 
   );
 }
 
-function OptionCard({ option, index, active, onPick }: { option: ChoiceOption; index: number; active: boolean; onPick: () => void }) {
+type CardFace = Pick<ChoiceOption, "label" | "note" | "glyph" | "tone">;
+
+function OptionCard({ option, index, active, onPick, tall = false }: { option: CardFace; index: number; active: boolean; onPick: () => void; tall?: boolean }) {
   return (
     <button
       type="button"
@@ -212,12 +227,12 @@ function OptionCard({ option, index, active, onPick }: { option: ChoiceOption; i
         style={{
           display: "block",
           position: "relative",
-          height: 152,
+          height: tall ? 220 : 152,
           background: `radial-gradient(120% 110% at 28% 0%, ${option.tone[1]}2E 0%, rgba(0,0,0,0) 62%), linear-gradient(165deg, ${option.tone[0]} 0%, ${SD.obsidian} 100%)`,
         }}
       >
         <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: option.tone[1] }}>
-          <Glyph name={option.glyph} size={66} opacity={active ? 1 : 0.82} />
+          <Glyph name={option.glyph} size={tall ? 92 : 66} opacity={active ? 1 : 0.82} />
         </span>
         <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 1, background: active ? goldA(0.7) : ink(0.08) }} />
       </span>
@@ -229,6 +244,39 @@ function OptionCard({ option, index, active, onPick }: { option: ChoiceOption; i
         <span style={{ display: "block", marginTop: 8, fontSize: 12.5, lineHeight: 1.6, color: ink(0.5) }}>{option.note}</span>
       </span>
     </button>
+  );
+}
+
+function WearerField({ question, selected, onPick }: { question: WearerQuestion; selected: Wearer | null; onPick: (w: Wearer) => void }) {
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <div className="sd-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 18 }} role="radiogroup" aria-label={question.prompt}>
+        {question.options.map((o, i) => (
+          <OptionCard key={o.id} option={o} index={i} active={selected === o.id} onPick={() => onPick(o.id)} tall />
+        ))}
+      </div>
+      <button
+        type="button"
+        className="sd-chip"
+        aria-pressed={selected === "all"}
+        onClick={() => onPick("all")}
+        style={{
+          marginTop: 18,
+          background: "none",
+          border: 0,
+          borderBottom: `1px solid ${selected === "all" ? goldA(0.7) : ink(0.16)}`,
+          cursor: "pointer",
+          padding: "8px 2px",
+          fontFamily: MONO,
+          fontSize: 10,
+          letterSpacing: "0.22em",
+          textTransform: "uppercase",
+          color: selected === "all" ? SD.softGold : ink(0.5),
+        }}
+      >
+        No preference — show me the whole house
+      </button>
+    </div>
   );
 }
 

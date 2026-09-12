@@ -11,7 +11,7 @@
 // something they never reach for is punished harder than being quiet in
 // something they like, and sweetness / intensity / occasion are scored on top.
 
-import type { Fragrance } from "./data";
+import { matches as suitsFilter, type Filter, type Fragrance } from "./data";
 import { moodsOf } from "./formats";
 
 // ─── Dimensions ──────────────────────────────────────────────────────────────
@@ -117,6 +117,34 @@ const OCCASION_AXES: Record<OccasionKey, { night: number; formality: number }> =
   special: { night: 74, formality: 90 },
 };
 
+// ─── Who it is for ───────────────────────────────────────────────────────────
+//
+// Asked before anything else, and used for one thing only: which bottles the
+// house offers back. It never touches the Scentprint itself — the numbers come
+// from what the person actually chose, so two people with the same answers get
+// the same profile and a different shelf.
+
+export type Wearer = "him" | "her" | "all";
+
+export const WEARER_LABEL: Record<Wearer, string> = {
+  him: "For him",
+  her: "For her",
+  all: "Everything",
+};
+
+const WEARER_FILTER: Record<Wearer, Filter> = { him: "men", her: "women", all: "all" };
+
+/** Masculine and unisex for him, feminine and unisex for her, all of it for all. */
+export function wearableBy(f: Fragrance, wearer: Wearer): boolean {
+  return suitsFilter(f, WEARER_FILTER[wearer]);
+}
+
+/** The shelf a wearer sees. Never empty: an unstocked filter falls back to all. */
+export function shelfFor(frags: Fragrance[], wearer: Wearer): Fragrance[] {
+  const pool = frags.filter((f) => wearableBy(f, wearer));
+  return pool.length ? pool : frags;
+}
+
 // ─── The Scentprint ──────────────────────────────────────────────────────────
 
 export interface Scentprint {
@@ -124,6 +152,8 @@ export interface Scentprint {
   dims: ScentVector;
   behaviour: BehaviourVector;
   occasions: OccasionKey[];
+  /** Which shelf to match against — masculine, feminine, or the whole house. */
+  wearer: Wearer;
   /** Optional: a fragrance they already love, as they typed it. */
   loves?: string | null;
   createdAt: string;
@@ -151,17 +181,19 @@ export function rankedDims(v: ScentVector, limit: number = SCENT_DIMS.length): {
 // note may fire several rules — "Green Apple" is both green and fruity, which
 // is exactly right.
 
-const NOTE_DNA: { match: string[]; dna: Partial<ScentVector> }[] = [
+const NOTE_DNA: { match: string[]; exclude?: string[]; dna: Partial<ScentVector> }[] = [
   // Citrus & bright fruit
-  { match: ["bergamot", "citron", "lemon", "lime", "grapefruit", "mandarin", "tangerine", "orange blossom", "neroli", "yuzu", "citrus"], dna: { citrus: 1, fresh: 0.8, clean: 0.3 } },
-  { match: ["orange blossom", "neroli"], dna: { floral: 0.7, clean: 0.35 } },
-  { match: ["pear", "apple", "raspberry", "blackcurrant", "peach", "plum", "fig", "coconut", "pineapple", "berry"], dna: { fruity: 1, fresh: 0.35, sweet: 0.3 } },
+  { match: ["bergamot", "citron", "lemon", "lime", "grapefruit", "mandarin", "orange", "tangerine", "neroli", "yuzu", "citrus", "petitgrain"], dna: { citrus: 1, fresh: 0.8, clean: 0.3 } },
+  { match: ["orange blossom", "orange flower", "neroli"], dna: { floral: 0.7, clean: 0.35 } },
+  { match: ["pear", "apple", "raspberry", "currant", "peach", "nectarine", "plum", "fig", "coconut", "pineapple", "berry", "cherry", "litchi", "lychee", "melon", "apricot", "red fruits", "fruity"], exclude: ["pineapple & blackcurrant"], dna: { fruity: 1, fresh: 0.35, sweet: 0.3 } },
+  // The sheet writes some notes as a pair; score both halves.
+  { match: ["pineapple & blackcurrant"], dna: { fruity: 1.2, fresh: 0.4, sweet: 0.3, green: 0.2 } },
   { match: ["green apple"], dna: { green: 0.7, fresh: 0.5 } },
   // Water & air
-  { match: ["marine", "sea", "aquatic", "water", "ozon", "salt", "ambergris", "calone"], dna: { aquatic: 1, fresh: 0.7, clean: 0.5, musk: 0.3 } },
-  { match: ["ambroxan"], dna: { musk: 0.85, clean: 0.6, amber: 0.45, aquatic: 0.35, fresh: 0.3 } },
+  { match: ["marine", "sea", "aquatic", "water", "ozon", "salt", "ambergris", "calone", "lotus"], dna: { aquatic: 1, fresh: 0.7, clean: 0.5, musk: 0.3 } },
+  { match: ["ambroxan", "ambrox"], dna: { musk: 0.85, clean: 0.6, amber: 0.45, aquatic: 0.35, fresh: 0.3 } },
   // Aromatic & herbal
-  { match: ["lavender", "rosemary", "sage", "mint", "basil", "thyme", "juniper", "angelica", "cypress", "eucalypt", "clary"], dna: { aromatic: 1, fresh: 0.5, green: 0.35 } },
+  { match: ["lavender", "rosemary", "sage", "mint", "basil", "thyme", "juniper", "angelica", "cypress", "eucalypt", "clary", "absinthe", "anise", "fennel", "laurel", "tarragon"], dna: { aromatic: 1, fresh: 0.5, green: 0.35 } },
   { match: ["lavender"], dna: { powdery: 0.35, floral: 0.3 } },
   { match: ["mint", "eucalypt"], dna: { fresh: 0.55, clean: 0.3 } },
   // Green & tea
@@ -169,32 +201,36 @@ const NOTE_DNA: { match: string[]; dna: Partial<ScentVector> }[] = [
   { match: ["vetiver"], dna: { woody: 0.8, smoky: 0.25 } },
   { match: ["tea"], dna: { clean: 0.4, aromatic: 0.3 } },
   // Florals
-  { match: ["rose", "jasmine", "violet", "iris", "peony", "tuberose", "lily", "gardenia", "ylang", "mimosa", "magnolia", "freesia", "muguet", "floral"], dna: { floral: 1 } },
-  { match: ["iris", "violet", "mimosa"], dna: { powdery: 0.85, clean: 0.3 } },
-  { match: ["lily-of-the-valley", "muguet", "freesia"], dna: { clean: 0.55, green: 0.35, fresh: 0.3 } },
-  { match: ["jasmine", "tuberose", "ylang"], dna: { sweet: 0.3 } },
+  { match: ["rose"], exclude: ["rosemary", "rosewood"], dna: { floral: 1 } },
+  { match: ["jasmine", "violet", "iris", "orris", "peony", "tuberose", "lily", "gardenia", "ylang", "mimosa", "magnolia", "freesia", "muguet", "orchid", "cereus", "blossom", "flower", "floral", "oleander", "hyacinth", "mignonette", "reseda", "cyclamen", "carnation", "osmanthus", "geranium"], dna: { floral: 1 } },
+  { match: ["iris", "orris", "violet", "mimosa"], dna: { powdery: 0.85, clean: 0.3 } },
+  { match: ["lily-of-the-valley", "muguet", "freesia", "cyclamen", "hyacinth", "mignonette", "reseda"], dna: { clean: 0.55, green: 0.35, fresh: 0.3 } },
+  { match: ["jasmine", "tuberose", "ylang", "orchid"], dna: { sweet: 0.3 } },
+  { match: ["osmanthus"], dna: { fruity: 0.6 } },
+  { match: ["carnation"], dna: { spicy: 0.5 } },
+  { match: ["geranium"], dna: { green: 0.6, aromatic: 0.5 } },
   { match: ["davana"], dna: { floral: 0.6, fruity: 0.5, aromatic: 0.4 } },
   // Spice
   { match: ["pepper", "cinnamon", "clove", "cardamom", "saffron", "nutmeg", "pimento", "cumin", "ginger", "spice", "coriander", "elemi"], dna: { spicy: 1 } },
   { match: ["ginger"], dna: { fresh: 0.45, citrus: 0.25 } },
   { match: ["cinnamon", "saffron", "nutmeg"], dna: { amber: 0.4, sweet: 0.25 } },
   // Sweet & amber
-  { match: ["vanilla", "tonka", "benzoin", "honey", "sugar", "praline", "marshmallow", "heliotrope"], dna: { sweet: 1, gourmand: 0.5, amber: 0.4 } },
-  { match: ["vanilla", "tonka", "heliotrope"], dna: { powdery: 0.35 } },
+  { match: ["vanill", "tonka", "benzoin", "honey", "sugar", "praline", "marshmallow", "heliotrope"], dna: { sweet: 1, gourmand: 0.5, amber: 0.4 } },
+  { match: ["vanill", "tonka", "heliotrope"], dna: { powdery: 0.35 } },
   { match: ["amber", "labdanum", "ambergris", "resin", "olibanum", "myrrh", "balsam", "opoponax"], dna: { amber: 1, sweet: 0.3, woody: 0.3 } },
   { match: ["olibanum", "myrrh", "incense", "frankincense"], dna: { smoky: 0.75, spicy: 0.3 } },
   // Gourmand
-  { match: ["coffee", "caramel", "toffee", "chocolate", "cacao", "almond", "hazelnut", "rum", "whisky", "cognac", "gourmand", "praline", "coconut", "pastry"], dna: { gourmand: 1, sweet: 0.65 } },
-  { match: ["coffee", "cacao", "chocolate"], dna: { smoky: 0.3, spicy: 0.2 } },
+  { match: ["coffee", "caramel", "toffee", "chocolate", "cacao", "cocoa", "almond", "hazelnut", "pistachio", "rum", "whisky", "cognac", "gourmand", "praline", "coconut", "pastry", "chestnut"], dna: { gourmand: 1, sweet: 0.65 } },
+  { match: ["coffee", "cacao", "cocoa", "chocolate"], dna: { smoky: 0.3, spicy: 0.2 } },
   // Woods
-  { match: ["wood", "cedar", "sandal", "ebony", "guaiac", "birch", "oak", "pine", "fir", "cypress", "palo santo", "amberwood", "cashmeran"], dna: { woody: 1 } },
+  { match: ["wood", "cedar", "sandal", "ebony", "guaiac", "birch", "oak", "pine", "fir", "cypress", "palo santo", "amberwood", "cashmeran", "cypriol"], exclude: ["pineapple"], dna: { woody: 1 } },
   { match: ["amberwood"], dna: { amber: 0.7, musk: 0.35 } },
   { match: ["sandal"], dna: { powdery: 0.4, sweet: 0.25, musk: 0.3 } },
   { match: ["patchouli"], dna: { woody: 0.85, green: 0.35, amber: 0.3, smoky: 0.2 } },
-  { match: ["palo santo", "guaiac", "birch"], dna: { smoky: 0.6 } },
+  { match: ["palo santo", "guaiac", "birch", "cypriol"], dna: { smoky: 0.6 } },
   // Dark: leather, smoke, oud, ink
   { match: ["oud", "agarwood"], dna: { woody: 0.9, smoky: 0.9, amber: 0.5, spicy: 0.3 } },
-  { match: ["leather", "suede", "castoreum", "tar", "ink", "smoke", "smoky", "tobacco"], dna: { smoky: 1, woody: 0.35, amber: 0.3 } },
+  { match: ["leather", "suede", "castoreum", "birch tar", "black ink", "smoke", "smoky", "tobacco"], dna: { smoky: 1, woody: 0.35, amber: 0.3 } },
   { match: ["tobacco", "rum", "whisky"], dna: { sweet: 0.4, spicy: 0.3 } },
   { match: ["suede"], dna: { powdery: 0.35, musk: 0.3 } },
   // Clean & musk
@@ -223,25 +259,21 @@ const LAYERS: { key: "top" | "heart" | "base"; weight: number }[] = [
   { key: "base", weight: 1.3 },
 ];
 
-function accumulate(acc: ScentVector, notes: string[], weight: number): void {
+function accumulate(acc: ScentVector, notes: string[], weight: number): number {
+  let matched = 0;
   for (const raw of notes) {
     const note = raw.toLowerCase();
-    let matched = false;
     for (const rule of NOTE_DNA) {
       if (!rule.match.some((m) => note.includes(m))) continue;
-      matched = true;
+      if (rule.exclude?.some((x) => note.includes(x))) continue;
+      matched += 1;
       for (const dim of SCENT_DIMS) {
         const v = rule.dna[dim];
         if (v) acc[dim] += v * weight;
       }
     }
-    // A note the lexicon doesn't know still has to count for something, or a
-    // new scent built on it would read as empty. Woody-amber is the safe body.
-    if (!matched) {
-      acc.woody += 0.3 * weight;
-      acc.amber += 0.22 * weight;
-    }
   }
+  return matched;
 }
 
 /**
@@ -268,7 +300,16 @@ export function fragranceDna(f: Fragrance): ScentVector {
   const hit = dnaCache.get(key);
   if (hit) return hit;
   const acc = zeroVector();
-  for (const layer of LAYERS) accumulate(acc, f[layer.key] ?? [], layer.weight);
+  let matched = 0;
+  for (const layer of LAYERS) matched += accumulate(acc, f[layer.key] ?? [], layer.weight);
+  // A fragrance whose notes the lexicon cannot read at all still has to have a
+  // body, or it would score as empty against everyone. Only then — one unknown
+  // note among eight known ones must not drag the whole scent woody.
+  if (matched === 0) {
+    acc.woody += 0.9;
+    acc.amber += 0.7;
+    acc.musk += 0.5;
+  }
   for (const mood of moodsOf(f)) {
     const dna = MOOD_DNA[mood];
     if (!dna) continue;
@@ -414,9 +455,14 @@ function reasonFor(user: ScentVector, shared: ScentDim[], contrast: ScentMatch["
     : `${head} in a cleaner reading that feels ${degree} less ${word}.`;
 }
 
-/** Every fragrance scored against a Scentprint, closest first. */
-export function matchFragrances(print: Scentprint, frags: Fragrance[], limit = frags.length): ScentMatch[] {
-  const scored = frags.map((frag): ScentMatch => {
+/**
+ * Every fragrance on the wearer's shelf scored against a Scentprint, closest
+ * first. Filtering happens here rather than at the call sites, so the matches,
+ * the Scent Universe and the share card can never disagree about the shelf.
+ */
+export function matchFragrances(print: Scentprint, frags: Fragrance[], limit?: number): ScentMatch[] {
+  const shelf = shelfFor(frags, print.wearer ?? "all");
+  const scored = shelf.map((frag): ScentMatch => {
     const dna = fragranceDna(frag);
     const behaviour = fragranceBehaviour(dna);
     const dim = dimSimilarity(print.dims, dna);
@@ -447,7 +493,7 @@ export function matchFragrances(print: Scentprint, frags: Fragrance[], limit = f
       reason: reasonFor(print.dims, shared, contrast),
     };
   });
-  return scored.sort((a, b) => b.score - a.score || a.frag.name.localeCompare(b.frag.name)).slice(0, limit);
+  return scored.sort((a, b) => b.score - a.score || a.frag.name.localeCompare(b.frag.name)).slice(0, limit ?? shelf.length);
 }
 
 // ─── Scent Universe™ ─────────────────────────────────────────────────────────
@@ -728,19 +774,24 @@ function dec5(ch: string): number {
   return i < 0 ? 0 : Math.round((i / 31) * 100);
 }
 
+const WEARER_CODE: Record<Wearer, string> = { him: "H", her: "F", all: "A" };
+
 /** Self-contained code: the whole Scentprint travels in the link. */
 export function encodeScentprint(p: Scentprint): string {
   const dims = SCENT_DIMS.map((d) => enc5(p.dims[d])).join("");
   const beh = BEHAVIOURS.map((b) => enc5(p.behaviour[b])).join("");
   const mask = OCCASIONS.reduce((m, o, i) => (p.occasions.includes(o) ? m | (1 << i) : m), 0);
-  return `1${dims}${beh}${ALPHABET[mask & 31]}${ALPHABET[(mask >> 5) & 31]}`;
+  return `2${dims}${beh}${ALPHABET[mask & 31]}${ALPHABET[(mask >> 5) & 31]}${WEARER_CODE[p.wearer ?? "all"]}`;
 }
 
-const ENCODED_LENGTH = 1 + SCENT_DIMS.length + BEHAVIOURS.length + 2;
+// Version 1 codes predate the wearer question and open on the whole house;
+// version 2 carries it as a trailing character.
+const V1_LENGTH = 1 + SCENT_DIMS.length + BEHAVIOURS.length + 2;
+const V2_LENGTH = V1_LENGTH + 1;
 
 /** True when the code carries its own payload (as opposed to a stored id). */
 export function isEncodedCode(code: string): boolean {
-  return code.length === ENCODED_LENGTH && code[0] === "1";
+  return (code.length === V2_LENGTH && code[0] === "2") || (code.length === V1_LENGTH && code[0] === "1");
 }
 
 export function decodeScentprint(code: string): Scentprint | null {
@@ -754,20 +805,30 @@ export function decodeScentprint(code: string): Scentprint | null {
   BEHAVIOURS.forEach((b, i) => {
     behaviour[b] = dec5(c[1 + SCENT_DIMS.length + i]);
   });
-  const maskLow = ALPHABET.indexOf(c[c.length - 2]);
-  const maskHigh = ALPHABET.indexOf(c[c.length - 1]);
+  const v2 = c[0] === "2";
+  const maskAt = 1 + SCENT_DIMS.length + BEHAVIOURS.length;
+  const maskLow = ALPHABET.indexOf(c[maskAt]);
+  const maskHigh = ALPHABET.indexOf(c[maskAt + 1]);
   const mask = (maskLow < 0 ? 0 : maskLow) | ((maskHigh < 0 ? 0 : maskHigh) << 5);
+  const wearerChar = v2 ? c[maskAt + 2] : "A";
   return {
     version: 1,
     dims,
     behaviour,
     occasions: OCCASIONS.filter((_, i) => (mask & (1 << i)) !== 0),
+    wearer: (Object.keys(WEARER_CODE) as Wearer[]).find((w) => WEARER_CODE[w] === wearerChar) ?? "all",
     createdAt: new Date().toISOString(),
   };
 }
 
 /** Rebuilds a Scentprint from a stored row, tolerating a partial payload. */
-export function scentprintFrom(dims: Partial<ScentVector>, behaviour?: Partial<BehaviourVector>, occasions?: string[], loves?: string | null): Scentprint {
+export function scentprintFrom(
+  dims: Partial<ScentVector>,
+  behaviour?: Partial<BehaviourVector>,
+  occasions?: string[],
+  loves?: string | null,
+  wearer?: string | null,
+): Scentprint {
   const v = zeroVector();
   for (const d of SCENT_DIMS) v[d] = clamp(Math.round(Number(dims[d] ?? 0)));
   const derived = fragranceBehaviour(v);
@@ -781,6 +842,7 @@ export function scentprintFrom(dims: Partial<ScentVector>, behaviour?: Partial<B
     dims: v,
     behaviour: b,
     occasions: OCCASIONS.filter((o) => (occasions ?? []).includes(o)),
+    wearer: wearer === "him" || wearer === "her" ? wearer : "all",
     loves: loves ?? null,
     createdAt: new Date().toISOString(),
   };

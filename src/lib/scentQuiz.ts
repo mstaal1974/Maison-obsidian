@@ -20,6 +20,7 @@ import {
   type BehaviourVector,
   type OccasionKey,
   type Scentprint,
+  type Wearer,
   type ScentVector,
   zeroVector,
 } from "./scentdna";
@@ -31,7 +32,8 @@ export type GlyphName =
   | "shirt" | "suit" | "linen" | "leather"
   | "obsidian" | "seaglass" | "suede" | "timber"
   | "espresso" | "cacao" | "sorbet" | "honey"
-  | "dawn" | "dusk" | "night";
+  | "dawn" | "dusk" | "night"
+  | "flacon" | "flute" | "flaconPair";
 
 export interface ChoiceOption {
   id: string;
@@ -72,10 +74,39 @@ export interface SliderQuestion extends BaseQuestion {
 export interface LovedQuestion extends BaseQuestion {
   kind: "loved";
 }
+export interface WearerQuestion extends BaseQuestion {
+  kind: "wearer";
+  options: { id: Wearer; label: string; note: string; glyph: GlyphName; tone: [string, string] }[];
+}
 
-export type Question = ChoiceQuestion | MultiQuestion | SliderQuestion | LovedQuestion;
+export type Question = ChoiceQuestion | MultiQuestion | SliderQuestion | LovedQuestion | WearerQuestion;
 
 export const QUESTIONS: Question[] = [
+  {
+    // First, and deliberately not a scent question: it decides which bottles
+    // the house offers back, not what the Scentprint says about the person.
+    kind: "wearer",
+    id: "wearer",
+    eyebrow: "Who it's for",
+    prompt: "Who are we pouring for?",
+    help: "It only decides which bottles we put in front of you.",
+    options: [
+      {
+        id: "him",
+        label: "For him",
+        note: "Masculine and unisex compositions",
+        glyph: "flacon",
+        tone: ["#080B0F", "#00BFFF"],
+      },
+      {
+        id: "her",
+        label: "For her",
+        note: "Feminine and unisex compositions",
+        glyph: "flute",
+        tone: ["#101820", "#C9A35B"],
+      },
+    ],
+  },
   {
     kind: "choice",
     id: "environment",
@@ -442,6 +473,8 @@ export const QUESTIONS: Question[] = [
 // ─── Answers ─────────────────────────────────────────────────────────────────
 
 export interface QuizAnswers {
+  /** Which shelf to match against. Chosen first; never scored. */
+  wearer: Wearer | null;
   /** question id → option id (choice questions). */
   choices: Record<string, string>;
   /** question id → 0–100 (sliders). */
@@ -453,7 +486,7 @@ export interface QuizAnswers {
 export function emptyAnswers(): QuizAnswers {
   const sliders: Record<string, number> = {};
   for (const q of QUESTIONS) if (q.kind === "slider") sliders[q.id] = q.initial;
-  return { choices: {}, sliders, occasions: [], loved: "" };
+  return { wearer: null, choices: {}, sliders, occasions: [], loved: "" };
 }
 
 /** A question counts as answered once it can't block the reveal. */
@@ -463,6 +496,8 @@ export function isAnswered(q: Question, a: QuizAnswers): boolean {
       return !!a.choices[q.id];
     case "multi":
       return a.occasions.length > 0;
+    case "wearer":
+      return a.wearer !== null;
     case "slider":
     case "loved":
       return true;
@@ -594,6 +629,7 @@ export function computeScentprint(a: QuizAnswers, fragrances: Fragrance[] = []):
     dims,
     behaviour,
     occasions,
+    wearer: a.wearer ?? "all",
     loves: lovedMatch ? loved : loved || null,
     createdAt: new Date().toISOString(),
   };

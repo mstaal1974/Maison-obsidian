@@ -8,9 +8,12 @@ import {
   DIM_SHORT,
   FAMILY_COLOUR,
   OCCASION_LABEL,
+  WEARER_LABEL,
   identityOf,
   matchFragrances,
+  shelfFor,
   type Scentprint,
+  type Wearer,
 } from "../../lib/scentdna";
 import { captureScentLead, scentUrl } from "../../lib/scentShare";
 import BottleImage from "../BottleImage";
@@ -34,6 +37,8 @@ interface ResultProps {
   onSection: (section: ResultSection) => void;
   /** A lead capture can mint a new code; the share link follows it. */
   onCode: (code: string) => void;
+  /** Switching shelf re-matches in place — nobody retakes twelve questions. */
+  onWearer: (wearer: Wearer) => void;
 }
 
 /**
@@ -41,10 +46,14 @@ interface ResultProps {
  * shareable card, the closest matches, the Scent Universe and the ways out of
  * the experience and into the house.
  */
-export default function ScentResult({ print, code, fragrances, revealed, onOpenProduct, onAddSample, onAddDiscoveryBox, onRetake, onSection, onCode }: ResultProps) {
+export default function ScentResult({ print, code, fragrances, revealed, onOpenProduct, onAddSample, onAddDiscoveryBox, onRetake, onSection, onCode, onWearer }: ResultProps) {
   const identity = useMemo(() => identityOf(print), [print]);
   const matches = useMemo(() => matchFragrances(print, fragrances), [print, fragrances]);
   const top = matches.slice(0, 6);
+  const wearer: Wearer = print.wearer ?? "all";
+  // The Discovery Box is exactly five 10 ml, so only offer it when the shelf
+  // can actually fill one.
+  const boxable = matches.length >= DISCOVERY_BOX_SIZE ? top.slice(0, DISCOVERY_BOX_SIZE).map((m) => m.frag) : null;
   const url = scentUrl(code);
   const sections = useRef<Record<ResultSection, HTMLElement | null>>({ scentprint: null, matches: null, universe: null, explore: null });
 
@@ -114,12 +123,15 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
             <div style={eyebrow}>03 — Matches</div>
             <h2 style={{ margin: "14px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(32px, 4.4vw, 54px)", color: SD.text, lineHeight: 1.02 }}>Your closest matches</h2>
             <p style={{ ...bodyText, marginTop: 12, maxWidth: 620 }}>
-              Every fragrance in the house scored against your Scentprint — weighted, so the dimensions you care about count the most.
+              {matches.length} fragrances scored against your Scentprint — weighted, so the dimensions you care about count the most.
             </p>
+            <WearerSwitch wearer={wearer} fragrances={fragrances} onChange={onWearer} />
           </div>
-          <button className="sd-cta" style={{ ...ctaGhost, height: 46 }} onClick={() => onAddDiscoveryBox(top.slice(0, DISCOVERY_BOX_SIZE).map((m) => m.frag))}>
-            Try my top {DISCOVERY_BOX_SIZE} · {money(DISCOVERY_BOX_PRICE)}
-          </button>
+          {boxable && (
+            <button className="sd-cta" style={{ ...ctaGhost, height: 46 }} onClick={() => onAddDiscoveryBox(boxable)}>
+              Try my top {DISCOVERY_BOX_SIZE} · {money(DISCOVERY_BOX_PRICE)}
+            </button>
+          )}
         </div>
 
         <div className="sd-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 20, marginTop: 34 }}>
@@ -202,9 +214,11 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
                   Shop {top[0].frag.name}
                 </button>
               )}
-              <button className="sd-cta" style={{ ...ctaGhost, width: "100%" }} onClick={() => onAddDiscoveryBox(top.slice(0, DISCOVERY_BOX_SIZE).map((m) => m.frag))}>
-                Build my {DISCOVERY_BOX_SIZE}-scent discovery set
-              </button>
+              {boxable && (
+                <button className="sd-cta" style={{ ...ctaGhost, width: "100%" }} onClick={() => onAddDiscoveryBox(boxable)}>
+                  Build my {DISCOVERY_BOX_SIZE}-scent discovery set
+                </button>
+              )}
               <button className="sd-cta" style={{ ...ctaQuiet, width: "100%" }} onClick={onRetake}>
                 Retake the experience
               </button>
@@ -224,6 +238,41 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
           </aside>
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * Which shelf the matches come from. The Scentprint doesn't move — only the set
+ * of bottles it is compared against — so switching is instant and lossless.
+ */
+function WearerSwitch({ wearer, fragrances, onChange }: { wearer: Wearer; fragrances: Fragrance[]; onChange: (w: Wearer) => void }) {
+  const options: Wearer[] = ["him", "her", "all"];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 20 }}>
+      <span style={{ ...micro, color: ink(0.34) }}>Pouring for</span>
+      {options.map((w) => (
+        <button
+          key={w}
+          className="sd-chip"
+          aria-pressed={wearer === w}
+          onClick={() => onChange(w)}
+          style={{
+            background: wearer === w ? goldA(0.12) : "transparent",
+            border: `1px solid ${wearer === w ? goldA(0.7) : ink(0.14)}`,
+            color: wearer === w ? SD.softGold : ink(0.6),
+            cursor: "pointer",
+            height: 32,
+            padding: "0 14px",
+            fontFamily: MONO,
+            fontSize: 9.5,
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+          }}
+        >
+          {WEARER_LABEL[w]} · {shelfFor(fragrances, w).length}
+        </button>
+      ))}
     </div>
   );
 }
