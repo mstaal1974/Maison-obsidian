@@ -19,7 +19,10 @@ export type Route =
   | { view: "product"; slug: string }
   | { view: "about" }
   | { view: "account"; checkout: "success" | null; subscribed: boolean; sessionId: string | null }
-  | { view: "admin" };
+  | { view: "admin" }
+  // The staff order desk: packing, tracking, labels. Its own page, reachable at
+  // /staff as well as the hash form, and behind its own passphrase.
+  | { view: "staff" };
 
 export function parseHash(hash: string): Route {
   const h = hash.replace(/^#\/?/, "");
@@ -44,6 +47,8 @@ export function parseHash(hash: string): Route {
       return { view: "scent", code: null };
     case "scent":
       return { view: "scent", code: tail ? decodeURIComponent(tail) : null };
+    case "staff":
+      return { view: "staff" };
     case "find": {
       const q = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)).get("q") ?? "" : "";
       return { view: "find", query: q };
@@ -89,6 +94,8 @@ export function parsePath(pathname: string): Route {
       return { view: "scent", code: null };
     case "scent":
       return { view: "scent", code: rest[0] ? decodeURIComponent(rest[0]) : null };
+    case "staff":
+      return { view: "staff" };
     default:
       return { view: "home" };
   }
@@ -131,4 +138,5 @@ export const paths = {
   about: "#/about",
   account: "#/account",
   admin: "#/admin",
+  staff: "#/staff",
 };

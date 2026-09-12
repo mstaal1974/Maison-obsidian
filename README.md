@@ -380,6 +380,59 @@ signed-in user is treated as an admin and edits are in-memory.
 > Make an admin: grab the id from Supabase → Authentication → Users, then run the
 > insert above in the SQL editor.
 
+### The staff order desk (`/staff`)
+
+A paid order is several rows in `commits` that share a Stripe checkout session;
+packing is a per-order act, so `0025_staff_desk.sql` adds `order_fulfilment`
+keyed by that session — `packed`, `packed_at`, `tracking_number`, `shipped_at`.
+
+The desk is used by whoever is packing, who may have no account, so it opens
+with a **shared passphrase** rather than a login. The passphrase is bcrypt-hashed
+in `staff_access` and checked inside three `SECURITY DEFINER` functions —
+`staff_orders`, `staff_set_packed`, `staff_set_tracking` — which are the only way
+in: both tables have RLS on with **no policies at all**, so nothing is readable
+through PostgREST without it. An `is_admin()` session passes without a
+passphrase. A wrong one costs a `pg_sleep(0.4)`, enough friction that guessing
+through the anon key is not worth starting.
+
+Set the passphrase before anyone else has the URL:
+
+```sql
+select public.admin_set_staff_passphrase('a passphrase you choose');
+-- or, straight from the SQL editor:
+update public.staff_access set passphrase_hash = crypt('…', gen_salt('bf'));
+```
+
+It deliberately uses no serverless function — the project sits at Vercel's
+twelve-function ceiling — so the whole desk is RPCs plus a page.
+
+The page (`/staff`, or `#/staff`) shows each paid order with its lines, the
+reference each scent interprets, the amount, the customer, the shipping address
+and any delivery note, a **tick box for packed**, and a field for the **Australia
+Post article id** (saved on blur, with a tracking link once set). Filters cover
+*to pack*, *no tracking*, *packed* and *all*; there is a search box and a CSV
+export. The passphrase lives in `sessionStorage`, so closing the tab locks it.
+
+Two print sheets live in the page, hidden on screen, and a `data-print` mark on
+`<body>` chooses which one the printer sees — built in the page rather than a
+popup, which browsers block:
+
+- **Pack list** — one bordered block per order that never splits across a page,
+  with a tick box and quantity per line, the engraving, the address and the
+  delivery note.
+- **Labels** — A6 address labels, one per page, with the sender block, the
+  recipient, the order ref, the piece count and the tracking number.
+
+The sender block comes from `VITE_RETURN_ADDRESS` (lines separated by `|`).
+Nothing is guessed: unset, the label prints a warning instead of an address,
+because a plausible wrong return address is how an undelivered parcel stops
+coming back.
+
+> These are address labels, not prepaid postage. A real Australia Post label
+> carries a barcode that AusPost issues against a lodged consignment — that needs
+> a MyPost Business or eParcel account and their Shipping & Tracking API, which
+> can be wired to this desk when those credentials exist.
+
 ### Authentication
 
 `src/lib/auth.ts`'s `useAuth()` wraps Supabase Auth — `signInWithPassword`, `signUp`,
@@ -554,7 +607,12 @@ breaks. The anon key is browser-safe: RLS constrains every read and write.
 
 > The migrations were validated end-to-end against PostgreSQL 16 — schema, seed,
 > the committed-sync trigger, the VIP gate (both allow and reject), RPC return
-> values, and idempotent re-seeding all verified.
+> values, and idempotent re-seeding all verified. `0025_staff_desk.sql` was
+> validated the same way: every migration applied in order against PostgreSQL 16,
+> then the desk's own behaviour exercised — orders grouped by checkout session
+> (with a payment-intent fallback for rows that predate sessions), unpaid rows
+> excluded, totals summed across lines, a wrong passphrase refused on both reads
+> and writes, and packed/tracking set and cleared.
 
 ### Stack
 
