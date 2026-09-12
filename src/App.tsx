@@ -12,6 +12,7 @@ import { sku as skuOf, FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } 
 import AuthModal from "./components/AuthModal";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
 import AdminConsole from "./components/AdminConsole";
+import StaffDesk from "./components/StaffDesk";
 import ChatWidget from "./components/ChatWidget";
 import ScentDna from "./components/ScentDna";
 import Header from "./components/Header";
@@ -359,6 +360,13 @@ export default function App() {
       onAddCar={(f) => addToBag(f.id, "car", 1)}
     />
   ) : null;
+
+  // The order desk is a tool, not a page of the storefront: no header, no
+  // footer, no bag — just the orders and the printer. It has its own
+  // passphrase, so it does not go through the site's admin sign-in.
+  if (route.view === "staff") {
+    return <StaffDesk />;
+  }
 
   // Discover Your Scent DNA is a standalone campaign experience: it brings its
   // own chrome so a visitor arriving from Instagram or a QR code never has to

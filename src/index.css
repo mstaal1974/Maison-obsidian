@@ -482,3 +482,88 @@ body {
 .sd-node:focus-visible .sd-node-label {
   opacity: 1 !important;
 }
+
+/* ─── The staff order desk ──────────────────────────────────────────────────
+   Two print sheets live in the page and are hidden on screen; a data-print
+   mark on <body> chooses which one the printer sees. Building them in a popup
+   window is the version browsers block, and a popup cannot inherit the fonts. */
+.mo-print { display: none; }
+.mo-desk-row input[type="checkbox"] { margin: 0; }
+
+@media screen and (max-width: 1200px) {
+  /* Below a laptop the seven columns stop being a table and become a card. */
+  .mo-desk-row {
+    grid-template-columns: 44px 1fr !important;
+    gap: 10px !important;
+  }
+  .mo-desk-row > *:nth-child(n + 3) { grid-column: 2; }
+}
+
+@media print {
+  /* Ink is expensive and the sheet is a working document: no backgrounds. */
+  @page { margin: 12mm; }
+  body { background: #fff !important; }
+  .mo-screen { display: none !important; }
+  body[data-print="list"] .mo-print-list,
+  body[data-print="labels"] .mo-print-labels { display: block !important; }
+
+  .mo-print {
+    color: #000;
+    font-family: "Space Mono", ui-monospace, monospace;
+    font-size: 10pt;
+  }
+  .mo-print-title {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-weight: 400;
+    font-size: 18pt;
+    margin: 0 0 10mm;
+    border-bottom: 1px solid #000;
+    padding-bottom: 3mm;
+  }
+  .mo-print-title span {
+    display: block;
+    font-family: "Space Mono", monospace;
+    font-size: 8pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2mm;
+  }
+
+  /* One order per block, never split across a page: a half-printed order is
+     how the wrong thing ends up in the box. */
+  .mo-pack {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #000;
+    padding: 4mm 5mm;
+    margin: 0 0 4mm;
+  }
+  .mo-pack header { display: flex; justify-content: space-between; gap: 6mm; align-items: baseline; }
+  .mo-pack header strong { font-family: "Cormorant Garamond", Georgia, serif; font-size: 14pt; font-weight: 500; }
+  .mo-pack header span { font-size: 8pt; letter-spacing: 0.08em; }
+  .mo-pack table { width: 100%; border-collapse: collapse; margin-top: 3mm; }
+  .mo-pack td { padding: 1.6mm 0; vertical-align: top; border-bottom: 1px dotted #999; font-size: 10pt; }
+  .mo-pack td.tick { width: 8mm; font-size: 13pt; line-height: 1; }
+  .mo-pack td.qty { width: 8mm; font-weight: 700; }
+  .mo-pack td em { font-style: normal; font-size: 8pt; letter-spacing: 0.1em; text-transform: uppercase; }
+  .mo-pack .engrave { font-size: 8pt; margin-top: 1mm; }
+  .mo-pack footer { margin-top: 3mm; font-size: 8.5pt; }
+
+  /* A6 address labels, one per page so they feed as sheets or as a roll. */
+  .mo-label {
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    width: 99mm;
+    height: 134mm;
+    border: 1px solid #000;
+    padding: 6mm;
+    display: flex;
+    flex-direction: column;
+  }
+  .mo-label:last-child { break-after: auto; page-break-after: auto; }
+  .mo-label .from { font-size: 8pt; line-height: 1.5; padding-bottom: 4mm; border-bottom: 1px solid #000; }
+  .mo-label .to { flex: 1; display: flex; flex-direction: column; justify-content: center; font-size: 13pt; line-height: 1.7; }
+  .mo-label .to .who { font-family: "Cormorant Garamond", Georgia, serif; font-size: 19pt; }
+  .mo-label .foot { display: flex; justify-content: space-between; gap: 4mm; font-size: 7.5pt; letter-spacing: 0.08em; border-top: 1px solid #000; padding-top: 3mm; }
+}
