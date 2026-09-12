@@ -250,7 +250,7 @@ supabase/
 │   ├── 0019_scent_dna.sql       scent_profiles + save_scentprint / get_scentprint / attach_scentprint_email
 │   ├── 0020_scent_dna_wearer.sql  scent_profiles.wearer (him / her / all) carried through both RPCs
 │   ├── 0021_audience_catalogue.sql  +32 scents with a Him/Her/Unisex audience; retires the 4 superseded
-│   └── 0022_bottle_photography.sql  image_url for all 52 shot scents
+│   └── 0022_bottle_photography.sql  image_url for all 53 scents
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -460,7 +460,7 @@ Neither sheet carries every field the app needs, so:
   and its Scentprint never disagree;
 - **vipOnly** flags the single most expensive scent, so the VIP gate stays demoable.
 
-**Bottle photography.** Every scent but one has its own 1024 × 1024 house shot
+**Bottle photography.** Every scent has a 1024 × 1024 house shot
 in `public/assets`, uploaded under the *inspiration reference* it was styled for
 rather than the house slug — so `imageUrl` is set explicitly on each scent
 (and in migration 0021's companion, `0022`) instead of relying on the
@@ -474,8 +474,9 @@ Two things to know when adding more:
   to the stock bottle with nothing in the console. `Creed — Spice & Wood.jpg`
   was renamed to `… Spice and Wood.jpg` for exactly this reason. Spaces and
   em-dashes are fine.
-- **Midnight Berry Noir** (Burberry *Her Intense*) is the one scent with no shot
-  yet, and stays on the stock fallback until one is added.
+- **Midnight Berry Noir** (Burberry *Her Intense*) has no shot of its own and
+  shares the Burberry *Her* one with London Berry Blossom — the same fragrance
+  line, one flanker apart. It is the only image used by two scents.
 
 Where a reference has more than one upload, the one in use is recorded in
 `imageUrl`; the spares stay in the folder untouched.

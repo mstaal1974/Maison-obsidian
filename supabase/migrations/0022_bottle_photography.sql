@@ -8,8 +8,9 @@
 -- Paths are percent-encoded because the filenames carry spaces, ampersands and
 -- em-dashes. They mirror src/lib/data.ts exactly.
 --
--- Not covered: Midnight Berry Noir (Burberry Her Intense) — no shot in the
--- folder yet, so it keeps the stock fallback until one is added.
+-- Midnight Berry Noir (Burberry Her Intense) has no shot of its own and shares
+-- the Burberry Her one with London Berry Blossom — they are the same fragrance
+-- line, one flanker apart.
 
 update public.fragrances f
    set image_url = v.image_url
@@ -38,6 +39,7 @@ update public.fragrances f
   ('f26', '/assets/Creed%20Aventus%20Absolu.jpg'),
   ('f27', '/assets/amouage%20sindbad.jpg'),
   ('f28', '/assets/Burberry-Her-1.jpg'),
+  ('f29', '/assets/Burberry-Her-1.jpg'),
   ('f30', '/assets/Bvlgari-Man-In-Black-1.jpg'),
   ('f31', '/assets/Coco-Chanel-Mademoiselle-1.jpg'),
   ('f32', '/assets/Dior-Addict-1.jpg'),

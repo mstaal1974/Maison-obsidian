@@ -575,6 +575,7 @@ const SEED: Fragrance[] = [
     top: ["Blackberry", "Red Fruits"],
     heart: ["Jasmine"],
     base: ["Benzoin"],
+    imageUrl: "/assets/Burberry-Her-1.jpg",
   },
   {
     id: "f30",
