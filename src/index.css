@@ -145,6 +145,19 @@ body {
   animation: moDrawer 0.28s ease;
 }
 
+/* Mobile menu: hidden until the nav collapses at 1000px. */
+.mo-burger {
+  display: none;
+}
+.mo-drawer-sheet {
+  animation: moFade 0.18s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mo-drawer-sheet {
+    animation: none;
+  }
+}
+
 /* ─── Responsive: the design is a desktop comp; degrade gracefully ────────── */
 
 @media (max-width: 1180px) {
@@ -186,7 +199,28 @@ body {
 }
 
 @media (max-width: 1000px) {
+  /* The primary nav gives way to the drawer (.mo-burger opens it), and the
+     header sheds anything that would push the row past the viewport. */
   .mo-nav {
+    display: none !important;
+  }
+  .mo-burger {
+    display: grid !important;
+  }
+  .mo-account-desktop {
+    display: none !important;
+  }
+  .mo-bag-label {
+    display: none !important;
+  }
+  /* The wordmark has to hold one line, or the header row grows past 72px and
+     the drawer starts in the wrong place. */
+  .mo-wordmark {
+    font-size: 15px !important;
+    letter-spacing: 0.1em !important;
+    white-space: nowrap;
+  }
+  .mo-wordmark-sub {
     display: none !important;
   }
   .mo-banner-grid {
