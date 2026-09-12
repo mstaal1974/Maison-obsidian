@@ -440,7 +440,7 @@ const SEED: Fragrance[] = [
     id: "f22",
     slug: "dark-prestige",
     name: "Dark Prestige",
-    inspiration: "Inspired by BOSS Bottle Absolu",
+    inspiration: "Inspired by Hugo Boss - Boss Bottled Absolu",
     tagline: "Leather Accord, Patchouli, Davana.",
     story: "Deeply intense, roasted woody-amber composition featuring rich leather accords, warm patchouli, and deep cedar.",
     price: 3600,
