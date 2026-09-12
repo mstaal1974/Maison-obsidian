@@ -1054,7 +1054,7 @@ const SEED: Fragrance[] = [
     top: ["Absinthe", "Anise", "Fennel"],
     heart: ["Lavender"],
     base: ["Musk", "Vanilla Husk"],
-    imageUrl: "/assets/Carolina-Herrera-212-VIP-Black-1.jpg",
+    imageUrl: "/assets/212%20VIP%20BLACK%20ELIXIR.jpg",
   },
   {
     id: "f54",

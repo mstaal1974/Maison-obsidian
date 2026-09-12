@@ -61,7 +61,7 @@ update public.fragrances f
   ('f50', '/assets/Gucci-Guilty-Absolute-Pour-Femme-1.jpg'),
   ('f51', '/assets/Issey-Miyake-L-Eau-d-Issey-Lumi-re-1.jpg'),
   ('f52', '/assets/Chlo-Eau-de-Parfum-1.jpg'),
-  ('f53', '/assets/Carolina-Herrera-212-VIP-Black-1.jpg'),
+  ('f53', '/assets/212%20VIP%20BLACK%20ELIXIR.jpg'),
   ('f54', '/assets/Hugo-Boss-The-Scent-1.jpg'),
   ('f55', '/assets/Louis-Vuitton-Afternoon-Swim-1.jpg'),
   ('f56', '/assets/Roberto-Cavalli-Paradiso-1.jpg'),

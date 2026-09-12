@@ -477,6 +477,9 @@ Two things to know when adding more:
 - **Midnight Berry Noir** (Burberry *Her Intense*) is the one scent with no shot
   yet, and stays on the stock fallback until one is added.
 
+Where a reference has more than one upload, the one in use is recorded in
+`imageUrl`; the spares stay in the folder untouched.
+
 Regenerate both `src/lib/data.ts` and `0002_seed.sql` from a new sheet with the
 importer under `scripts/` (see below) to keep the live DB and offline seed identical.
 
