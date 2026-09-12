@@ -94,6 +94,7 @@ const SEED: Fragrance[] = [
     top: ["Black Ink", "Rum"],
     heart: ["Leather", "Elemi Resin"],
     base: ["Ebony Wood", "Olibanum"],
+    imageUrl: "/assets/Tom-Ford-Black-Lacquer-1.jpg",
   },
   {
     id: "f2",
@@ -113,6 +114,7 @@ const SEED: Fragrance[] = [
     top: ["Bergamot", "Black Pepper"],
     heart: ["Orange Blossom"],
     base: ["Amber", "Patchouli"],
+    imageUrl: "/assets/YSL-MYSLF-L-Absolu-1.jpg",
   },
   {
     id: "f3",
@@ -132,6 +134,7 @@ const SEED: Fragrance[] = [
     top: ["Vanilla Infusion", "Lavender"],
     heart: ["Vanilla Caviar"],
     base: ["Vanilla Absolute"],
+    imageUrl: "/assets/Burberry%20Goddess.jpg",
   },
   {
     id: "f4",
@@ -151,6 +154,7 @@ const SEED: Fragrance[] = [
     top: ["Pear", "Pink Pepper"],
     heart: ["Coffee", "Jasmine"],
     base: ["Vanilla", "Patchouli", "Cedar"],
+    imageUrl: "/assets/YSL%20%E2%80%94%20Black%20Opium.jpg",
   },
   {
     id: "f6",
@@ -170,6 +174,7 @@ const SEED: Fragrance[] = [
     top: ["Rose", "Mimosa"],
     heart: ["Violet", "Ylang-Ylang"],
     base: ["Iris", "Sandalwood", "Musk"],
+    imageUrl: "/assets/YSL%20-%20Paris.jpg",
   },
   {
     id: "f7",
@@ -189,6 +194,7 @@ const SEED: Fragrance[] = [
     top: ["Pear", "Tangerine", "Bergamot"],
     heart: ["Orange Blossom", "Jasmine"],
     base: ["Amber", "White Musk"],
+    imageUrl: "/assets/Prada%20Paradox.jpg",
   },
   {
     id: "f8",
@@ -208,6 +214,7 @@ const SEED: Fragrance[] = [
     top: ["Apple", "Ginger", "Bergamot"],
     heart: ["Sage", "Juniper Berries"],
     base: ["Amberwood", "Tonka Bean"],
+    imageUrl: "/assets/YSL%20%E2%80%94%20Y%20EDP.jpg",
   },
   {
     id: "f9",
@@ -227,6 +234,7 @@ const SEED: Fragrance[] = [
     top: ["Mint", "Green Apple", "Lemon"],
     heart: ["Tonka Bean", "Ambroxan"],
     base: ["Vanilla", "Cedarwood"],
+    imageUrl: "/assets/Versace%20%E2%80%94%20Eros.jpg",
   },
   {
     id: "f10",
@@ -246,6 +254,7 @@ const SEED: Fragrance[] = [
     top: ["Palo Santo", "Incense"],
     heart: ["Leather", "Labdanum"],
     base: ["Ebony Wood", "Guaiac Wood"],
+    imageUrl: "/assets/Tom%20Ford%20-%20%20Ebene%20Fume.jpg",
   },
   {
     id: "f11",
@@ -265,6 +274,7 @@ const SEED: Fragrance[] = [
     top: ["Citron", "Calabrian Bergamot"],
     heart: ["Nigerian Ginger", "Ceylon Cinnamon"],
     base: ["Chinese Black Tea", "Ambroxan"],
+    imageUrl: "/assets/Lv%20Imagination.jpg",
   },
   {
     id: "f12",
@@ -284,6 +294,7 @@ const SEED: Fragrance[] = [
     top: ["Saffron", "Nutmeg"],
     heart: ["Rose", "Labdanum"],
     base: ["Oud", "Leather", "Amber"],
+    imageUrl: "/assets/Creed%20Oud%20Zarain.jpg",
   },
   {
     id: "f13",
@@ -303,6 +314,7 @@ const SEED: Fragrance[] = [
     top: ["Marine Notes", "Bergamot"],
     heart: ["Rosemary", "Lavender"],
     base: ["Patchouli", "Warm Woods"],
+    imageUrl: "/assets/Armani%20Acqua%20di%20Gio.jpg",
   },
   {
     id: "f14",
@@ -322,6 +334,7 @@ const SEED: Fragrance[] = [
     top: ["Calabria Bergamot"],
     heart: ["Sichuan Pepper", "Lavender"],
     base: ["Ambroxan", "Papua Vanilla"],
+    imageUrl: "/assets/Dior%20Sauvage.jpg",
   },
   {
     id: "f16",
@@ -341,6 +354,7 @@ const SEED: Fragrance[] = [
     top: ["Pear", "Lavender", "Mint"],
     heart: ["Cinnamon", "Clary Sage"],
     base: ["Black Vanilla", "Amber"],
+    imageUrl: "/assets/JPG%20Ultra%20Male.jpg",
   },
   {
     id: "f17",
@@ -360,6 +374,7 @@ const SEED: Fragrance[] = [
     top: ["Cardamom"],
     heart: ["Toffee"],
     base: ["Amberwood"],
+    imageUrl: "/assets/Azzaro%20%E2%80%94%20Most%20Wanted.jpg",
   },
   {
     id: "f18",
@@ -379,6 +394,7 @@ const SEED: Fragrance[] = [
     top: ["Apple", "Bergamot", "Lemon"],
     heart: ["Angelica", "Clove", "Pepper"],
     base: ["Cedarwood", "Birch", "Iris"],
+    imageUrl: "/assets/Creed%20%E2%80%94%20Spice%20and%20Wood.jpg",
   },
   {
     id: "f19",
@@ -398,6 +414,7 @@ const SEED: Fragrance[] = [
     top: ["Lavender", "Mint"],
     heart: ["Vanilla", "Benzoin"],
     base: ["Honey", "Tobacco", "Tonka Bean"],
+    imageUrl: "/assets/Jean%20Paul%20Gaultier%20%E2%80%94%20Le%20Male%20Elixir.jpg",
   },
   {
     id: "f21",
@@ -417,6 +434,7 @@ const SEED: Fragrance[] = [
     top: ["Raspberry", "Saffron"],
     heart: ["Olibanum", "Jasmine"],
     base: ["Leather", "Suede", "Amberwood"],
+    imageUrl: "/assets/Tom%20Ford%20%E2%80%94%20Tuscan%20Leather.jpg",
   },
   {
     id: "f22",
@@ -436,6 +454,7 @@ const SEED: Fragrance[] = [
     top: ["Leather Accord"],
     heart: ["Patchouli", "Cedarwood"],
     base: ["Davana", "Labdanum"],
+    imageUrl: "/assets/BOSS%20Bottle%20Absolu.jpg",
   },
   {
     id: "f24",
@@ -455,6 +474,7 @@ const SEED: Fragrance[] = [
     top: ["Grapefruit", "Bergamot", "Lime"],
     heart: ["Lily-of-the-Valley", "Jasmine", "Apple"],
     base: ["Ambergris", "Musk", "Leather"],
+    imageUrl: "/assets/Roja-Elysium-Eau-1.jpg",
   },
   {
     id: "f25",
@@ -475,6 +495,7 @@ const SEED: Fragrance[] = [
     top: ["Raspberry"],
     heart: ["Saffron", "Rose"],
     base: ["Oud", "Leather", "Incense"],
+    imageUrl: "/assets/Tom-Ford-Ombre-Nomade-1.jpg",
   },
   {
     id: "f26",
@@ -494,6 +515,7 @@ const SEED: Fragrance[] = [
     top: ["Pineapple & Blackcurrant", "Apple", "Bergamot"],
     heart: ["Birch", "Patchouli", "Moroccan Jasmine & Rose"],
     base: ["Musk", "Oakmoss", "Ambergris", "Vanilla"],
+    imageUrl: "/assets/Creed%20Aventus%20Absolu.jpg",
   },
   {
     id: "f27",
@@ -513,6 +535,7 @@ const SEED: Fragrance[] = [
     top: ["Cardamom", "Cinnamon", "Bergamot", "Saffron"],
     heart: ["Frankincense", "Myrrh", "Rose", "Osmanthus"],
     base: ["Oud", "Sandalwood", "Amber", "Leather"],
+    imageUrl: "/assets/amouage%20sindbad.jpg",
   },
   {
     id: "f28",
@@ -532,6 +555,7 @@ const SEED: Fragrance[] = [
     top: ["Strawberry", "Raspberry", "Blackberry", "Sour Cherry", "Black Currant", "Mandarin Orange", "Lemon"],
     heart: ["Violet", "Jasmine"],
     base: ["Musk", "Vanilla", "Cashmeran", "Woody Notes", "Amber", "Oakmoss"],
+    imageUrl: "/assets/Burberry-Her-1.jpg",
   },
   {
     id: "f29",
@@ -570,6 +594,7 @@ const SEED: Fragrance[] = [
     top: ["Spices", "Rum", "Tobacco"],
     heart: ["Leather", "Iris", "Tuberose"],
     base: ["Tonka Bean", "Guaiac Wood", "Benzoin"],
+    imageUrl: "/assets/Bvlgari-Man-In-Black-1.jpg",
   },
   {
     id: "f31",
@@ -589,6 +614,7 @@ const SEED: Fragrance[] = [
     top: ["Orange", "Mandarin Orange", "Bergamot", "Orange Blossom"],
     heart: ["Turkish Rose", "Jasmine", "Mimosa", "Ylang-Ylang"],
     base: ["Patchouli", "White Musk", "Vanilla", "Vetiver", "Tonka Bean", "Opoponax"],
+    imageUrl: "/assets/Coco-Chanel-Mademoiselle-1.jpg",
   },
   {
     id: "f32",
@@ -608,6 +634,7 @@ const SEED: Fragrance[] = [
     top: ["Silk Tree Blossom", "Mandarin Leaf"],
     heart: ["Night Blooming Cereus", "Orange Blossom"],
     base: ["Bourbon Vanilla", "Tonka Bean", "Sandalwood"],
+    imageUrl: "/assets/Dior-Addict-1.jpg",
   },
   {
     id: "f33",
@@ -627,6 +654,7 @@ const SEED: Fragrance[] = [
     top: ["Magnolia", "Melon", "Peach", "Pear", "Bergamot", "Mandarin Orange"],
     heart: ["Tuberose", "Plum", "Violet", "Orchid", "Freesia", "Jasmine", "Lily-of-the-Valley", "Rose"],
     base: ["Musk", "Vanilla", "Cedar", "Blackberry"],
+    imageUrl: "/assets/Dior-J-Adore-1.jpg",
   },
   {
     id: "f34",
@@ -646,6 +674,7 @@ const SEED: Fragrance[] = [
     top: ["Pink Pepper", "Juniper", "Violet"],
     heart: ["Toffee", "Cinnamon", "Lavender", "Sage"],
     base: ["Vanilla", "Tonka Bean", "Amber", "Suede"],
+    imageUrl: "/assets/Giorgio-Armani-Stronger-With-You-Intensely-1.jpg",
   },
   {
     id: "f35",
@@ -665,6 +694,7 @@ const SEED: Fragrance[] = [
     top: ["Ginger", "Bitter Orange", "Bergamot"],
     heart: ["Tuberose", "Orange Blossom", "Jasmine"],
     base: ["Sandalwood", "Vanilla"],
+    imageUrl: "/assets/Herm-s-Twilly-d-Herm-s-1.jpg",
   },
   {
     id: "f36",
@@ -684,6 +714,7 @@ const SEED: Fragrance[] = [
     top: ["Lotus", "Melon", "Calone", "Rose", "Freesia", "Lotus", "Cyclamen"],
     heart: ["Lily-of-the-Valley", "Water Peony", "Carnation", "Fresh Lily"],
     base: ["Musk", "Tuberose", "Exotic Woods", "Osmanthus", "Cedar", "Sandalwood", "Amber"],
+    imageUrl: "/assets/Issey-Miyake-Eau-D-Issey-1.jpg",
   },
   {
     id: "f37",
@@ -703,6 +734,7 @@ const SEED: Fragrance[] = [
     top: ["Saffron", "Jasmine"],
     heart: ["Amberwood", "Ambergris"],
     base: ["Fir Resin", "Cedar"],
+    imageUrl: "/assets/Baccarat-Rouge-540-1.jpg",
   },
   {
     id: "f38",
@@ -722,6 +754,7 @@ const SEED: Fragrance[] = [
     top: ["Cardamom", "Saffron", "Cumin", "Bergamot"],
     heart: ["Geranium", "Patchouli", "Oud"],
     base: ["Leather", "Cumin", "Vetiver", "Musk", "Oud"],
+    imageUrl: "/assets/Memo-Paris-African-Leather-1.jpg",
   },
   {
     id: "f39",
@@ -741,6 +774,7 @@ const SEED: Fragrance[] = [
     top: ["African Orange Flower", "Osmanthus", "Bergamot"],
     heart: ["Musk", "Amber"],
     base: ["Vetiver", "Vanille", "Patchouli"],
+    imageUrl: "/assets/Narciso-Rodriguez-For-Her-1.jpg",
   },
   {
     id: "f40",
@@ -760,6 +794,7 @@ const SEED: Fragrance[] = [
     top: ["Cinnamon", "Cardamom", "Orange Blossom", "Bergamot"],
     heart: ["Bourbon Vanilla", "Elemi"],
     base: ["Praline", "Musk", "Ambroxan", "Guaiac Wood"],
+    imageUrl: "/assets/Parfums-de-Marly-Altha-r-1.jpg",
   },
   {
     id: "f41",
@@ -779,6 +814,7 @@ const SEED: Fragrance[] = [
     top: ["Pear", "Bergamot", "Litchi"],
     heart: ["Turkish Rose", "Oud", "Incense"],
     base: ["Vanilla", "Amber", "Woody Notes"],
+    imageUrl: "/assets/Parfums-de-Marly-Delina-Exclusif-1.jpg",
   },
   {
     id: "f42",
@@ -798,6 +834,7 @@ const SEED: Fragrance[] = [
     top: ["Spices", "Fruity Notes", "Pine", "Cypriol Oil", "Lavender", "Bergamot", "Saffron"],
     heart: ["Oud", "Agarwood", "Amber", "Patchouli", "Caramel", "Myrrh", "Incense", "Rose", "Floral Notes"],
     base: ["Oud", "Amber", "Leather", "Tobacco", "Cedar", "Musk", "Sandalwood", "Vetiver"],
+    imageUrl: "/assets/The-Spirit-of-Dubai-Oud-1.jpg",
   },
   {
     id: "f43",
@@ -817,6 +854,7 @@ const SEED: Fragrance[] = [
     top: ["Rosewood", "Cardamom", "Chinese Pepper"],
     heart: ["Oud Wood", "Sandalwood", "Vetiver"],
     base: ["Tonka Bean", "Vanilla", "Amber"],
+    imageUrl: "/assets/Tom-Ford-Oud-Wood-1.jpg",
   },
   {
     id: "f44",
@@ -836,6 +874,7 @@ const SEED: Fragrance[] = [
     top: ["Pistachio", "Bergamot", "Cardamom", "Pink Pepper"],
     heart: ["Tuberose", "Ylang-Ylang", "Jasmine"],
     base: ["Coconut", "Amber", "Tonka Bean", "Benzoin"],
+    imageUrl: "/assets/Tom-Ford-Soleil-Blanc-1.jpg",
   },
   {
     id: "f45",
@@ -855,6 +894,7 @@ const SEED: Fragrance[] = [
     top: ["Black Currant", "Pink Pepper", "Bergamot"],
     heart: ["Jasmine", "Jasmine Sambac", "Jasmine Tea"],
     base: ["Bourbon Vanilla", "Cashmeran", "Guaiac Wood"],
+    imageUrl: "/assets/Valentino-Donna-Born-In-Roma-1.jpg",
   },
   {
     id: "f46",
@@ -874,6 +914,7 @@ const SEED: Fragrance[] = [
     top: ["Tea", "Bergamot", "Osmanthus"],
     heart: ["Orchid", "Jasmine", "Rose", "Freesia", "African Orange Flower"],
     base: ["Patchouli", "Musk", "Vanilla"],
+    imageUrl: "/assets/Viktor-Rolf-Flowerbomb-1.jpg",
   },
   {
     id: "f47",
@@ -893,6 +934,7 @@ const SEED: Fragrance[] = [
     top: ["Black Pepper", "Nutmeg"],
     heart: ["Cinnamon", "Leather", "Saffron"],
     base: ["Tobacco", "Dark Wood", "Cedar"],
+    imageUrl: "/assets/Viktor-Rolf-Spicebomb-Dark-Leather-1.jpg",
   },
   {
     id: "f48",
@@ -912,6 +954,7 @@ const SEED: Fragrance[] = [
     top: ["Mandarin Orange", "Lavender", "Black Currant", "Petitgrain"],
     heart: ["Jasmine", "Lavender", "Orange Blossom"],
     base: ["Madagascar Vanilla", "Musk", "Cedar", "Ambergris"],
+    imageUrl: "/assets/YSL-Libre-1.jpg",
   },
   {
     id: "f49",
@@ -931,6 +974,7 @@ const SEED: Fragrance[] = [
     top: ["Bitter Almond", "Clary Sage"],
     heart: ["Vanilla Absolute", "Floral Notes", "Orris"],
     base: ["Tonka Bean", "Vanilla Tincture", "Sandalwood", "Leather"],
+    imageUrl: "/assets/Tom-Ford-Vanilla-Sex-1.jpg",
   },
   {
     id: "f50",
@@ -950,6 +994,7 @@ const SEED: Fragrance[] = [
     top: ["Blackberry", "Bergamot", "Pink Pepper"],
     heart: ["Bulgarian Rose", "Woody Notes", "Cypress", "Vetiver"],
     base: ["Amber", "Patchouli"],
+    imageUrl: "/assets/Gucci-Guilty-Absolute-Pour-Femme-1.jpg",
   },
   {
     id: "f51",
@@ -969,6 +1014,7 @@ const SEED: Fragrance[] = [
     top: ["Lotus", "Freesia", "Lemon"],
     heart: ["White Flowers", "Ylang-Ylang", "Tuberose", "Rose"],
     base: ["Cedar", "Sandalwood", "Musk"],
+    imageUrl: "/assets/Issey-Miyake-L-Eau-d-Issey-Lumi-re-1.jpg",
   },
   {
     id: "f52",
@@ -988,6 +1034,7 @@ const SEED: Fragrance[] = [
     top: ["Peony", "Litchi", "Freesia"],
     heart: ["Rose", "Lily-of-the-Valley", "Magnolia"],
     base: ["Amber", "Virginia Cedar"],
+    imageUrl: "/assets/Chlo-Eau-de-Parfum-1.jpg",
   },
   {
     id: "f53",
@@ -1007,6 +1054,7 @@ const SEED: Fragrance[] = [
     top: ["Absinthe", "Anise", "Fennel"],
     heart: ["Lavender"],
     base: ["Musk", "Vanilla Husk"],
+    imageUrl: "/assets/Carolina-Herrera-212-VIP-Black-1.jpg",
   },
   {
     id: "f54",
@@ -1026,6 +1074,7 @@ const SEED: Fragrance[] = [
     top: ["Peach", "Freesia"],
     heart: ["Osmanthus"],
     base: ["Roasted Cocoa", "Leather Notes"],
+    imageUrl: "/assets/Hugo-Boss-The-Scent-1.jpg",
   },
   {
     id: "f55",
@@ -1045,6 +1094,7 @@ const SEED: Fragrance[] = [
     top: ["Sicilian Orange", "Bergamot", "Mandarin Orange"],
     heart: ["Ginger", "Sea Notes"],
     base: ["Ambergris", "Ambroxan"],
+    imageUrl: "/assets/Louis-Vuitton-Afternoon-Swim-1.jpg",
   },
   {
     id: "f56",
@@ -1064,6 +1114,7 @@ const SEED: Fragrance[] = [
     top: ["Citrus", "Mandarin Orange", "Bergamot"],
     heart: ["Jasmine"],
     base: ["Pine", "Cypress", "Laurel", "Parasol Pine", "White Nerium Oleander"],
+    imageUrl: "/assets/Roberto-Cavalli-Paradiso-1.jpg",
   },
   {
     id: "f57",
@@ -1083,6 +1134,7 @@ const SEED: Fragrance[] = [
     top: ["Mignonette", "Mandarin Orange", "Sage"],
     heart: ["Nectarine", "Blue Hyacinth", "Peach Blossom", "Rose", "Iris", "Red Cyclamen"],
     base: ["Sandalwood", "Cedar", "Musk"],
+    imageUrl: "/assets/Burberry-Weekend-For-Women-1.jpg",
   },
 ];
 
