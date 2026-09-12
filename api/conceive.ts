@@ -242,9 +242,12 @@ export default async function handler(req: any, res: any) {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Either name works: Vercel projects have been set up with both
+  // ANTHROPIC_API_KEY and the shorter ANTHROPIC_KEY, and a mismatch here
+  // fails silently — the route 501s and the fallback hides it.
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_KEY;
   if (!apiKey) {
-    res.status(501).json({ error: "AI conception is not configured (ANTHROPIC_API_KEY missing)" });
+    res.status(501).json({ error: "AI conception is not configured (ANTHROPIC_API_KEY / ANTHROPIC_KEY missing)" });
     return;
   }
 

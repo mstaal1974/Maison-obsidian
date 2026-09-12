@@ -454,7 +454,8 @@ catalogue summary** (`concierge.ts`), and the function prepends a house system p
 (brand voice, batch model, sizes, engraving, VIP, Australia Post shipping) and streams
 `claude-opus-4-8`.
 
-Set `ANTHROPIC_API_KEY` in the Vercel project (Settings → Environment Variables). When
+Set `ANTHROPIC_API_KEY` in the Vercel project (Settings → Environment Variables); every
+AI route also accepts the shorter `ANTHROPIC_KEY`, so either name works. When
 it's absent — or in the offline demo — the widget falls back to a **local rule-based
 concierge** (`localFallbackReply`) so it still answers the common questions.
 
