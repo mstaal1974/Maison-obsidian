@@ -236,6 +236,16 @@ function normalise(raw: Record<string, unknown>): Conception {
   };
 }
 
+
+// The API's own message names the field it rejected — a bare "Claude error 400"
+// does not, and that cost a production round trip. It describes the request, so
+// there is nothing sensitive in it.
+function apiDetail(err: unknown): string {
+  const nested = (err as { error?: { error?: { message?: unknown } } })?.error?.error?.message;
+  const text = typeof nested === "string" ? nested : String((err as { message?: unknown })?.message ?? "");
+  return text.slice(0, 300);
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -322,7 +332,8 @@ export default async function handler(req: any, res: any) {
     } else if (err instanceof Anthropic.AuthenticationError) {
       res.status(501).json({ error: "AI conception is misconfigured (invalid API key)" });
     } else if (err instanceof Anthropic.APIError) {
-      res.status(502).json({ error: `Claude error ${err.status ?? ""}`.trim() });
+      const detail = apiDetail(err);
+      res.status(502).json({ error: `Claude error ${err.status ?? ""}${detail ? `: ${detail}` : ""}`.trim() });
     } else {
       res.status(500).json({ error: "Conception failed" });
     }

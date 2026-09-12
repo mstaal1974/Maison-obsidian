@@ -161,6 +161,15 @@ refusal fallback to `claude-opus-4-8` that the conception route already uses.
 Anything the model returns naming a fragrance we didn't ask about is dropped
 before it reaches the page.
 
+Structured outputs accept only a [subset of JSON
+Schema](https://platform.claude.com/docs/en/build-with-claude/structured-outputs):
+`minimum`, `maximum`, `maxItems`, `minLength` and `pattern` are rejected with a
+400 at request time, which nothing local catches — and the client's fallbacks
+hide it, so the site looks fine while no model is ever reached. Bounds are
+stated in each field's `description` and the values are clamped on arrival.
+`npm run check:schemas` (also part of `npm run build`, so Vercel can't deploy
+past it) checks every schema in `api/` against that subset.
+
 The learning store is `scent_signals` (migration 0024): one row per signal,
 keyed by share code and, when signed in, by account. The profile shown is
 always the original print with the signals applied on top — weighted by kind
