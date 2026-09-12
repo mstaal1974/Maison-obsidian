@@ -421,6 +421,23 @@ body {
   .sd-slider-panel .sd-range { margin-top: clamp(12px, 2.8svh, 20px) !important; }
   /* No keyboard to press 1-4 on. */
   .sd-key-hint { display: none !important; }
+  /* The reveal: the ring, the name and the description belong on one screen.
+     The ring takes its size from this wrapper (ScentResult measures it), so
+     capping the wrapper here is what shrinks the drawing — and the identity
+     below it tightens to match. The behaviour bars and the occasions stay
+     below the fold on purpose: they are detail, read after the verdict. */
+  .sd-ring-wrap { max-width: min(76vw, 34svh) !important; margin: 0 auto !important; }
+  .sd-result-hero { padding-top: 6px !important; padding-bottom: 32px !important; }
+  .sd-result-grid { gap: 14px !important; }
+  .sd-id-name { font-size: clamp(30px, 6.6svh, 42px) !important; margin-top: 8px !important; }
+  .sd-id-sub { font-size: clamp(17px, 3.4svh, 22px) !important; margin-top: 6px !important; }
+  .sd-id-traits { gap: 6px !important; margin-top: 12px !important; }
+  .sd-id-trait { padding: 5px 8px !important; font-size: 8.5px !important; letter-spacing: 0.16em !important; }
+  .sd-id-body { font-size: clamp(12.5px, 2.6svh, 14px) !important; line-height: 1.58 !important; margin-top: 10px !important; }
+  .sd-id-inspired { margin-top: 12px !important; padding-left: 12px !important; }
+  .sd-id-ref { font-size: clamp(20px, 4.2svh, 26px) !important; }
+  .sd-id-reflabel { margin-top: 6px !important; }
+  .sd-id-bars { margin-top: 22px !important; }
   .sd-wordmark { font-size: 13.5px !important; letter-spacing: 0.11em !important; }
   .sd-quiet-note { display: none !important; }
   .sd-pad { padding-left: 20px !important; padding-right: 20px !important; }
@@ -434,6 +451,23 @@ body {
   .sd-card-art { height: clamp(42px, 8.4svh, 62px) !important; }
   .sd-card-art svg { width: clamp(21px, 4.2svh, 30px) !important; height: clamp(21px, 4.2svh, 30px) !important; }
   .sd-quiz-head { font-size: clamp(19px, 4svh, 23px) !important; }
+  /* The reveal has the same problem on a short screen, and the same answer:
+     the ring gives up room before the words do. */
+  .sd-ring-wrap { max-width: min(70vw, 27svh) !important; }
+  .sd-id-name { font-size: clamp(26px, 5.6svh, 34px) !important; }
+  .sd-id-sub { margin-top: 4px !important; }
+  .sd-id-traits { margin-top: 8px !important; }
+  .sd-id-body { font-size: 12.5px !important; line-height: 1.45 !important; margin-top: 8px !important; }
+  .sd-id-inspired { margin-top: 8px !important; }
+  .sd-id-closest, .sd-id-reflabel { letter-spacing: 0.1em !important; }
+  .sd-id-ref { font-size: clamp(18px, 3.8svh, 23px) !important; }
+}
+/* Narrowest handsets: the paragraph wraps to eight lines at 320px, so the
+   type comes down a step rather than the description being cut. */
+@media (max-width: 344px) {
+  .sd-ring-wrap { max-width: min(66vw, 26svh) !important; }
+  .sd-id-body { font-size: 12px !important; }
+  .sd-id-closest, .sd-id-reflabel { font-size: 9px !important; letter-spacing: 0.06em !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -126,30 +126,73 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
     sections.current[key] = el;
   };
 
+  // The ring used to render at a fixed 520 inside whatever column it was
+  // given. On a phone that meant a 350-wide drawing letterboxed inside a
+  // 520-tall box: 170px of nothing above and below it, which pushed the name
+  // and the description off the screen. It now takes its size from the
+  // column, and the stylesheet decides how wide that column is.
+  const ringWrap = useRef<HTMLDivElement | null>(null);
+  const [ringSize, setRingSize] = useState(520);
+  useEffect(() => {
+    const el = ringWrap.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width;
+      if (w > 0) setRingSize(Math.round(Math.max(150, Math.min(520, w))));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // What the closest match is an interpretation of. The house says this on
+  // every product and match card; the Scentprint is where people decide
+  // whether to believe the result, so it belongs here too.
+  const topReference = top[0] ? referenceOf(top[0].frag) : null;
+
   return (
     <div style={{ position: "relative", zIndex: 1 }}>
       {/* ─── 02 · Your Scentprint ─────────────────────────────────────────── */}
-      <section ref={register("scentprint")} data-section="scentprint" className="sd-pad" style={{ maxWidth: 1240, margin: "0 auto", padding: "36px 32px 60px" }}>
+      <section ref={register("scentprint")} data-section="scentprint" className="sd-pad sd-result-hero" style={{ maxWidth: 1240, margin: "0 auto", padding: "36px 32px 60px" }}>
         <div className="sd-result-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 520px)", gap: 56, alignItems: "center" }}>
-          <div style={{ display: "grid", placeItems: "center" }}>
-            <ScentprintRing dims={identity.top} size={520} animate={revealed} />
+          <div ref={ringWrap} className="sd-ring-wrap" style={{ display: "grid", placeItems: "center" }}>
+            <ScentprintRing dims={identity.top} size={ringSize} animate={revealed} />
           </div>
           <div className={revealed ? "sd-rise" : undefined} style={revealed ? { animationDelay: "0.9s" } : undefined}>
             <div style={eyebrow}>Your Scent DNA</div>
-            <h1 style={{ margin: "16px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(42px, 6vw, 74px)", lineHeight: 0.98, color: SD.text }}>{identity.primary}</h1>
-            <p style={{ margin: "10px 0 0", fontFamily: SERIF, fontStyle: "italic", fontSize: 26, color: goldA(0.9) }}>{identity.secondary}</p>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 22 }}>
+            <h1 className="sd-id-name" style={{ margin: "16px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(42px, 6vw, 74px)", lineHeight: 0.98, color: SD.text }}>{identity.primary}</h1>
+            <p className="sd-id-sub" style={{ margin: "10px 0 0", fontFamily: SERIF, fontStyle: "italic", fontSize: 26, color: goldA(0.9) }}>{identity.secondary}</p>
+            <div className="sd-id-traits" style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 22 }}>
               {identity.character.map((c) => (
-                <span key={c} style={{ ...micro, color: SD.text, border: `1px solid ${goldA(0.32)}`, padding: "7px 12px", letterSpacing: "0.24em" }}>
+                <span key={c} className="sd-id-trait" style={{ ...micro, color: SD.text, border: `1px solid ${goldA(0.32)}`, padding: "7px 12px", letterSpacing: "0.24em" }}>
                   {c}
                 </span>
               ))}
             </div>
-            <p style={{ ...bodyText, marginTop: 24, maxWidth: 520 }}>{identity.narrative}</p>
+            <p className="sd-id-body" style={{ ...bodyText, marginTop: 24, maxWidth: 520 }}>{identity.narrative}</p>
+            {top[0] && (
+              <div className="sd-id-inspired" style={{ marginTop: 18, borderLeft: `1px solid ${goldA(0.45)}`, paddingLeft: 16 }}>
+                <div className="sd-id-closest" style={{ ...micro, color: ink(0.48) }}>
+                  Closest match · {top[0].frag.name} · {top[0].percent}%
+                </div>
+                {topReference?.brand && (
+                  <>
+                    <div className="sd-id-reflabel" style={{ ...micro, marginTop: 9, color: goldA(0.75) }}>
+                      Inspired by the scent profile of
+                    </div>
+                    {/* The one name on this screen the reader already knows.
+                        Set like a name, not like a footnote. */}
+                    <div className="sd-id-ref" style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 30, lineHeight: 1.12, color: SD.softGold, marginTop: 3 }}>
+                      {topReference.brand}
+                      {topReference.fragrance ? ` ${topReference.fragrance}` : ""}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             {shown.loves && (
               <p style={{ ...micro, marginTop: 14, color: ink(0.4) }}>Calibrated against a fragrance you love · {shown.loves}</p>
             )}
-            <div style={{ marginTop: 30, display: "grid", gap: 12 }}>
+            <div className="sd-id-bars" style={{ marginTop: 30, display: "grid", gap: 12 }}>
               {BEHAVIOURS.filter((b) => b !== "familiarity").map((b) => (
                 <BehaviourBar key={b} label={BEHAVIOUR_LABEL[b]} poles={BEHAVIOUR_POLES[b]} value={shown.behaviour[b]} />
               ))}
@@ -163,6 +206,8 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
         </div>
 
         <div style={{ marginTop: 64 }}>
+          {/* The reference stays off the share card on purpose: it travels
+              further than the page does. It is named on the reveal instead. */}
           <ShareCard print={shown} url={url} code={code} topMatch={top[0] ? { name: top[0].frag.name, percent: top[0].percent } : null} />
         </div>
       </section>

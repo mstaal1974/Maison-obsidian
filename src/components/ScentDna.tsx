@@ -27,6 +27,11 @@ type Stage = "hero" | "quiz" | "converse" | "memory" | "building" | "result" | "
 
 const STEPS = ["Discover", "Scent DNA", "Matches", "Explore"];
 
+// The conversational and photograph routes are built, wired and reachable —
+// they are only kept off the hero while the model paths are unproven in
+// production. Set this to true to put both doors back; nothing else changes.
+const AI_ENTRY_POINTS: boolean = false;
+
 /** The miniature under the hero CTA: a plausible print, not anybody's. */
 const DEMO_DIMS: { dim: ScentDim; value: number }[] = [
   { dim: "fresh", value: 88 },
@@ -316,14 +321,16 @@ function Hero({
 
         {/* Three doors to the same Scentprint — some people would rather talk
             than tap, and some arrive with a photograph. */}
-        <div className="sd-fade sd-hero-cta" style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 22, flexWrap: "wrap", animationDelay: "0.32s" }}>
-          <button className="sd-cta" style={{ ...ctaGhost, height: 44 }} onClick={onConverse}>
-            Or just talk to me
-          </button>
-          <button className="sd-cta" style={{ ...ctaGhost, height: 44 }} onClick={onMemory}>
-            Or start from a photo
-          </button>
-        </div>
+        {AI_ENTRY_POINTS && (
+          <div className="sd-fade sd-hero-cta" style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 22, flexWrap: "wrap", animationDelay: "0.32s" }}>
+            <button className="sd-cta" style={{ ...ctaGhost, height: 44 }} onClick={onConverse}>
+              Or just talk to me
+            </button>
+            <button className="sd-cta" style={{ ...ctaGhost, height: 44 }} onClick={onMemory}>
+              Or start from a photo
+            </button>
+          </div>
+        )}
 
         {/* Proof of the prize: they will receive something visual. */}
         <div className="sd-fade" style={{ display: "grid", placeItems: "center", marginTop: 34, animationDelay: "0.4s" }}>
