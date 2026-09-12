@@ -15,6 +15,11 @@
 -- functions are the only door, and nothing here is readable through PostgREST
 -- directly — both tables have RLS on with no policies at all.
 
+-- Supabase keeps extensions in the `extensions` schema, a plain Postgres puts
+-- them in `public`. Naming both here means crypt() and gen_salt() resolve under
+-- either layout — a missing schema in a search_path is ignored, not an error.
+set search_path = public, extensions;
+
 create extension if not exists pgcrypto;
 
 -- ─── Fulfilment state, one row per order ─────────────────────────────────────
@@ -60,7 +65,10 @@ create or replace function public.staff_ok(p_pass text)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+-- `extensions` is on the path because crypt() lives there on Supabase. A
+-- function's SET clause replaces the caller's search_path for its duration, so
+-- leaving it off here fails at call time even though the migration applied.
+set search_path = public, extensions
 as $$
 declare
   v_hash text;
@@ -88,7 +96,7 @@ create or replace function public.admin_set_staff_passphrase(p_new text)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions   -- crypt() and gen_salt(), as above
 as $$
 begin
   if not public.is_admin() then
