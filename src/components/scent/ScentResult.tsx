@@ -16,6 +16,8 @@ import {
   type Wearer,
 } from "../../lib/scentdna";
 import { captureScentLead, scentUrl } from "../../lib/scentShare";
+import { curateSet, explainMatches, type CuratedSet, type MatchExplanation } from "../../lib/scentai";
+import { learnedPrint, loadSignals, recordFeedback, recordWear, whatChanged, type ScentSignal } from "../../lib/scentLearning";
 import BottleImage from "../BottleImage";
 import ScentprintRing from "./ScentprintRing";
 import ScentUniverse from "./ScentUniverse";
@@ -47,15 +49,49 @@ interface ResultProps {
  * the experience and into the house.
  */
 export default function ScentResult({ print, code, fragrances, revealed, onOpenProduct, onAddSample, onAddDiscoveryBox, onRetake, onSection, onCode, onWearer }: ResultProps) {
-  const identity = useMemo(() => identityOf(print), [print]);
-  const matches = useMemo(() => matchFragrances(print, fragrances), [print, fragrances]);
-  const top = matches.slice(0, 6);
-  const wearer: Wearer = print.wearer ?? "all";
+  // Everything below reads the *learned* print: the answers they gave, plus
+  // every sample worn and every word said since. The original is kept as the
+  // origin so the learning can always be explained or unwound.
+  const [signals, setSignals] = useState<ScentSignal[]>([]);
+  const refreshSignals = useCallback(() => {
+    void loadSignals(code || null).then(setSignals);
+  }, [code]);
+  useEffect(() => {
+    let live = true;
+    void loadSignals(code || null).then((rows) => live && setSignals(rows));
+    return () => {
+      live = false;
+    };
+  }, [code]);
+
+  const shown = useMemo(() => learnedPrint(print, signals), [print, signals]);
+  const moved = useMemo(() => whatChanged(print, shown), [print, shown]);
+
+  const identity = useMemo(() => identityOf(shown), [shown]);
+  const matches = useMemo(() => matchFragrances(shown, fragrances), [shown, fragrances]);
+  const top = useMemo(() => matches.slice(0, 6), [matches]);
+  const wearer: Wearer = shown.wearer ?? "all";
   // The Discovery Box is exactly five 10 ml, so only offer it when the shelf
   // can actually fill one.
   const boxable = matches.length >= DISCOVERY_BOX_SIZE ? top.slice(0, DISCOVERY_BOX_SIZE).map((m) => m.frag) : null;
   const url = scentUrl(code);
   const sections = useRef<Record<ResultSection, HTMLElement | null>>({ scentprint: null, matches: null, universe: null, explore: null });
+
+  // Why each match suits them, in words. The percentages are already computed;
+  // this only puts the numbers behind them into language, so the cards can say
+  // something true rather than something merely plausible. Falls back to the
+  // engine's own sentence, which is what shows until this resolves.
+  const [explained, setExplained] = useState<Record<string, MatchExplanation>>({});
+  useEffect(() => {
+    let live = true;
+    void explainMatches(shown, top, fragrances).then((r) => {
+      if (!live || !r.ok || !r.ai) return;
+      setExplained(Object.fromEntries(r.result.map((e) => [e.slug, e])));
+    });
+    return () => {
+      live = false;
+    };
+  }, [shown, top, fragrances]);
 
   // Tell the rail which step the reader is on.
   useEffect(() => {
@@ -70,6 +106,21 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
     Object.values(sections.current).forEach((el) => el && observer.observe(el));
     return () => observer.disconnect();
   }, [onSection]);
+
+  // A discovery set is not the top five scores — five near-identical bottles
+  // teach nobody anything. Curation picks a spread that covers where they
+  // actually live, and says what each one is for.
+  const [curated, setCurated] = useState<CuratedSet | null>(null);
+  const [curating, setCurating] = useState(false);
+  const [curateError, setCurateError] = useState<string | null>(null);
+  const curate = useCallback(async () => {
+    setCurating(true);
+    setCurateError(null);
+    const r = await curateSet(shown, fragrances, DISCOVERY_BOX_SIZE);
+    if (r.ok) setCurated(r.result);
+    else setCurateError(r.error);
+    setCurating(false);
+  }, [shown, fragrances]);
 
   const register = (key: ResultSection) => (el: HTMLElement | null) => {
     sections.current[key] = el;
@@ -95,24 +146,24 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
               ))}
             </div>
             <p style={{ ...bodyText, marginTop: 24, maxWidth: 520 }}>{identity.narrative}</p>
-            {print.loves && (
-              <p style={{ ...micro, marginTop: 14, color: ink(0.4) }}>Calibrated against a fragrance you love · {print.loves}</p>
+            {shown.loves && (
+              <p style={{ ...micro, marginTop: 14, color: ink(0.4) }}>Calibrated against a fragrance you love · {shown.loves}</p>
             )}
             <div style={{ marginTop: 30, display: "grid", gap: 12 }}>
               {BEHAVIOURS.filter((b) => b !== "familiarity").map((b) => (
-                <BehaviourBar key={b} label={BEHAVIOUR_LABEL[b]} poles={BEHAVIOUR_POLES[b]} value={print.behaviour[b]} />
+                <BehaviourBar key={b} label={BEHAVIOUR_LABEL[b]} poles={BEHAVIOUR_POLES[b]} value={shown.behaviour[b]} />
               ))}
             </div>
-            {print.occasions.length > 0 && (
+            {shown.occasions.length > 0 && (
               <p style={{ ...micro, marginTop: 22, color: ink(0.46) }}>
-                Built for · {print.occasions.map((o) => OCCASION_LABEL[o]).join(" · ")}
+                Built for · {shown.occasions.map((o) => OCCASION_LABEL[o]).join(" · ")}
               </p>
             )}
           </div>
         </div>
 
         <div style={{ marginTop: 64 }}>
-          <ShareCard print={print} url={url} code={code} topMatch={top[0] ? { name: top[0].frag.name, percent: top[0].percent } : null} />
+          <ShareCard print={shown} url={url} code={code} topMatch={top[0] ? { name: top[0].frag.name, percent: top[0].percent } : null} />
         </div>
       </section>
 
@@ -128,8 +179,8 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
             <WearerSwitch wearer={wearer} fragrances={fragrances} onChange={onWearer} />
           </div>
           {boxable && (
-            <button className="sd-cta" style={{ ...ctaGhost, height: 46 }} onClick={() => onAddDiscoveryBox(boxable)}>
-              Try my top {DISCOVERY_BOX_SIZE} · {money(DISCOVERY_BOX_PRICE)}
+            <button className="sd-cta" style={{ ...ctaGhost, height: 46 }} onClick={() => void curate()} disabled={curating}>
+              {curating ? "Curating…" : `Curate my ${DISCOVERY_BOX_SIZE} · ${money(DISCOVERY_BOX_PRICE)}`}
             </button>
           )}
         </div>
@@ -156,11 +207,20 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
                 </div>
                 <div style={{ padding: "20px 20px 22px", display: "flex", flexDirection: "column", flex: 1 }}>
                   <h3 style={{ margin: 0, fontFamily: SERIF, fontWeight: 300, fontSize: 27, color: SD.text, lineHeight: 1.1 }}>{m.frag.name}</h3>
-                  <p style={{ margin: "8px 0 0", ...micro, color: goldA(0.85) }}>{m.families.join(" · ")}</p>
+                  <p style={{ margin: "8px 0 0", ...micro, color: goldA(0.85) }}>
+                    {explained[m.frag.slug]?.headline ?? m.families.join(" · ")}
+                  </p>
                   <div style={{ height: 2, background: ink(0.08), margin: "14px 0 0" }}>
                     <div style={{ height: 2, width: `${m.percent}%`, background: `linear-gradient(90deg, ${SD.cyan}, ${SD.gold})` }} />
                   </div>
-                  <p style={{ margin: "14px 0 0", fontSize: 13, lineHeight: 1.65, color: ink(0.58), flex: 1 }}>{m.reason}</p>
+                  <p style={{ margin: "14px 0 0", fontSize: 13, lineHeight: 1.65, color: ink(0.58), flex: 1 }}>
+                    {explained[m.frag.slug]?.body ?? m.reason}
+                  </p>
+                  {explained[m.frag.slug]?.caution && (
+                    <p style={{ margin: "10px 0 0", fontSize: 12, lineHeight: 1.55, color: goldA(0.75) }}>
+                      One caveat · {explained[m.frag.slug]?.caution}
+                    </p>
+                  )}
                   <p style={{ margin: "12px 0 0", fontSize: 11.5, color: ink(0.36) }}>
                     Inspired by the scent profile of {ref.brand}
                     {ref.fragrance ? ` ${ref.fragrance}` : ""}
@@ -169,7 +229,14 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
                     <button className="sd-cta" style={{ ...ctaGold, height: 42, padding: "0 18px", fontSize: 9.5 }} onClick={() => onOpenProduct(m.frag.slug)}>
                       View
                     </button>
-                    <button className="sd-cta" style={{ ...ctaQuiet, height: 42, padding: "0 16px" }} onClick={() => onAddSample(m.frag)}>
+                    <button
+                      className="sd-cta"
+                      style={{ ...ctaQuiet, height: 42, padding: "0 16px" }}
+                      onClick={() => {
+                        onAddSample(m.frag);
+                        void recordWear(code || null, m.frag, shown, "sample").then(refreshSignals);
+                      }}
+                    >
                       Add 10ml
                     </button>
                   </div>
@@ -178,6 +245,18 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
             );
           })}
         </div>
+
+        {curateError && (
+          <p style={{ ...micro, color: goldA(0.85), marginTop: 18 }}>{curateError}</p>
+        )}
+        {curated && (
+          <CuratedPanel
+            set={curated}
+            onAdd={() => onAddDiscoveryBox(curated.frags)}
+            onDismiss={() => setCurated(null)}
+            onOpenProduct={onOpenProduct}
+          />
+        )}
       </section>
 
       {/* ─── 04 · The Scent Universe ──────────────────────────────────────── */}
@@ -188,7 +267,7 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
           You sit at the centre. Everything the house pours is placed by how close it is to your Scentprint, on a wheel that runs fresh at the top through warm and woody and back round to clean.
         </p>
         <div style={{ marginTop: 34 }}>
-          <ScentUniverse print={print} matches={matches} onOpen={(f) => onOpenProduct(f.slug)} onAddSample={onAddSample} />
+          <ScentUniverse print={shown} matches={matches} onOpen={(f) => onOpenProduct(f.slug)} onAddSample={onAddSample} />
         </div>
       </section>
 
@@ -203,7 +282,17 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
             <p style={{ ...bodyText, marginTop: 14, maxWidth: 560 }}>
               We'll email the card and your match list, and keep your Scentprint on file so it sharpens every time you tell us something new — a bottle you loved, a sample you didn't.
             </p>
-            <LeadForm print={print} onCode={onCode} />
+            <LeadForm print={shown} onCode={onCode} />
+
+            <LearningPanel
+              signals={signals}
+              moved={moved}
+              onFeedback={async (text) => {
+                const r = await recordFeedback(code || null, text);
+                refreshSignals();
+                return r;
+              }}
+            />
           </div>
 
           <aside style={{ ...glass, padding: "30px 28px 32px" }}>
@@ -238,6 +327,148 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
           </aside>
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * What the profile has learned, and the way to teach it more. Shown plainly
+ * because a customer who can see the thing improving has a reason to keep
+ * feeding it — and because a profile that changes silently is unnerving.
+ */
+function LearningPanel({
+  signals,
+  moved,
+  onFeedback,
+}: {
+  signals: ScentSignal[];
+  moved: { key: string; from: number; to: number }[];
+  onFeedback: (text: string) => Promise<{ ok: boolean; summary: string; moved: number }>;
+}) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const value = text.trim();
+    if (!value || busy) return;
+    setBusy(true);
+    const r = await onFeedback(value);
+    setBusy(false);
+    setSaid(r.summary);
+    if (r.ok) setText("");
+  };
+
+  return (
+    <div style={{ ...glass, marginTop: 26, padding: "24px 24px 22px" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+        <span style={eyebrow}>Your Scentprint is learning</span>
+        <span style={{ ...micro, color: ink(0.4) }}>
+          {signals.length === 0 ? "No signals yet" : `${signals.length} signal${signals.length === 1 ? "" : "s"}`}
+        </span>
+      </div>
+
+      <p style={{ margin: "12px 0 0", fontSize: 13.5, lineHeight: 1.7, color: ink(0.55) }}>
+        Every sample you try and everything you tell us moves it. Your original answers are kept, so this can always be traced back.
+      </p>
+
+      {moved.length > 0 && (
+        <div style={{ marginTop: 16, display: "grid", gap: 8 }}>
+          {moved.map((m) => (
+            <div key={m.key} style={{ display: "flex", alignItems: "center", gap: 10, ...micro, color: ink(0.5) }}>
+              <span style={{ flex: 1 }}>{m.key}</span>
+              <span style={{ color: ink(0.3) }}>{m.from}</span>
+              <span aria-hidden style={{ color: goldA(0.7) }}>→</span>
+              <span style={{ color: SD.softGold }}>{m.to}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={submit} style={{ marginTop: 18 }}>
+        <label style={{ ...micro, color: ink(0.45) }} htmlFor="sd-feedback">
+          Tried one? Tell me how it went
+        </label>
+        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+          <input
+            id="sd-feedback"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="It was lovely but far too sweet on me…"
+            style={{ flex: 1, minWidth: 200, background: "rgba(245,242,234,0.03)", border: `1px solid ${ink(0.12)}`, outline: "none", color: SD.text, fontSize: 13.5, padding: "12px 14px" }}
+          />
+          <button className="sd-cta" type="submit" style={{ ...ctaQuiet, height: 44 }} disabled={busy || !text.trim()}>
+            {busy ? "Reading…" : "Teach it"}
+          </button>
+        </div>
+        {said && <p style={{ ...micro, marginTop: 12, color: goldA(0.85), lineHeight: 1.8 }}>{said}</p>}
+      </form>
+    </div>
+  );
+}
+
+/** The curated set: what it is, and what each bottle in it is for. */
+function CuratedPanel({
+  set,
+  onAdd,
+  onDismiss,
+  onOpenProduct,
+}: {
+  set: CuratedSet;
+  onAdd: () => void;
+  onDismiss: () => void;
+  onOpenProduct: (slug: string) => void;
+}) {
+  return (
+    <div className="sd-rise" style={{ ...glass, marginTop: 26, padding: "28px 26px 30px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 620 }}>
+          <div style={eyebrow}>Your discovery set</div>
+          <h3 style={{ margin: "12px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: 32, color: SD.text, lineHeight: 1.05 }}>{set.setName}</h3>
+          <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.7, color: ink(0.62) }}>{set.rationale}</p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button className="sd-cta" style={{ ...ctaGold, height: 46 }} onClick={onAdd}>
+            Add the set · {money(DISCOVERY_BOX_PRICE)}
+          </button>
+          <button className="sd-cta" style={{ ...ctaQuiet, height: 46 }} onClick={onDismiss}>
+            Not this
+          </button>
+        </div>
+      </div>
+
+      <ol style={{ listStyle: "none", margin: "24px 0 0", padding: 0, display: "grid", gap: 2 }}>
+        {set.frags.map((f, i) => {
+          const role = set.roles[f.slug];
+          return (
+            <li key={f.id}>
+              <button
+                onClick={() => onOpenProduct(f.slug)}
+                className="sd-chip"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "34px 1fr 1.1fr auto",
+                  alignItems: "center",
+                  gap: 14,
+                  width: "100%",
+                  textAlign: "left",
+                  background: "none",
+                  border: 0,
+                  borderTop: `1px solid ${ink(0.06)}`,
+                  cursor: "pointer",
+                  padding: "13px 4px",
+                }}
+              >
+                <span style={{ ...micro, color: ink(0.3) }}>{String(i + 1).padStart(2, "0")}</span>
+                <span style={{ fontFamily: SERIF, fontSize: 20, color: SD.text }}>{f.name}</span>
+                <span style={{ ...micro, color: goldA(0.8), letterSpacing: "0.18em" }}>{role?.role ?? ""}</span>
+                <span style={{ fontSize: 12, color: ink(0.45), textAlign: "right" }}>{role?.when ?? f.tagline}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

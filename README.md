@@ -130,6 +130,43 @@ progress rail (`01 Discover — 02 Scent DNA — 03 Matches — 04 Explore`).
   5-scent discovery set* (drops the top five into the bag as a Discovery Box)
   and *Retake*.
 
+### The AI layer
+
+Six capabilities behind **one** serverless route (`api/scent-ai.ts`) — one
+because Vercel's function budget was at eleven of twelve, and because all six
+want the same prompt prefix. The house voice, the Scentprint vocabulary and the
+catalogue (with the numbers our own engine derived) sit above a single cache
+breakpoint, so a visitor moving from the conversation to their matches to a
+curated set reads the catalogue once rather than five times.
+
+**The rule the whole layer is built on:** the deterministic engine in
+`lib/scentdna.ts` computes the Scentprint and every compatibility score. The
+model never scores anything. It is handed numbers and puts them into language,
+or it proposes adjustments that are applied through that same engine. That is
+what keeps "94% match" true rather than merely plausible — and it is why every
+capability still works with no API key at all.
+
+| | What it does | Without a key |
+| --- | --- | --- |
+| **Conversational discovery** | A chat that asks about places, weather and food — never notes or families — and fills the Scentprint in beside it as you answer | A scripted five-question ladder, read through the same note lexicon |
+| **Learning Scentprint** | Every sample worn and every "too sweet" moves the profile; the original answers are kept so it can be explained or unwound | Keyword rules for the things people actually say, merged identically |
+| **Match explanation** | Why this one, citing the dimensions you share and the one that pulls against you | The engine's own sentence, which is what the cards already showed |
+| **AI discovery set** | Five that cover where you live rather than the five highest scores, each with what it's for | Greedy diversity pick: closest match, then whichever strong candidate smells least like those chosen |
+| **Memory / image → scent** | A photograph or a described moment read as a Scentprint, with a title and story for the share card | The note lexicon over the written memory; photographs need the model |
+| **Familiar ↔ Adventurous** | An appetite control that changes which scents the Scent Universe argues for, each labelled with what it keeps and what it changes | Aims at a compatibility band below their best match rather than the top of the list |
+
+Model: `claude-opus-5`, structured outputs (`output_config.format`) so every
+answer arrives schema-valid, effort tuned per operation, and the server-side
+refusal fallback to `claude-opus-4-8` that the conception route already uses.
+Anything the model returns naming a fragrance we didn't ask about is dropped
+before it reaches the page.
+
+The learning store is `scent_signals` (migration 0024): one row per signal,
+keyed by share code and, when signed in, by account. The profile shown is
+always the original print with the signals applied on top — weighted by kind
+(buying a bottle counts for more than bagging a sample, passing counts for
+less) and faded on a 240-day half-life.
+
 Privacy: a share code carries numbers only — never a name or an email. With
 Supabase configured the result is stored and a six-character code minted
 (`…/scent/7HD92K`); without it the whole Scentprint is encoded into the code so
@@ -209,6 +246,8 @@ src/
 │   ├── scentdna.ts        Scentprint™ model, note→dimension lexicon, matching engine, Scent Universe™
 │   ├── scentQuiz.ts       The thirteen discovery questions and their weights → a Scentprint
 │   ├── scentShare.ts      Share codes, local persistence, lead capture
+│   ├── scentai.ts         The six AI capabilities + a local fallback for each
+│   ├── scentLearning.ts   Signals, the merge maths, and what changed
 │   ├── bag.ts             Bag lines, orders, Discovery Box picks (localStorage store)
 │   ├── route.ts           Hash router + path helpers
 │   ├── concierge.ts       Chatbot: catalogue summary, streaming client, offline fallback
@@ -227,12 +266,15 @@ src/
         ├── DiscoverQuiz.tsx          The thirteen questions
         ├── Glyph.tsx                 Abstract line art for the answer cards
         ├── ScentprintRing.tsx        The radar over the fingerprint motif
-        ├── ScentUniverse.tsx         The interactive map
+        ├── ScentUniverse.tsx         The interactive map + the appetite control
+        ├── ScentConversation.tsx     Discovery as a conversation
+        ├── ScentMemory.tsx           A photograph or a memory → a Scentprint
         ├── ScentResult.tsx           Scentprint · matches · universe · explore
         ├── ShareCard.tsx             1080 × 1350 canvas card + Share / Download / Copy
         └── theme.ts                  Palette and surfaces for the experience
 api/
 ├── chat.ts                Vercel serverless proxy → Claude (streams the concierge reply)
+├── scent-ai.ts            The Scent DNA AI layer — six operations, one cached prefix
 └── conceive.ts            Vercel serverless → Claude structured output (AI fragrance conception)
 public/assets/             Bottle imagery (hero portrait, PDP, pair, square)
 supabase/
@@ -250,7 +292,9 @@ supabase/
 │   ├── 0019_scent_dna.sql       scent_profiles + save_scentprint / get_scentprint / attach_scentprint_email
 │   ├── 0020_scent_dna_wearer.sql  scent_profiles.wearer (him / her / all) carried through both RPCs
 │   ├── 0021_audience_catalogue.sql  +32 scents with a Him/Her/Unisex audience; retires the 4 superseded
-│   └── 0022_bottle_photography.sql  image_url for all 53 scents
+│   ├── 0022_bottle_photography.sql  image_url for all 53 scents
+│   ├── 0023_boss_reference.sql      one inspiration reference written without its separator
+│   └── 0024_scent_signals.sql       scent_signals + record_scent_signal / scent_signals_for
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -410,7 +454,8 @@ catalogue summary** (`concierge.ts`), and the function prepends a house system p
 (brand voice, batch model, sizes, engraving, VIP, Australia Post shipping) and streams
 `claude-opus-4-8`.
 
-Set `ANTHROPIC_API_KEY` in the Vercel project (Settings → Environment Variables). When
+Set `ANTHROPIC_API_KEY` in the Vercel project (Settings → Environment Variables); every
+AI route also accepts the shorter `ANTHROPIC_KEY`, so either name works. When
 it's absent — or in the offline demo — the widget falls back to a **local rule-based
 concierge** (`localFallbackReply`) so it still answers the common questions.
 

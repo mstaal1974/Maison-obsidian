@@ -323,6 +323,29 @@ export function fragranceDna(f: Fragrance): ScentVector {
   return out;
 }
 
+/**
+ * Runs the note lexicon over free text — a memory, a caption, a sentence of
+ * feedback — and returns what it smells of. The same rules the catalogue is
+ * read with, so "wet pine and cold stone" lands where a pine-and-mineral
+ * fragrance lands. Returns an empty vector when the text says nothing scented.
+ */
+export function textToDna(text: string): ScentVector {
+  const haystack = ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
+  const acc = zeroVector();
+  let matched = 0;
+  for (const rule of NOTE_DNA) {
+    const hit = rule.match.some((m) => haystack.includes(m));
+    if (!hit) continue;
+    if (rule.exclude?.some((x) => haystack.includes(x))) continue;
+    matched += 1;
+    for (const dim of SCENT_DIMS) {
+      const v = rule.dna[dim];
+      if (v) acc[dim] += v;
+    }
+  }
+  return matched ? normalise(acc) : zeroVector();
+}
+
 /** How a fragrance behaves — read off its own dimensions, not hand-tagged. */
 export function fragranceBehaviour(v: ScentVector): BehaviourVector {
   const heavy = (v.amber + v.smoky + v.gourmand + v.spicy + v.woody * 0.7 + v.sweet * 0.6) / 4.3;
