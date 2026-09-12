@@ -170,16 +170,24 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
             </div>
             <p className="sd-id-body" style={{ ...bodyText, marginTop: 24, maxWidth: 520 }}>{identity.narrative}</p>
             {top[0] && (
-              <p className="sd-id-inspired" style={{ ...micro, marginTop: 16, color: ink(0.5), lineHeight: 1.7 }}>
-                Closest match · <span style={{ color: SD.softGold }}>{top[0].frag.name}</span> {top[0].percent}%
-                {topReference?.brand ? (
+              <div className="sd-id-inspired" style={{ marginTop: 18, borderLeft: `1px solid ${goldA(0.45)}`, paddingLeft: 16 }}>
+                <div className="sd-id-closest" style={{ ...micro, color: ink(0.48) }}>
+                  Closest match · {top[0].frag.name} · {top[0].percent}%
+                </div>
+                {topReference?.brand && (
                   <>
-                    <br />
-                    Inspired by the scent profile of {topReference.brand}
-                    {topReference.fragrance ? ` ${topReference.fragrance}` : ""}
+                    <div className="sd-id-reflabel" style={{ ...micro, marginTop: 9, color: goldA(0.75) }}>
+                      Inspired by the scent profile of
+                    </div>
+                    {/* The one name on this screen the reader already knows.
+                        Set like a name, not like a footnote. */}
+                    <div className="sd-id-ref" style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 30, lineHeight: 1.12, color: SD.softGold, marginTop: 3 }}>
+                      {topReference.brand}
+                      {topReference.fragrance ? ` ${topReference.fragrance}` : ""}
+                    </div>
                   </>
-                ) : null}
-              </p>
+                )}
+              </div>
             )}
             {shown.loves && (
               <p style={{ ...micro, marginTop: 14, color: ink(0.4) }}>Calibrated against a fragrance you love · {shown.loves}</p>
@@ -198,22 +206,9 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
         </div>
 
         <div style={{ marginTop: 64 }}>
-          <ShareCard
-            print={shown}
-            url={url}
-            code={code}
-            topMatch={
-              top[0]
-                ? {
-                    name: top[0].frag.name,
-                    percent: top[0].percent,
-                    inspired: topReference?.brand
-                      ? `${topReference.brand}${topReference.fragrance ? ` ${topReference.fragrance}` : ""}`
-                      : null,
-                  }
-                : null
-            }
-          />
+          {/* The reference stays off the share card on purpose: it travels
+              further than the page does. It is named on the reveal instead. */}
+          <ShareCard print={shown} url={url} code={code} topMatch={top[0] ? { name: top[0].frag.name, percent: top[0].percent } : null} />
         </div>
       </section>
 

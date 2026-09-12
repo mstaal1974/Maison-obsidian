@@ -18,7 +18,7 @@ interface ShareProps {
   url: string;
   code: string;
   /** The closest match, named on the card as proof the result goes somewhere. */
-  topMatch?: { name: string; percent: number; inspired?: string | null } | null;
+  topMatch?: { name: string; percent: number } | null;
 }
 
 /**
@@ -146,12 +146,6 @@ async function copy(text: string): Promise<boolean> {
 // ─── Canvas ──────────────────────────────────────────────────────────────────
 
 /** Letter-spaced text, drawn by hand so it looks the same in every browser. */
-/** The tracked width of a string at the context's current font. */
-function trackedWidth(ctx: CanvasRenderingContext2D, text: string, spacing: number): number {
-  const chars = [...text];
-  return chars.reduce((s, c) => s + ctx.measureText(c).width + spacing, 0) - spacing;
-}
-
 function tracked(ctx: CanvasRenderingContext2D, text: string, cx: number, y: number, spacing: number): void {
   const chars = [...text];
   const width = chars.reduce((s, c) => s + ctx.measureText(c).width + spacing, 0) - spacing;
@@ -162,7 +156,7 @@ function tracked(ctx: CanvasRenderingContext2D, text: string, cx: number, y: num
   }
 }
 
-function drawCard(canvas: HTMLCanvasElement, print: Scentprint, topMatch: { name: string; percent: number; inspired?: string | null } | null): void {
+function drawCard(canvas: HTMLCanvasElement, print: Scentprint, topMatch: { name: string; percent: number } | null): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const identity = identityOf(print);
@@ -334,23 +328,9 @@ function drawCard(canvas: HTMLCanvasElement, print: Scentprint, topMatch: { name
   tracked(ctx, identity.character.join("  •  ").toUpperCase(), cx, 1258, 4);
 
   if (topMatch) {
-    // The house attributes the reference everywhere else; a card that names a
-    // scent without it invites the question it already has an answer to. It
-    // shares the one line at 1120 — the next row of the layout (the four
-    // dimension labels) starts at 1164, so a second line collides with it.
-    // Long references are met by dropping a point at a time, not by wrapping.
-    const line =
-      `CLOSEST MATCH · ${topMatch.percent}% ${topMatch.name.toUpperCase()}` +
-      (topMatch.inspired ? ` · INSPIRED BY ${topMatch.inspired.toUpperCase()}` : "");
-    const room = W - 260;
-    let size = 12;
-    ctx.font = `${size}px 'Space Mono', monospace`;
-    while (size > 8 && trackedWidth(ctx, line, 3) > room) {
-      size -= 1;
-      ctx.font = `${size}px 'Space Mono', monospace`;
-    }
     ctx.fillStyle = "rgba(0,191,255,0.85)";
-    tracked(ctx, line, cx, 1120, 3);
+    ctx.font = "12px 'Space Mono', monospace";
+    tracked(ctx, `CLOSEST MATCH · ${topMatch.percent}% ${topMatch.name.toUpperCase()}`, cx, 1120, 3);
   }
 
   ctx.fillStyle = "rgba(201,163,91,0.85)";
