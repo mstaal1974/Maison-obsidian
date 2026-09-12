@@ -234,6 +234,33 @@ function glyph(name: GlyphName, p: Pen) {
           <path d="M12 6.4V8.6" opacity="0.6" />
         </g>
       );
+    case "flacon":
+      return (
+        <g {...p}>
+          <path d="M4.8 10.4a2 2 0 0 1 1.2-1.8l3-1.4V5.6h6v1.6l3 1.4a2 2 0 0 1 1.2 1.8V20a1.6 1.6 0 0 1-1.6 1.6H6.4A1.6 1.6 0 0 1 4.8 20z" />
+          <path d="M9 5.6V3.4h6v2.2" />
+          <path d="M8 2.4h8" opacity="0.7" />
+          <path d="M7.6 13.4h8.8" opacity="0.45" />
+        </g>
+      );
+    case "flute":
+      return (
+        <g {...p}>
+          <path d="M9 21.6V11.2c0-1.6.6-2.6 1.4-3.4V6.2h3.2v1.6c.8.8 1.4 1.8 1.4 3.4v10.4a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1z" />
+          <path d="M10.6 6.2V3.6h2.8v2.6" />
+          <path d="M10 2.6h4" opacity="0.7" />
+          <path d="M10.2 15.4h3.6" opacity="0.45" />
+        </g>
+      );
+    case "flaconPair":
+      return (
+        <g {...p}>
+          <path d="M2.6 12.6a1.6 1.6 0 0 1 1-1.5l2.2-1V8.6h4.4v1.5l2.2 1a1.6 1.6 0 0 1 1 1.5v7.7a1.2 1.2 0 0 1-1.2 1.2H3.8a1.2 1.2 0 0 1-1.2-1.2z" />
+          <path d="M6 8.6V6.9h4.4v1.7" opacity="0.8" />
+          <path d="M16.2 21.5v-8c0-1.2.5-2 1.1-2.6V9.5h2.4v1.4c.6.6 1.1 1.4 1.1 2.6v8z" />
+          <path d="M17.3 9.5V7.4h2.4v2.1" opacity="0.8" />
+        </g>
+      );
     case "night":
       return (
         <g {...p}>

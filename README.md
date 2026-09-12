@@ -89,10 +89,12 @@ progress rail (`01 Discover — 02 Scent DNA — 03 Matches — 04 Explore`).
   molecule lattice and an obsidian horizon, with an animated miniature
   Scentprint under the CTA so a visitor can see what they'll be given, and
   *Already have a Scentprint? → View My Profile* for the returning visitor.
-- **The experience** — twelve visual questions: seven scene / material choices
-  that advance themselves (keys `1`–`4` work), three sliders (*Personal →
-  Commanding*, *Dry → Sweet*, *Familiar → Adventurous*), a multi-select of
-  occasions, and an optional searchable "a fragrance you already love".
+- **The experience** — thirteen visual questions, opening with **who we are
+  pouring for** (*For him* · *For her* · no preference), then seven scene /
+  material choices that advance themselves (keys `1`–`4` work), three sliders
+  (*Personal → Commanding*, *Dry → Sweet*, *Familiar → Adventurous*), a
+  multi-select of occasions, and an optional searchable "a fragrance you
+  already love".
 - **Scentprint™** — sixteen scent dimensions scored 0–100 (fresh, citrus,
   aquatic, aromatic, green, floral, fruity, sweet, gourmand, spicy, woody,
   amber, musk, leather/smoky, powdery, clean) plus eight behavioural attributes
@@ -109,6 +111,14 @@ progress rail (`01 Discover — 02 Scent DNA — 03 Matches — 04 Explore`).
   actually cares about dominate, a fragrance loud in something they never reach
   for is punished harder than one that is merely quiet, and sweetness,
   intensity, projection and the chosen occasions are scored on top.
+- **The shelf** — the opening answer decides which bottles come back: masculine
+  + unisex for him (21 of the 25), feminine + unisex for her (11), everything
+  when no preference is given. It filters the catalogue and nothing else — the
+  Scentprint is built from what the person actually chose, so two people who
+  answer the questions identically get the same profile and a different shelf.
+  Matches, the Scent Universe and the share card all read the same filter, and a
+  chip row on the matches section switches shelf in place rather than making
+  anyone retake the experience.
 - **Scent Universe™** — the customer at the centre, the whole house placed
   around them: distance is compatibility, bearing is the fragrance's own family
   on a wheel that runs fresh (north) through sweet, amber and leather to woody
@@ -197,7 +207,7 @@ src/
 │   ├── conceive.ts        AI conception client, PNG inspection, bottle image upload
 │   ├── formats.ts         Format/SKU model, moods, experience tags, find-my-match scoring
 │   ├── scentdna.ts        Scentprint™ model, note→dimension lexicon, matching engine, Scent Universe™
-│   ├── scentQuiz.ts       The twelve discovery questions and their weights → a Scentprint
+│   ├── scentQuiz.ts       The thirteen discovery questions and their weights → a Scentprint
 │   ├── scentShare.ts      Share codes, local persistence, lead capture
 │   ├── bag.ts             Bag lines, orders, Discovery Box picks (localStorage store)
 │   ├── route.ts           Hash router + path helpers
@@ -214,7 +224,7 @@ src/
     ├── ScentDna.tsx                  /discover — hero, experience, reveal, result
     └── scent/
         ├── Atmosphere.tsx            Vapour, molecule lattice, obsidian horizon
-        ├── DiscoverQuiz.tsx          The twelve questions
+        ├── DiscoverQuiz.tsx          The thirteen questions
         ├── Glyph.tsx                 Abstract line art for the answer cards
         ├── ScentprintRing.tsx        The radar over the fingerprint motif
         ├── ScentUniverse.tsx         The interactive map
@@ -237,7 +247,8 @@ supabase/
 │   ├── 0008_ai_conception.sql   image_url + profile columns, fragrance-images bucket, upsert RPC
 │   ├── 0009_formats.sql         format_prices/format_status + car/wash/moist stock, commits.format, admin_set_formats
 │   ├── 0010–0018                scent requests · JPEG renders · subscriptions · profiles & consent · Stripe · delivery · guest orders
-│   └── 0019_scent_dna.sql       scent_profiles + save_scentprint / get_scentprint / attach_scentprint_email
+│   ├── 0019_scent_dna.sql       scent_profiles + save_scentprint / get_scentprint / attach_scentprint_email
+│   └── 0020_scent_dna_wearer.sql  scent_profiles.wearer (him / her / all) carried through both RPCs
 └── functions/
     ├── capture-batch/     Edge Function: capture/release held intents on batch met
     └── create-shipment/   Edge Function: Australia Post Parcel Post rate + label
@@ -261,7 +272,7 @@ as ordered migrations under `supabase/migrations/`:
 | `fragrances` | Catalogue (25 scents); columns mirror the `Fragrance` type 1:1, with per-size pricing (`price_10ml_cents` / `_30ml_` / `_50ml_`). Public read. |
 | `commits` | Batch reservations (engraving, chosen `size_ml` + `charge_cents`, `authorized`/`captured`/`released`/`void`, optional `payment_intent_id`). Anyone may insert; users read their own. |
 | `subscribers` | General list + `vip` tier (gates VIP-only batches). |
-| `scent_profiles` | Scentprints from `/discover`, keyed by a six-character share code: the sixteen dimensions, the eight behavioural attributes, the occasions chosen, and an email only when the visitor asked for their result. Read through `get_scentprint` (which never returns the email); customers read their own rows, admins read all. |
+| `scent_profiles` | Scentprints from `/discover`, keyed by a six-character share code: the sixteen dimensions, the eight behavioural attributes, the occasions chosen, the shelf (`wearer`), and an email only when the visitor asked for their result. Read through `get_scentprint` (which never returns the email); customers read their own rows, admins read all. |
 | `sync_fragrance_committed()` trigger | Keeps `fragrances.committed` in step as commits are inserted / released. |
 | `commit_to_batch(fragrance_id, engraving, size_ml, charge_cents, payment_intent_id)` | `SECURITY DEFINER` RPC that inserts a commit and returns `(committed, moq, met)` atomically; rejects VIP-only batches unless the caller is a VIP subscriber. |
 | `enroll_subscriber(email, tier)` | `SECURITY DEFINER` RPC that upserts a subscriber (default `vip`), tying it to the signed-in user when present. |

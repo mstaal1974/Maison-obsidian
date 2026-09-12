@@ -11,7 +11,7 @@
 // something they never reach for is punished harder than being quiet in
 // something they like, and sweetness / intensity / occasion are scored on top.
 
-import type { Fragrance } from "./data";
+import { matches as suitsFilter, type Filter, type Fragrance } from "./data";
 import { moodsOf } from "./formats";
 
 // ─── Dimensions ──────────────────────────────────────────────────────────────
@@ -117,6 +117,34 @@ const OCCASION_AXES: Record<OccasionKey, { night: number; formality: number }> =
   special: { night: 74, formality: 90 },
 };
 
+// ─── Who it is for ───────────────────────────────────────────────────────────
+//
+// Asked before anything else, and used for one thing only: which bottles the
+// house offers back. It never touches the Scentprint itself — the numbers come
+// from what the person actually chose, so two people with the same answers get
+// the same profile and a different shelf.
+
+export type Wearer = "him" | "her" | "all";
+
+export const WEARER_LABEL: Record<Wearer, string> = {
+  him: "For him",
+  her: "For her",
+  all: "Everything",
+};
+
+const WEARER_FILTER: Record<Wearer, Filter> = { him: "men", her: "women", all: "all" };
+
+/** Masculine and unisex for him, feminine and unisex for her, all of it for all. */
+export function wearableBy(f: Fragrance, wearer: Wearer): boolean {
+  return suitsFilter(f, WEARER_FILTER[wearer]);
+}
+
+/** The shelf a wearer sees. Never empty: an unstocked filter falls back to all. */
+export function shelfFor(frags: Fragrance[], wearer: Wearer): Fragrance[] {
+  const pool = frags.filter((f) => wearableBy(f, wearer));
+  return pool.length ? pool : frags;
+}
+
 // ─── The Scentprint ──────────────────────────────────────────────────────────
 
 export interface Scentprint {
@@ -124,6 +152,8 @@ export interface Scentprint {
   dims: ScentVector;
   behaviour: BehaviourVector;
   occasions: OccasionKey[];
+  /** Which shelf to match against — masculine, feminine, or the whole house. */
+  wearer: Wearer;
   /** Optional: a fragrance they already love, as they typed it. */
   loves?: string | null;
   createdAt: string;
@@ -414,9 +444,14 @@ function reasonFor(user: ScentVector, shared: ScentDim[], contrast: ScentMatch["
     : `${head} in a cleaner reading that feels ${degree} less ${word}.`;
 }
 
-/** Every fragrance scored against a Scentprint, closest first. */
-export function matchFragrances(print: Scentprint, frags: Fragrance[], limit = frags.length): ScentMatch[] {
-  const scored = frags.map((frag): ScentMatch => {
+/**
+ * Every fragrance on the wearer's shelf scored against a Scentprint, closest
+ * first. Filtering happens here rather than at the call sites, so the matches,
+ * the Scent Universe and the share card can never disagree about the shelf.
+ */
+export function matchFragrances(print: Scentprint, frags: Fragrance[], limit?: number): ScentMatch[] {
+  const shelf = shelfFor(frags, print.wearer ?? "all");
+  const scored = shelf.map((frag): ScentMatch => {
     const dna = fragranceDna(frag);
     const behaviour = fragranceBehaviour(dna);
     const dim = dimSimilarity(print.dims, dna);
@@ -447,7 +482,7 @@ export function matchFragrances(print: Scentprint, frags: Fragrance[], limit = f
       reason: reasonFor(print.dims, shared, contrast),
     };
   });
-  return scored.sort((a, b) => b.score - a.score || a.frag.name.localeCompare(b.frag.name)).slice(0, limit);
+  return scored.sort((a, b) => b.score - a.score || a.frag.name.localeCompare(b.frag.name)).slice(0, limit ?? shelf.length);
 }
 
 // ─── Scent Universe™ ─────────────────────────────────────────────────────────
@@ -728,19 +763,24 @@ function dec5(ch: string): number {
   return i < 0 ? 0 : Math.round((i / 31) * 100);
 }
 
+const WEARER_CODE: Record<Wearer, string> = { him: "H", her: "F", all: "A" };
+
 /** Self-contained code: the whole Scentprint travels in the link. */
 export function encodeScentprint(p: Scentprint): string {
   const dims = SCENT_DIMS.map((d) => enc5(p.dims[d])).join("");
   const beh = BEHAVIOURS.map((b) => enc5(p.behaviour[b])).join("");
   const mask = OCCASIONS.reduce((m, o, i) => (p.occasions.includes(o) ? m | (1 << i) : m), 0);
-  return `1${dims}${beh}${ALPHABET[mask & 31]}${ALPHABET[(mask >> 5) & 31]}`;
+  return `2${dims}${beh}${ALPHABET[mask & 31]}${ALPHABET[(mask >> 5) & 31]}${WEARER_CODE[p.wearer ?? "all"]}`;
 }
 
-const ENCODED_LENGTH = 1 + SCENT_DIMS.length + BEHAVIOURS.length + 2;
+// Version 1 codes predate the wearer question and open on the whole house;
+// version 2 carries it as a trailing character.
+const V1_LENGTH = 1 + SCENT_DIMS.length + BEHAVIOURS.length + 2;
+const V2_LENGTH = V1_LENGTH + 1;
 
 /** True when the code carries its own payload (as opposed to a stored id). */
 export function isEncodedCode(code: string): boolean {
-  return code.length === ENCODED_LENGTH && code[0] === "1";
+  return (code.length === V2_LENGTH && code[0] === "2") || (code.length === V1_LENGTH && code[0] === "1");
 }
 
 export function decodeScentprint(code: string): Scentprint | null {
@@ -754,20 +794,30 @@ export function decodeScentprint(code: string): Scentprint | null {
   BEHAVIOURS.forEach((b, i) => {
     behaviour[b] = dec5(c[1 + SCENT_DIMS.length + i]);
   });
-  const maskLow = ALPHABET.indexOf(c[c.length - 2]);
-  const maskHigh = ALPHABET.indexOf(c[c.length - 1]);
+  const v2 = c[0] === "2";
+  const maskAt = 1 + SCENT_DIMS.length + BEHAVIOURS.length;
+  const maskLow = ALPHABET.indexOf(c[maskAt]);
+  const maskHigh = ALPHABET.indexOf(c[maskAt + 1]);
   const mask = (maskLow < 0 ? 0 : maskLow) | ((maskHigh < 0 ? 0 : maskHigh) << 5);
+  const wearerChar = v2 ? c[maskAt + 2] : "A";
   return {
     version: 1,
     dims,
     behaviour,
     occasions: OCCASIONS.filter((_, i) => (mask & (1 << i)) !== 0),
+    wearer: (Object.keys(WEARER_CODE) as Wearer[]).find((w) => WEARER_CODE[w] === wearerChar) ?? "all",
     createdAt: new Date().toISOString(),
   };
 }
 
 /** Rebuilds a Scentprint from a stored row, tolerating a partial payload. */
-export function scentprintFrom(dims: Partial<ScentVector>, behaviour?: Partial<BehaviourVector>, occasions?: string[], loves?: string | null): Scentprint {
+export function scentprintFrom(
+  dims: Partial<ScentVector>,
+  behaviour?: Partial<BehaviourVector>,
+  occasions?: string[],
+  loves?: string | null,
+  wearer?: string | null,
+): Scentprint {
   const v = zeroVector();
   for (const d of SCENT_DIMS) v[d] = clamp(Math.round(Number(dims[d] ?? 0)));
   const derived = fragranceBehaviour(v);
@@ -781,6 +831,7 @@ export function scentprintFrom(dims: Partial<ScentVector>, behaviour?: Partial<B
     dims: v,
     behaviour: b,
     occasions: OCCASIONS.filter((o) => (occasions ?? []).includes(o)),
+    wearer: wearer === "him" || wearer === "her" ? wearer : "all",
     loves: loves ?? null,
     createdAt: new Date().toISOString(),
   };

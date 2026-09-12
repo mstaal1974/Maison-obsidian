@@ -76,6 +76,7 @@ export async function publishScentprint(print: Scentprint, opts: { email?: strin
       p_loves: print.loves ?? null,
       p_email: opts.email?.trim().toLowerCase() || null,
       p_source: opts.source ?? "discover",
+      p_wearer: print.wearer ?? "all",
     });
     const code = typeof data === "string" ? data : null;
     return !error && code ? code : fallback;
@@ -89,6 +90,7 @@ interface ProfileRow {
   behaviour: Record<string, number> | null;
   occasions: string[] | null;
   loves: string | null;
+  wearer: string | null;
 }
 
 /** Opens a shared result: a stored code, or a code that carries its own payload. */
@@ -101,7 +103,7 @@ export async function fetchScentprint(code: string): Promise<Scentprint | null> 
     const { data, error } = await supabase.rpc("get_scentprint", { p_code: c.toUpperCase() });
     const row = (Array.isArray(data) ? data[0] : data) as ProfileRow | null;
     if (error || !row?.dims) return null;
-    return scentprintFrom(row.dims, row.behaviour ?? undefined, row.occasions ?? undefined, row.loves);
+    return scentprintFrom(row.dims, row.behaviour ?? undefined, row.occasions ?? undefined, row.loves, row.wearer);
   } catch {
     return null;
   }
