@@ -95,17 +95,17 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
 
   return (
     <section data-screen-label="Scent DNA — discovery" style={{ position: "relative", zIndex: 1, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <div className="sd-pad" style={{ width: "100%", maxWidth: 1240, margin: "0 auto", padding: "26px 32px 0" }}>
+      <div className="sd-pad sd-quiz-top" style={{ width: "100%", maxWidth: 1240, margin: "0 auto", padding: "26px 32px 0" }}>
         <QuizProgress index={index} total={QUESTIONS.length} />
       </div>
 
-      <div className="sd-pad" style={{ flex: 1, width: "100%", maxWidth: 1240, margin: "0 auto", padding: "30px 32px 72px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <div className="sd-pad sd-quiz-body" style={{ flex: 1, width: "100%", maxWidth: 1240, margin: "0 auto", padding: "30px 32px 72px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div key={question.id} className="sd-rise">
           <div style={{ ...eyebrow }}>{question.eyebrow}</div>
-          <h2 style={{ margin: "14px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(30px, 4.4vw, 52px)", lineHeight: 1.04, color: SD.text, maxWidth: 900 }}>{question.prompt}</h2>
+          <h2 className="sd-quiz-head" style={{ margin: "14px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(30px, 4.4vw, 52px)", lineHeight: 1.04, color: SD.text, maxWidth: 900 }}>{question.prompt}</h2>
           {question.help && <p style={{ margin: "12px 0 0", fontFamily: MONO, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: ink(0.4) }}>{question.help}</p>}
 
-          <div style={{ marginTop: 38 }}>
+          <div className="sd-quiz-options" style={{ marginTop: 38 }}>
             {question.kind === "choice" && <ChoiceGrid question={question} selected={answers.choices[question.id]} onPick={(id) => choose(question, id)} />}
             {question.kind === "wearer" && <WearerField question={question} selected={answers.wearer} onPick={chooseWearer} />}
             {question.kind === "slider" && (
@@ -132,7 +132,7 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 44, flexWrap: "wrap" }}>
+          <div className="sd-quiz-actions" style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 44, flexWrap: "wrap" }}>
             <button className="sd-cta" style={{ ...ctaQuiet, height: 46 }} onClick={() => go(index - 1)}>
               {index === 0 ? "Back to start" : "Back"}
             </button>
@@ -152,7 +152,7 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
               </button>
             )}
             {(question.kind === "choice" || question.kind === "wearer") && (
-              <span style={{ ...micro, color: ink(0.3) }}>Pick one · keys 1–{question.options.length}</span>
+              <span className="sd-key-hint" style={{ ...micro, color: ink(0.3) }}>Pick one · keys 1–{question.options.length}</span>
             )}
           </div>
         </div>
@@ -189,7 +189,7 @@ function ChoiceGrid({ question, selected, onPick }: { question: ChoiceQuestion; 
   const cols = question.columns ?? 4;
   return (
     <div
-      className={cols >= 4 ? "sd-grid-4" : "sd-grid-3"}
+      className="sd-quiz-grid"
       style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gap: 18 }}
       role="radiogroup"
       aria-label={question.prompt}
@@ -224,6 +224,7 @@ function OptionCard({ option, index, active, onPick, tall = false }: { option: C
     >
       <span
         aria-hidden
+        className="sd-card-art"
         style={{
           display: "block",
           position: "relative",
@@ -236,12 +237,12 @@ function OptionCard({ option, index, active, onPick, tall = false }: { option: C
         </span>
         <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 1, background: active ? goldA(0.7) : ink(0.08) }} />
       </span>
-      <span style={{ display: "block", padding: "18px 20px 22px" }}>
+      <span className="sd-card-body" style={{ display: "block", padding: "18px 20px 22px" }}>
         <span style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-          <span style={{ fontFamily: SERIF, fontSize: 22, lineHeight: 1.15, color: active ? SD.softGold : SD.text }}>{option.label}</span>
+          <span className="sd-card-label" style={{ fontFamily: SERIF, fontSize: 22, lineHeight: 1.15, color: active ? SD.softGold : SD.text }}>{option.label}</span>
           <span style={{ fontFamily: MONO, fontSize: 9, color: active ? SD.gold : ink(0.22) }}>{active ? "◆" : String(index + 1)}</span>
         </span>
-        <span style={{ display: "block", marginTop: 8, fontSize: 12.5, lineHeight: 1.6, color: ink(0.5) }}>{option.note}</span>
+        <span className="sd-card-note" style={{ display: "block", marginTop: 8, fontSize: 12.5, lineHeight: 1.6, color: ink(0.5) }}>{option.note}</span>
       </span>
     </button>
   );
@@ -250,7 +251,7 @@ function OptionCard({ option, index, active, onPick, tall = false }: { option: C
 function WearerField({ question, selected, onPick }: { question: WearerQuestion; selected: Wearer | null; onPick: (w: Wearer) => void }) {
   return (
     <div style={{ maxWidth: 760 }}>
-      <div className="sd-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 18 }} role="radiogroup" aria-label={question.prompt}>
+      <div className="sd-quiz-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 18 }} role="radiogroup" aria-label={question.prompt}>
         {question.options.map((o, i) => (
           <OptionCard key={o.id} option={o} index={i} active={selected === o.id} onPick={() => onPick(o.id)} tall />
         ))}
@@ -284,9 +285,9 @@ function SliderField({ question, value, onChange }: { question: SliderQuestion; 
   const [low, mid, high] = question.poles;
   const label = value < 34 ? low : value > 66 ? high : mid;
   return (
-    <div style={{ ...glass, padding: "38px 34px 30px", maxWidth: 860 }}>
+    <div className="sd-slider-panel" style={{ ...glass, padding: "38px 34px 30px", maxWidth: 860 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 16 }}>
-        <span style={{ fontFamily: SERIF, fontSize: 34, color: SD.softGold, lineHeight: 1 }}>{label}</span>
+        <span className="sd-slider-value" style={{ fontFamily: SERIF, fontSize: 34, color: SD.softGold, lineHeight: 1 }}>{label}</span>
         <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: "0.2em", color: ink(0.45) }}>{value}/100</span>
       </div>
       <input
@@ -314,7 +315,7 @@ function SliderField({ question, value, onChange }: { question: SliderQuestion; 
 
 function OccasionField({ question, selected, onToggle }: { question: MultiQuestion; selected: OccasionKey[]; onToggle: (id: OccasionKey) => void }) {
   return (
-    <div className="sd-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, maxWidth: 980 }}>
+    <div className="sd-quiz-chips" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 14, maxWidth: 980 }}>
       {question.options.map((o, i) => {
         const active = selected.includes(o.id);
         return (
@@ -323,7 +324,7 @@ function OccasionField({ question, selected, onToggle }: { question: MultiQuesti
             type="button"
             aria-pressed={active}
             onClick={() => onToggle(o.id)}
-            className="sd-card"
+            className="sd-card sd-chip-card"
             style={{
               ...glass,
               border: `1px solid ${active ? goldA(0.8) : goldA(0.15)}`,
@@ -353,9 +354,9 @@ function OccasionField({ question, selected, onToggle }: { question: MultiQuesti
                   </svg>
                 )}
               </span>
-              <span style={{ fontFamily: SERIF, fontSize: 21, color: active ? SD.softGold : SD.text }}>{o.label}</span>
+              <span className="sd-chip-label" style={{ fontFamily: SERIF, fontSize: 21, color: active ? SD.softGold : SD.text }}>{o.label}</span>
             </span>
-            <span style={{ display: "block", marginTop: 8, paddingLeft: 28, fontSize: 12, color: ink(0.45) }}>{o.note}</span>
+            <span className="sd-chip-note" style={{ display: "block", marginTop: 8, paddingLeft: 28, fontSize: 12, color: ink(0.45) }}>{o.note}</span>
           </button>
         );
       })}

@@ -384,16 +384,56 @@ body {
 .sd-range:focus-visible { outline: 1px solid #c9a35b; outline-offset: 6px; }
 
 @media (max-width: 1080px) {
-  .sd-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .sd-grid-4, .sd-quiz-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .sd-result-grid, .sd-share-grid, .sd-universe-grid, .sd-lead-grid { grid-template-columns: 1fr !important; }
   .sd-rail { display: none !important; }
 }
+/* The discovery questions stay on one screen on a phone.
+   Collapsing the option cards to a single column pushed the later answers
+   below the fold — a question you have to scroll to answer reads as a form,
+   and on a four-option question the last card started 700px down. So on a
+   phone the cards stay two-up and shrink instead: a shorter illustration
+   band, a smaller glyph, tighter type. Measured at 390x664 (the visible area
+   of a common handset in Chrome), every question fits without scrolling. */
 @media (max-width: 760px) {
   .sd-grid-4, .sd-grid-3 { grid-template-columns: 1fr !important; }
+  .sd-quiz-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .sd-quiz-chips { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  /* Sized against the viewport's own height, not a breakpoint: a 553px-tall
+     handset and an 800px one both need the whole question on one screen, and
+     svh is the height with the browser toolbars showing — the conservative
+     case. The px value in each clamp's middle term is the phone ceiling. */
+  .sd-card-art { height: clamp(50px, 10svh, 82px) !important; }
+  .sd-card-art svg { width: clamp(24px, 4.8svh, 38px) !important; height: clamp(24px, 4.8svh, 38px) !important; }
+  .sd-card-body { padding: clamp(8px, 1.8svh, 11px) 12px clamp(9px, 2svh, 13px) !important; }
+  .sd-card-label { font-size: clamp(13.5px, 2.6svh, 15.5px) !important; }
+  .sd-card-note { font-size: clamp(9.5px, 2svh, 10.5px) !important; line-height: 1.4 !important; margin-top: 4px !important; }
+  .sd-chip-card { padding: clamp(9px, 2svh, 12px) 13px !important; }
+  .sd-chip-label { font-size: clamp(13.5px, 2.6svh, 15.5px) !important; }
+  .sd-chip-note { font-size: clamp(9.5px, 2svh, 10.5px) !important; margin-top: 4px !important; padding-left: 0 !important; }
+  .sd-quiz-head { font-size: clamp(21px, 4.4svh, 26px) !important; margin-top: clamp(6px, 1.6svh, 10px) !important; }
+  .sd-quiz-options { margin-top: clamp(12px, 3svh, 20px) !important; }
+  .sd-quiz-actions { margin-top: clamp(14px, 3.4svh, 22px) !important; gap: 12px !important; }
+  .sd-quiz-body { padding-top: clamp(10px, 2.6svh, 18px) !important; padding-bottom: clamp(16px, 4svh, 28px) !important; }
+  .sd-quiz-top { padding-top: clamp(10px, 2.4svh, 20px) !important; }
+  .sd-slider-panel { padding: clamp(16px, 3.4svh, 26px) 16px clamp(14px, 3svh, 22px) !important; }
+  .sd-slider-value { font-size: clamp(22px, 4.6svh, 28px) !important; }
+  .sd-slider-panel .sd-range { margin-top: clamp(12px, 2.8svh, 20px) !important; }
+  /* No keyboard to press 1-4 on. */
+  .sd-key-hint { display: none !important; }
   .sd-wordmark { font-size: 13.5px !important; letter-spacing: 0.11em !important; }
   .sd-quiet-note { display: none !important; }
   .sd-pad { padding-left: 20px !important; padding-right: 20px !important; }
   .sd-hero-cta { flex-direction: column !important; align-items: stretch !important; }
+}
+/* Shortest handsets still in use (a 553px-tall viewport on an SE-sized screen):
+   buy the last twenty-odd pixels from the gaps and the illustration band
+   rather than from the option text, which is what the answer is read from. */
+@media (max-width: 760px) and (max-height: 620px) {
+  .sd-quiz-grid, .sd-quiz-chips { gap: 8px !important; }
+  .sd-card-art { height: clamp(42px, 8.4svh, 62px) !important; }
+  .sd-card-art svg { width: clamp(21px, 4.2svh, 30px) !important; height: clamp(21px, 4.2svh, 30px) !important; }
+  .sd-quiz-head { font-size: clamp(19px, 4svh, 23px) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
