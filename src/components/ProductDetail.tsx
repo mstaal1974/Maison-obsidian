@@ -31,18 +31,10 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
   const [engraveOn, setEngraveOn] = useState(false);
   const [engraving, setEngraving] = useState("");
   const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
-  const [shot, setShot] = useState(0);
   const chosen = skuOf(frag, key);
   const locked = !!frag.vipOnly && !vip;
   const profile = profileOf(frag);
   const related = useMemo(() => relatedTo(frag, fragrances, 4), [frag, fragrances]);
-
-  const gallery = [
-    { kind: "bottle" as const, label: "Bottle" },
-    { kind: "img" as const, src: "/assets/bottle-pdp.jpg", label: "Detail" },
-    { kind: "img" as const, src: "/assets/bottle-square.jpg", label: "Texture" },
-    { kind: "img" as const, src: "/assets/bottle-pair.png", label: "Scene" },
-  ];
 
   const canEngrave = chosen.def.group === "wear";
   const finalEngraving = canEngrave && engraveOn ? engraving.trim().slice(0, ENGRAVE_MAX) || null : null;
@@ -93,32 +85,13 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
 
   return (
     <main data-screen-label="Product">
-      {/* ── Top: gallery + details ── */}
+      {/* ── Top: hero image + details ── */}
       <div className="mo-pdp-grid" style={{ display: "grid", gridTemplateColumns: "0.72fr 1.28fr", borderBottom: "1px solid #1f1f27" }}>
-        {/* GALLERY */}
+        {/* HERO IMAGE */}
         <div style={{ borderRight: "1px solid #1f1f27", padding: "18px 24px 22px 32px" }}>
-          <div style={{ position: "relative", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27", minHeight: 420 }}>
-            {gallery[shot].kind === "bottle" ? (
-              <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={440} objectPosition="center 40%" />
-            ) : (
-              <img src={gallery[shot].src} alt={`${frag.name} — ${gallery[shot].label}`} style={{ display: "block", width: "100%", height: 440, objectFit: "cover" }} />
-            )}
+          <div style={{ position: "relative", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27" }}>
+            <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={548} objectPosition="center 45%" />
             <SideCaption lines={[...profile, "—", "A bolder", "you"]} style={{ position: "absolute", left: 18, top: 20, background: "rgba(11,11,13,0.55)", padding: "10px 12px", backdropFilter: "blur(2px)" }} />
-          </div>
-          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
-            {gallery.map((g, i) => (
-              <button key={g.label} onClick={() => setShot(i)} aria-label={g.label} aria-pressed={shot === i} style={{ padding: 0, border: `1px solid ${shot === i ? GOLD : "#1f1f27"}`, background: "#0e0e12", cursor: "pointer", height: 96, overflow: "hidden" }}>
-                {g.kind === "bottle" ? (
-                  <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={94} />
-                ) : (
-                  <img src={g.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                )}
-              </button>
-            ))}
-            <button aria-label="Play video" style={{ border: "1px solid #1f1f27", background: "#0e0e12", color: GOLD, cursor: "pointer", height: 96, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <span style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid rgba(201,169,97,0.7)", display: "grid", placeItems: "center" }}><Icon name="play" size={14} /></span>
-              <span style={{ ...micro, fontSize: 7.5, color: CREAM }}>Play video</span>
-            </button>
           </div>
         </div>
 

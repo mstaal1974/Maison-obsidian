@@ -25,7 +25,7 @@ interface FindYourScentProps {
 export default function FindYourScent({ fragrances, mode = "section", initialQuery = "", onQuickView, userEmail }: FindYourScentProps) {
   const [q, setQ] = useState(initialQuery);
   const [submitted, setSubmitted] = useState(initialQuery);
-  const matches = useMemo(() => (submitted.trim() ? findMatches(submitted, fragrances, mode === "page" ? 4 : 3) : []), [submitted, fragrances, mode]);
+  const matches = useMemo(() => (submitted.trim() ? findMatches(submitted, fragrances, mode === "page" ? 8 : 3) : []), [submitted, fragrances, mode]);
   // We carry it when the top result is the scent they named; otherwise the
   // results are nearest profiles and the ask becomes a request.
   const carried = matches.length > 0 && isStrongMatch(matches[0]);
@@ -59,7 +59,11 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
 
   const results = matches.length > 0 && (
     <div style={{ marginTop: mode === "page" ? 36 : 22, display: "grid", gap: 12 }}>
-      <div style={{ ...micro, color: GOLD }}>Your Maison Obsidian match{matches.length > 1 ? "es" : ""}</div>
+      <div style={{ ...micro, color: GOLD }}>
+        {matches[0]?.matchedHouse
+          ? `${matches.length} Maison Obsidian scent${matches.length > 1 ? "s" : ""} built on ${referenceOf(matches[0].frag).brand} profiles`
+          : `Your Maison Obsidian match${matches.length > 1 ? "es" : ""}`}
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: mode === "page" ? "repeat(auto-fill, minmax(300px, 1fr))" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
         {matches.map((m, i) => (
           <article key={m.frag.id} style={{ border: `1px solid ${i === 0 ? "rgba(201,169,97,0.7)" : "#1f1f27"}`, background: "#101015", display: "grid", gridTemplateColumns: "96px 1fr", gap: 16, padding: 14 }}>
@@ -67,7 +71,7 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
                 <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>{m.frag.name}</div>
-                <div style={{ fontFamily: MONO, fontSize: 10, color: GOLD, whiteSpace: "nowrap" }}>{m.percent}% match</div>
+                {!m.matchedHouse && <div style={{ fontFamily: MONO, fontSize: 10, color: GOLD, whiteSpace: "nowrap" }}>{m.percent}% match</div>}
               </div>
               <InspiredBy {...referenceOf(m.frag)} size="md" />
               <div style={{ ...micro, color: "rgba(243,236,220,0.7)" }}>{profileOf(m.frag).join(" · ")}</div>
