@@ -81,12 +81,18 @@ function str(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
 
+// Structured outputs accept only a subset of JSON Schema: minimum, maximum,
+// maxItems, minLength and pattern are rejected with a 400, so every bound here
+// is stated in the description instead. The client clamps what comes back
+// through scentprintFrom(), so the real guarantee never depended on the schema.
 function dimsObject(required: readonly string[]) {
   return {
     type: "object",
     additionalProperties: false,
     required: [...required],
-    properties: Object.fromEntries(required.map((d) => [d, { type: "integer", minimum: 0, maximum: 100 }])),
+    properties: Object.fromEntries(
+      required.map((d) => [d, { type: "integer", description: "0-100." }]),
+    ),
   };
 }
 
@@ -99,7 +105,7 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
     properties: {
       reply: { type: "string", description: "What to say next: a reaction plus one question. Two sentences at most." },
       ready: { type: "boolean", description: "True only when you could describe this person's taste to a perfumer." },
-      confidence: { type: "integer", minimum: 0, maximum: 100, description: "How well you know them so far." },
+      confidence: { type: "integer", description: "How well you know them so far, 0-100." },
       dims: dimsObject(DIMS),
       behaviour: dimsObject(BEHAVIOURS),
       reading: { type: "string", description: "One short line naming what you have learned so far, in plain words." },
@@ -114,7 +120,7 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
       behaviour: dimsObject(BEHAVIOURS),
       title: { type: "string", description: "Three or four words naming this scent world, e.g. 'Salt Air and Cedar'." },
       story: { type: "string", description: "Two sentences on what this would smell like. Plain language, no jargon." },
-      cues: { type: "array", maxItems: 6, items: { type: "string" }, description: "The concrete things you read: 'wet pine', 'low sun'." },
+      cues: { type: "array", items: { type: "string" }, description: "The concrete things you read: 'wet pine', 'low sun'. Six at most." },
     },
   },
   explain: {
@@ -188,19 +194,19 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
     properties: {
       adjustments: {
         type: "array",
-        maxItems: 8,
+        description: "Eight at most, the ones that matter.",
         items: {
           type: "object",
           additionalProperties: false,
           required: ["dim", "delta"],
           properties: {
             dim: { type: "string", enum: [...DIMS, ...BEHAVIOURS] },
-            delta: { type: "integer", minimum: -40, maximum: 40, description: "How far to move it, in Scentprint points." },
+            delta: { type: "integer", description: "How far to move it, in Scentprint points: -40 to +40." },
           },
         },
       },
       summary: { type: "string", description: "One line on what this tells us about them." },
-      confidence: { type: "integer", minimum: 0, maximum: 100 },
+      confidence: { type: "integer", description: "0-100." },
     },
   },
 };
@@ -351,6 +357,16 @@ function cacheableSystem(catalogue: string): Anthropic.Beta.BetaTextBlockParam[]
     : [{ type: "text", text: HOUSE, cache_control: cache }];
 }
 
+
+// The API's own message names the field it rejected — a bare "Claude error 400"
+// does not, and that cost a production round trip. It describes the request, so
+// there is nothing sensitive in it.
+function apiDetail(err: unknown): string {
+  const nested = (err as { error?: { error?: { message?: unknown } } })?.error?.error?.message;
+  const text = typeof nested === "string" ? nested : String((err as { message?: unknown })?.message ?? "");
+  return text.slice(0, 300);
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -423,7 +439,8 @@ export default async function handler(req: any, res: any) {
     } else if (err instanceof Anthropic.AuthenticationError) {
       res.status(501).json({ error: "Scent AI is misconfigured (invalid API key)" });
     } else if (err instanceof Anthropic.APIError) {
-      res.status(502).json({ error: `Claude error ${err.status ?? ""}`.trim() });
+      const detail = apiDetail(err);
+      res.status(502).json({ error: `Claude error ${err.status ?? ""}${detail ? `: ${detail}` : ""}`.trim() });
     } else {
       res.status(500).json({ error: "Scent AI failed" });
     }
