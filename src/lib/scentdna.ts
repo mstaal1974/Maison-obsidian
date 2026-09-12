@@ -181,17 +181,19 @@ export function rankedDims(v: ScentVector, limit: number = SCENT_DIMS.length): {
 // note may fire several rules — "Green Apple" is both green and fruity, which
 // is exactly right.
 
-const NOTE_DNA: { match: string[]; dna: Partial<ScentVector> }[] = [
+const NOTE_DNA: { match: string[]; exclude?: string[]; dna: Partial<ScentVector> }[] = [
   // Citrus & bright fruit
-  { match: ["bergamot", "citron", "lemon", "lime", "grapefruit", "mandarin", "tangerine", "orange blossom", "neroli", "yuzu", "citrus"], dna: { citrus: 1, fresh: 0.8, clean: 0.3 } },
-  { match: ["orange blossom", "neroli"], dna: { floral: 0.7, clean: 0.35 } },
-  { match: ["pear", "apple", "raspberry", "blackcurrant", "peach", "plum", "fig", "coconut", "pineapple", "berry"], dna: { fruity: 1, fresh: 0.35, sweet: 0.3 } },
+  { match: ["bergamot", "citron", "lemon", "lime", "grapefruit", "mandarin", "orange", "tangerine", "neroli", "yuzu", "citrus", "petitgrain"], dna: { citrus: 1, fresh: 0.8, clean: 0.3 } },
+  { match: ["orange blossom", "orange flower", "neroli"], dna: { floral: 0.7, clean: 0.35 } },
+  { match: ["pear", "apple", "raspberry", "currant", "peach", "nectarine", "plum", "fig", "coconut", "pineapple", "berry", "cherry", "litchi", "lychee", "melon", "apricot", "red fruits", "fruity"], exclude: ["pineapple & blackcurrant"], dna: { fruity: 1, fresh: 0.35, sweet: 0.3 } },
+  // The sheet writes some notes as a pair; score both halves.
+  { match: ["pineapple & blackcurrant"], dna: { fruity: 1.2, fresh: 0.4, sweet: 0.3, green: 0.2 } },
   { match: ["green apple"], dna: { green: 0.7, fresh: 0.5 } },
   // Water & air
-  { match: ["marine", "sea", "aquatic", "water", "ozon", "salt", "ambergris", "calone"], dna: { aquatic: 1, fresh: 0.7, clean: 0.5, musk: 0.3 } },
-  { match: ["ambroxan"], dna: { musk: 0.85, clean: 0.6, amber: 0.45, aquatic: 0.35, fresh: 0.3 } },
+  { match: ["marine", "sea", "aquatic", "water", "ozon", "salt", "ambergris", "calone", "lotus"], dna: { aquatic: 1, fresh: 0.7, clean: 0.5, musk: 0.3 } },
+  { match: ["ambroxan", "ambrox"], dna: { musk: 0.85, clean: 0.6, amber: 0.45, aquatic: 0.35, fresh: 0.3 } },
   // Aromatic & herbal
-  { match: ["lavender", "rosemary", "sage", "mint", "basil", "thyme", "juniper", "angelica", "cypress", "eucalypt", "clary"], dna: { aromatic: 1, fresh: 0.5, green: 0.35 } },
+  { match: ["lavender", "rosemary", "sage", "mint", "basil", "thyme", "juniper", "angelica", "cypress", "eucalypt", "clary", "absinthe", "anise", "fennel", "laurel", "tarragon"], dna: { aromatic: 1, fresh: 0.5, green: 0.35 } },
   { match: ["lavender"], dna: { powdery: 0.35, floral: 0.3 } },
   { match: ["mint", "eucalypt"], dna: { fresh: 0.55, clean: 0.3 } },
   // Green & tea
@@ -199,32 +201,36 @@ const NOTE_DNA: { match: string[]; dna: Partial<ScentVector> }[] = [
   { match: ["vetiver"], dna: { woody: 0.8, smoky: 0.25 } },
   { match: ["tea"], dna: { clean: 0.4, aromatic: 0.3 } },
   // Florals
-  { match: ["rose", "jasmine", "violet", "iris", "peony", "tuberose", "lily", "gardenia", "ylang", "mimosa", "magnolia", "freesia", "muguet", "floral"], dna: { floral: 1 } },
-  { match: ["iris", "violet", "mimosa"], dna: { powdery: 0.85, clean: 0.3 } },
-  { match: ["lily-of-the-valley", "muguet", "freesia"], dna: { clean: 0.55, green: 0.35, fresh: 0.3 } },
-  { match: ["jasmine", "tuberose", "ylang"], dna: { sweet: 0.3 } },
+  { match: ["rose"], exclude: ["rosemary", "rosewood"], dna: { floral: 1 } },
+  { match: ["jasmine", "violet", "iris", "orris", "peony", "tuberose", "lily", "gardenia", "ylang", "mimosa", "magnolia", "freesia", "muguet", "orchid", "cereus", "blossom", "flower", "floral", "oleander", "hyacinth", "mignonette", "reseda", "cyclamen", "carnation", "osmanthus", "geranium"], dna: { floral: 1 } },
+  { match: ["iris", "orris", "violet", "mimosa"], dna: { powdery: 0.85, clean: 0.3 } },
+  { match: ["lily-of-the-valley", "muguet", "freesia", "cyclamen", "hyacinth", "mignonette", "reseda"], dna: { clean: 0.55, green: 0.35, fresh: 0.3 } },
+  { match: ["jasmine", "tuberose", "ylang", "orchid"], dna: { sweet: 0.3 } },
+  { match: ["osmanthus"], dna: { fruity: 0.6 } },
+  { match: ["carnation"], dna: { spicy: 0.5 } },
+  { match: ["geranium"], dna: { green: 0.6, aromatic: 0.5 } },
   { match: ["davana"], dna: { floral: 0.6, fruity: 0.5, aromatic: 0.4 } },
   // Spice
   { match: ["pepper", "cinnamon", "clove", "cardamom", "saffron", "nutmeg", "pimento", "cumin", "ginger", "spice", "coriander", "elemi"], dna: { spicy: 1 } },
   { match: ["ginger"], dna: { fresh: 0.45, citrus: 0.25 } },
   { match: ["cinnamon", "saffron", "nutmeg"], dna: { amber: 0.4, sweet: 0.25 } },
   // Sweet & amber
-  { match: ["vanilla", "tonka", "benzoin", "honey", "sugar", "praline", "marshmallow", "heliotrope"], dna: { sweet: 1, gourmand: 0.5, amber: 0.4 } },
-  { match: ["vanilla", "tonka", "heliotrope"], dna: { powdery: 0.35 } },
+  { match: ["vanill", "tonka", "benzoin", "honey", "sugar", "praline", "marshmallow", "heliotrope"], dna: { sweet: 1, gourmand: 0.5, amber: 0.4 } },
+  { match: ["vanill", "tonka", "heliotrope"], dna: { powdery: 0.35 } },
   { match: ["amber", "labdanum", "ambergris", "resin", "olibanum", "myrrh", "balsam", "opoponax"], dna: { amber: 1, sweet: 0.3, woody: 0.3 } },
   { match: ["olibanum", "myrrh", "incense", "frankincense"], dna: { smoky: 0.75, spicy: 0.3 } },
   // Gourmand
-  { match: ["coffee", "caramel", "toffee", "chocolate", "cacao", "almond", "hazelnut", "rum", "whisky", "cognac", "gourmand", "praline", "coconut", "pastry"], dna: { gourmand: 1, sweet: 0.65 } },
-  { match: ["coffee", "cacao", "chocolate"], dna: { smoky: 0.3, spicy: 0.2 } },
+  { match: ["coffee", "caramel", "toffee", "chocolate", "cacao", "cocoa", "almond", "hazelnut", "pistachio", "rum", "whisky", "cognac", "gourmand", "praline", "coconut", "pastry", "chestnut"], dna: { gourmand: 1, sweet: 0.65 } },
+  { match: ["coffee", "cacao", "cocoa", "chocolate"], dna: { smoky: 0.3, spicy: 0.2 } },
   // Woods
-  { match: ["wood", "cedar", "sandal", "ebony", "guaiac", "birch", "oak", "pine", "fir", "cypress", "palo santo", "amberwood", "cashmeran"], dna: { woody: 1 } },
+  { match: ["wood", "cedar", "sandal", "ebony", "guaiac", "birch", "oak", "pine", "fir", "cypress", "palo santo", "amberwood", "cashmeran", "cypriol"], exclude: ["pineapple"], dna: { woody: 1 } },
   { match: ["amberwood"], dna: { amber: 0.7, musk: 0.35 } },
   { match: ["sandal"], dna: { powdery: 0.4, sweet: 0.25, musk: 0.3 } },
   { match: ["patchouli"], dna: { woody: 0.85, green: 0.35, amber: 0.3, smoky: 0.2 } },
-  { match: ["palo santo", "guaiac", "birch"], dna: { smoky: 0.6 } },
+  { match: ["palo santo", "guaiac", "birch", "cypriol"], dna: { smoky: 0.6 } },
   // Dark: leather, smoke, oud, ink
   { match: ["oud", "agarwood"], dna: { woody: 0.9, smoky: 0.9, amber: 0.5, spicy: 0.3 } },
-  { match: ["leather", "suede", "castoreum", "tar", "ink", "smoke", "smoky", "tobacco"], dna: { smoky: 1, woody: 0.35, amber: 0.3 } },
+  { match: ["leather", "suede", "castoreum", "birch tar", "black ink", "smoke", "smoky", "tobacco"], dna: { smoky: 1, woody: 0.35, amber: 0.3 } },
   { match: ["tobacco", "rum", "whisky"], dna: { sweet: 0.4, spicy: 0.3 } },
   { match: ["suede"], dna: { powdery: 0.35, musk: 0.3 } },
   // Clean & musk
@@ -253,25 +259,21 @@ const LAYERS: { key: "top" | "heart" | "base"; weight: number }[] = [
   { key: "base", weight: 1.3 },
 ];
 
-function accumulate(acc: ScentVector, notes: string[], weight: number): void {
+function accumulate(acc: ScentVector, notes: string[], weight: number): number {
+  let matched = 0;
   for (const raw of notes) {
     const note = raw.toLowerCase();
-    let matched = false;
     for (const rule of NOTE_DNA) {
       if (!rule.match.some((m) => note.includes(m))) continue;
-      matched = true;
+      if (rule.exclude?.some((x) => note.includes(x))) continue;
+      matched += 1;
       for (const dim of SCENT_DIMS) {
         const v = rule.dna[dim];
         if (v) acc[dim] += v * weight;
       }
     }
-    // A note the lexicon doesn't know still has to count for something, or a
-    // new scent built on it would read as empty. Woody-amber is the safe body.
-    if (!matched) {
-      acc.woody += 0.3 * weight;
-      acc.amber += 0.22 * weight;
-    }
   }
+  return matched;
 }
 
 /**
@@ -298,7 +300,16 @@ export function fragranceDna(f: Fragrance): ScentVector {
   const hit = dnaCache.get(key);
   if (hit) return hit;
   const acc = zeroVector();
-  for (const layer of LAYERS) accumulate(acc, f[layer.key] ?? [], layer.weight);
+  let matched = 0;
+  for (const layer of LAYERS) matched += accumulate(acc, f[layer.key] ?? [], layer.weight);
+  // A fragrance whose notes the lexicon cannot read at all still has to have a
+  // body, or it would score as empty against everyone. Only then — one unknown
+  // note among eight known ones must not drag the whole scent woody.
+  if (matched === 0) {
+    acc.woody += 0.9;
+    acc.amber += 0.7;
+    acc.musk += 0.5;
+  }
   for (const mood of moodsOf(f)) {
     const dna = MOOD_DNA[mood];
     if (!dna) continue;
