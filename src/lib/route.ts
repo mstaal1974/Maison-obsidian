@@ -18,6 +18,7 @@ export type Route =
   | { view: "thanks"; sessionId: string | null }
   | { view: "product"; slug: string }
   | { view: "about" }
+  | { view: "help" }
   | { view: "account"; checkout: "success" | null; subscribed: boolean; sessionId: string | null }
   | { view: "admin" }
   // The staff order desk: packing, tracking, labels. Its own page, reachable at
@@ -67,6 +68,8 @@ export function parseHash(hash: string): Route {
     }
     case "fragrance":
       return tail ? { view: "product", slug: decodeURIComponent(tail) } : { view: "fragrances" };
+    case "help":
+      return { view: "help" };
     case "about":
       return { view: "about" };
     case "account": {
@@ -136,6 +139,7 @@ export const paths = {
   checkout: "#/checkout",
   thanks: "#/thanks",
   about: "#/about",
+  help: "#/help",
   account: "#/account",
   admin: "#/admin",
   staff: "#/staff",

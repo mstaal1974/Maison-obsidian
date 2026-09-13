@@ -52,7 +52,7 @@ create table if not exists public.staff_access (
 -- run as an admin, or straight from the SQL editor:
 --   update public.staff_access set passphrase_hash = crypt('…', gen_salt('bf'));
 insert into public.staff_access (id, passphrase_hash)
-values (true, crypt('obsidian-change-me', gen_salt('bf')))
+values (true, crypt(gen_random_uuid()::text, gen_salt('bf')))
 on conflict (id) do nothing;
 
 -- RLS on, no policies: neither table is reachable except through the security

@@ -7,7 +7,7 @@
 // the buyer's own browser.
 
 import { getStripe, json, serviceClient, userFromRequest, route, notConfigured } from "../_lib/stripe.js";
-import { recordOrder, recordSubscriptionStart } from "../_lib/record.js";
+import { bagLines, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -23,11 +23,11 @@ export default route("confirm", async function handler(req: any, res: any) {
   const session = await stripe.checkout.sessions.retrieve(id);
   const owner = session.metadata?.user_id ?? "";
   if (owner && owner !== user?.id) return json(res, 403, { error: "Not your session" });
-  if (session.status !== "complete") return json(res, 409, { error: "Payment not completed", status: session.status });
+  if (session.status !== "complete" || session.payment_status !== "paid") return json(res, 409, { error: "Payment not completed", status: session.status });
 
   if (session.mode === "payment") {
     await recordOrder(stripe, db, session);
-    return json(res, 200, { kind: "order", lines: JSON.parse(session.metadata?.lines ?? "[]"), amountTotal: session.amount_total });
+    return json(res, 200, { kind: "order", lines: await bagLines(stripe, session), amountTotal: session.amount_total });
   }
   if (session.mode === "subscription") {
     await recordSubscriptionStart(stripe, db, session);

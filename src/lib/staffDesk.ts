@@ -1,11 +1,8 @@
 // The staff order desk — paid orders, packing, Australia Post tracking.
 //
-// Everything here goes through the passphrase-gated RPCs in migration 0025.
-// The passphrase is the credential: it is sent with every call and kept only in
-// this tab's sessionStorage, never localStorage, so closing the tab locks the
-// desk again. No serverless function is involved (the project is at Vercel's
-// twelve-function ceiling), and no order data is readable through PostgREST
-// without it — order_fulfilment and staff_access have RLS on and no policies.
+// Production RPCs use the authenticated account and staff membership (0027).
+// The legacy p_pass parameter is ignored by the database; passwords below
+// belong only to the local demo.
 
 import { supabase } from "./supabase";
 import { FORMAT_BY_KEY } from "./formats";
