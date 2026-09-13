@@ -22,6 +22,7 @@ import {
   type DeskFilter,
   type StaffOrder,
 } from "../lib/staffDesk";
+import { navigate, paths } from "../lib/route";
 import { btnGhost, btnGold, field, label } from "./adminStyles";
 
 /**
@@ -35,7 +36,7 @@ import { btnGhost, btnGold, field, label } from "./adminStyles";
  * the database (migration 0025), and kept in sessionStorage so the tab locks
  * itself when it closes.
  */
-export default function StaffDesk() {
+export default function StaffDesk({ isAdmin = false }: { isAdmin?: boolean }) {
   const [pass, setPass] = useState(recallPass);
   const [typed, setTyped] = useState("");
   const [orders, setOrders] = useState<StaffOrder[] | null>(null);
@@ -47,7 +48,7 @@ export default function StaffDesk() {
   const refresh = useCallback(
     async (withPass: string) => {
       setBusy(true);
-      const res = await loadOrders(withPass);
+      const res = await loadOrders(withPass, isAdmin);
       setBusy(false);
       if (!res.ok) {
         setError(res.error);
@@ -58,17 +59,17 @@ export default function StaffDesk() {
       setOrders(res.value);
       return true;
     },
-    [],
+    [isAdmin],
   );
 
   // A remembered passphrase reopens the desk without asking again. The load is
   // kicked off from a timeout rather than the effect body so the first render
   // is not chased by a synchronous state write.
   useEffect(() => {
-    if (!pass) return;
+    if (!pass && !isAdmin) return;
     const id = window.setTimeout(() => void refresh(pass), 0);
     return () => window.clearTimeout(id);
-  }, [pass, refresh]);
+  }, [pass, isAdmin, refresh]);
 
   const unlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +96,12 @@ export default function StaffDesk() {
 
   const [returnAddress, setReturnAddress] = useState(loadReturnAddress);
 
-  if (!pass || !orders) {
+  if (!orders) {
+    // An admin is already authenticated; anything it could go wrong with is a
+    // real error, not a missing passphrase.
+    if (isAdmin) {
+      return <AdminWait error={error} onRetry={() => void refresh(pass)} busy={busy} />;
+    }
     return <Gate typed={typed} onTyped={setTyped} onSubmit={unlock} error={error} busy={busy} />;
   }
 
@@ -112,6 +118,7 @@ export default function StaffDesk() {
         onFilter={setFilter}
         onQuery={setQuery}
         onRefresh={() => void refresh(pass)}
+        isAdmin={isAdmin}
         onLock={lock}
         onChanged={(next) => setOrders(next)}
         returnAddress={returnAddress}
@@ -182,6 +189,29 @@ function Gate({
   );
 }
 
+/** An admin arriving before the first load, or after one that failed. */
+function AdminWait({ error, onRetry, busy }: { error: string | null; onRetry: () => void; busy: boolean }) {
+  return (
+    <main
+      className="mo-screen"
+      data-screen-label="Staff desk — loading"
+      style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#0b0b0d", textAlign: "center" }}
+    >
+      <div>
+        <div style={{ ...label, color: "rgba(201,169,97,0.85)", letterSpacing: "0.28em" }}>Maison Obsidian · Order desk</div>
+        <p style={{ margin: "16px 0 0", fontSize: 13, color: error ? "#e0736f" : "rgba(243,236,220,0.5)" }}>
+          {error ?? (busy ? "Loading orders…" : "Opening the desk…")}
+        </p>
+        {error && (
+          <button style={{ ...btnGhost, marginTop: 18 }} onClick={onRetry} disabled={busy}>
+            Try again
+          </button>
+        )}
+      </div>
+    </main>
+  );
+}
+
 // ─── The desk ────────────────────────────────────────────────────────────────
 
 const FILTERS: { key: DeskFilter; label: string }[] = [
@@ -202,6 +232,7 @@ function Desk({
   onFilter,
   onQuery,
   onRefresh,
+  isAdmin,
   onLock,
   onChanged,
   returnAddress,
@@ -217,6 +248,7 @@ function Desk({
   onFilter: (f: DeskFilter) => void;
   onQuery: (q: string) => void;
   onRefresh: () => void;
+  isAdmin: boolean;
   onLock: () => void;
   onChanged: (next: StaffOrder[]) => void;
   returnAddress: string;
@@ -259,7 +291,7 @@ function Desk({
     // back if the write fails.
     apply(order.order_ref, (o) => ({ ...o, packed: next }));
     setSaving(order.order_ref);
-    const res = await setPacked(pass, order.order_ref, next);
+    const res = await setPacked(pass, order.order_ref, next, isAdmin);
     setSaving(null);
     if (!res.ok) {
       apply(order.order_ref, (o) => ({ ...o, packed: !next }));
@@ -273,7 +305,7 @@ function Desk({
     const clean = value.trim();
     if (clean === (order.tracking_number ?? "")) return;
     setSaving(order.order_ref);
-    const res = await setTracking(pass, order.order_ref, clean);
+    const res = await setTracking(pass, order.order_ref, clean, isAdmin);
     setSaving(null);
     if (!res.ok) {
       setFailed(res.error);
@@ -310,9 +342,15 @@ function Desk({
             <button style={btnGhost} onClick={() => downloadCsv(shown)} disabled={!shown.length}>
               Export CSV
             </button>
-            <button style={btnGhost} onClick={onLock}>
-              Lock
-            </button>
+            {isAdmin ? (
+              <button style={btnGhost} onClick={() => navigate(paths.admin)}>
+                Console
+              </button>
+            ) : (
+              <button style={btnGhost} onClick={onLock}>
+                Lock
+              </button>
+            )}
           </div>
         </div>
 

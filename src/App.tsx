@@ -365,7 +365,7 @@ export default function App() {
   // footer, no bag — just the orders and the printer. It has its own
   // passphrase, so it does not go through the site's admin sign-in.
   if (route.view === "staff") {
-    return <StaffDesk />;
+    return <StaffDesk isAdmin={isAdmin} />;
   }
 
   // Discover Your Scent DNA is a standalone campaign experience: it brings its

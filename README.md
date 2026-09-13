@@ -417,8 +417,12 @@ in `staff_access` and checked inside three `SECURITY DEFINER` functions —
 `staff_orders`, `staff_set_packed`, `staff_set_tracking` — which are the only way
 in: both tables have RLS on with **no policies at all**, so nothing is readable
 through PostgREST without it. An `is_admin()` session passes without a
-passphrase. A wrong one costs a `pg_sleep(0.4)`, enough friction that guessing
-through the anon key is not worth starting.
+passphrase — so an admin reaches the desk straight from **Account → Staff Order
+Desk** in the header, with no second credential to remember, and the desk shows
+*Console* where it would otherwise show *Lock*. A wrong passphrase costs a
+`pg_sleep(0.4)`, enough friction that guessing through the anon key is not worth
+starting; an empty one from a session that is not an admin is refused like any
+other.
 
 Set the passphrase before anyone else has the URL:
 

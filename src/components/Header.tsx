@@ -190,7 +190,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                   {[
                     { label: "My Orders", to: paths.account },
                     { label: "My Monthly Pour", to: paths.account },
-                    ...(isAdmin ? [{ label: "Admin Console", to: paths.admin }] : []),
+                    ...(isAdmin ? [{ label: "Admin Console", to: paths.admin }, { label: "Staff Order Desk", to: paths.staff }] : []),
                   ].map((x) => (
                     <button key={x.label} role="menuitem" className="mo-softhover" onClick={() => navigate(x.to)} style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: 0, cursor: "pointer", color: CREAM, padding: "10px 12px", fontSize: 13 }}>
                       {x.label}
@@ -340,7 +340,10 @@ function MobileMenu({
               <button onClick={() => go(paths.account)} style={item}>My Orders</button>
               <button onClick={() => go(paths.account)} style={item}>My Monthly Pour</button>
               {isAdmin && (
-                <button onClick={() => go(paths.admin)} style={item}>Admin Console</button>
+                <>
+                  <button onClick={() => go(paths.admin)} style={item}>Admin Console</button>
+                  <button onClick={() => go(paths.staff)} style={item}>Staff Order Desk</button>
+                </>
               )}
               <button
                 onClick={() => {
