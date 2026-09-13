@@ -380,6 +380,31 @@ signed-in user is treated as an admin and edits are in-memory.
 > Make an admin: grab the id from Supabase → Authentication → Users, then run the
 > insert above in the SQL editor.
 
+### The bag through Stripe
+
+`recordOrder` needs the internal fragrance id, format, engraving and unit price
+for each bag line — none of which Stripe's own line items carry — so the bag
+travels as session metadata. Stripe caps a metadata **value** at 500 characters,
+and the bag used to be written as one value truncated to 490. Any order past
+about eight lines was cut mid-object: `JSON.parse` threw in the webhook, the
+delivery answered `handler failed`, and a **paid order was never recorded**.
+Resending did not help, because the truncation happened when the session was
+created.
+
+The bag is now split across numbered keys — `lines`, `lines2`, `lines3` … —
+by `chunkBag()` and joined back by `recordOrder`. Twenty chunks of 460
+characters is about 180 bag lines; beyond that `bagFits()` refuses the checkout
+**before** taking payment rather than recording something incomplete after.
+
+Sessions created before the fix are still recoverable: when the joined metadata
+will not parse, `recordOrder` rebuilds the lines from what Stripe did keep — the
+product name on each line item, which is `${fragrance} — ${format}` — matching
+the name back to the catalogue and reading the engraving out of the product
+description. Shipping and anything unrecognised are skipped. So a failed
+delivery from that era can simply be resent, or the session opened at
+`/api/stripe/confirm?session_id=cs_…`; `recordOrder` is keyed on the checkout
+session and no-ops if the order is already there.
+
 ### The staff order desk (`/staff`)
 
 A paid order is several rows in `commits` that share a Stripe checkout session;
