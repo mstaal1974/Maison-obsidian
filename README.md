@@ -448,10 +448,13 @@ popup, which browsers block:
 - **Labels** — A6 address labels, one per page, with the sender block, the
   recipient, the order ref, the piece count and the tracking number.
 
-The sender block comes from `VITE_RETURN_ADDRESS` (lines separated by `|`).
-Nothing is guessed: unset, the label prints a warning instead of an address,
-because a plausible wrong return address is how an undelivered parcel stops
-coming back.
+The sender block is typed at the desk and kept in that browser — the person who
+prints is the person who knows the address, and asking them to redeploy for it
+is absurd. `VITE_RETURN_ADDRESS` (lines separated by `|`) seeds a fresh browser.
+Nothing is guessed: unset, the label prints no sender at all and the desk says
+so on screen, rather than putting a warning on a parcel going out the door. The
+checkout session id is not on the label either — sixty characters of Stripe
+reference helps nobody at the post office, and the pack list carries it.
 
 > These are address labels, not prepaid postage. A real Australia Post label
 > carries a barcode that AusPost issues against a lodged consignment — that needs

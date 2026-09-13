@@ -79,6 +79,37 @@ export function forgetPass(): void {
 /** The demo desk when Supabase isn't configured. Its passphrase is "demo". */
 export const DEMO_PASS = "demo";
 
+// ─── The sender block on a label ─────────────────────────────────────────────
+// Set once at the desk and kept in this browser, because the person who prints
+// is the person who knows the address, and asking them to redeploy for it is
+// absurd. VITE_RETURN_ADDRESS (lines separated by "|") seeds it for a fresh
+// browser; nothing is invented, and an unset address prints nothing at all
+// rather than a warning on a parcel that is going out the door.
+const RETURN_KEY = "mo.staff.return";
+
+export function loadReturnAddress(): string {
+  try {
+    const saved = localStorage.getItem(RETURN_KEY);
+    if (saved !== null) return saved;
+  } catch {
+    /* fall back to the build-time value */
+  }
+  const env = (import.meta.env.VITE_RETURN_ADDRESS as string | undefined) ?? "";
+  return env.split("|").map((l) => l.trim()).filter(Boolean).join("\n");
+}
+
+export function saveReturnAddress(text: string): void {
+  try {
+    localStorage.setItem(RETURN_KEY, text);
+  } catch {
+    /* it still prints for this session */
+  }
+}
+
+export function returnLines(text: string): string[] {
+  return text.split("\n").map((l) => l.trim()).filter(Boolean);
+}
+
 // ─── Calls ───────────────────────────────────────────────────────────────────
 
 export async function loadOrders(pass: string): Promise<StaffResult<StaffOrder[]>> {

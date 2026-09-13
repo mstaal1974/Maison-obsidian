@@ -9,9 +9,12 @@ import {
   formatLabel,
   itemCount,
   loadOrders,
+  loadReturnAddress,
   matchesFilter,
   recallPass,
   rememberPass,
+  returnLines,
+  saveReturnAddress,
   searchOrders,
   setPacked,
   setTracking,
@@ -90,6 +93,8 @@ export default function StaffDesk() {
     [orders, query, filter],
   );
 
+  const [returnAddress, setReturnAddress] = useState(loadReturnAddress);
+
   if (!pass || !orders) {
     return <Gate typed={typed} onTyped={setTyped} onSubmit={unlock} error={error} busy={busy} />;
   }
@@ -109,11 +114,16 @@ export default function StaffDesk() {
         onRefresh={() => void refresh(pass)}
         onLock={lock}
         onChanged={(next) => setOrders(next)}
+        returnAddress={returnAddress}
+        onReturnAddress={(v) => {
+          setReturnAddress(v);
+          saveReturnAddress(v);
+        }}
       />
       {/* Both print sheets live in the page and are invisible until printing;
           building them in a popup is the version browsers block. */}
       <PackList orders={shown} />
-      <Labels orders={shown} />
+      <Labels orders={shown} from={returnAddress} />
     </>
   );
 }
@@ -194,6 +204,8 @@ function Desk({
   onRefresh,
   onLock,
   onChanged,
+  returnAddress,
+  onReturnAddress,
 }: {
   orders: StaffOrder[];
   shown: StaffOrder[];
@@ -207,6 +219,8 @@ function Desk({
   onRefresh: () => void;
   onLock: () => void;
   onChanged: (next: StaffOrder[]) => void;
+  returnAddress: string;
+  onReturnAddress: (value: string) => void;
 }) {
   const [saving, setSaving] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -328,6 +342,20 @@ function Desk({
           <span style={{ ...label }}>
             {shown.length} of {orders.length} {orders.length === 1 ? "order" : "orders"}
           </span>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ ...label, whiteSpace: "nowrap" }}>Return address</span>
+            <textarea
+              rows={1}
+              value={returnAddress}
+              onChange={(e) => onReturnAddress(e.target.value)}
+              placeholder="Maison Obsidian&#10;PO Box 000, Suburb QLD 4000"
+              aria-label="Return address printed on labels"
+              style={{ ...field, width: 300, height: 32, padding: "7px 10px", resize: "vertical", lineHeight: 1.4 }}
+            />
+          </label>
+          {!returnLines(returnAddress).length && (
+            <span style={{ ...label, color: "rgba(224,115,111,0.9)" }}>Labels will print without a sender</span>
+          )}
           {!isSupabaseConfigured && <span style={{ ...label, color: "rgba(224,115,111,0.9)" }}>Demo data</span>}
         </div>
 
@@ -513,25 +541,21 @@ function PackList({ orders }: { orders: StaffOrder[] }) {
 
 // ─── Print: the address labels ───────────────────────────────────────────────
 
-// The sender block. Set VITE_RETURN_ADDRESS (lines separated by "|") in the
-// Vercel project and in .env locally. Nothing is guessed here on purpose: a
-// plausible-looking wrong return address is how an undelivered parcel stops
-// coming back, so an unset one prints as a warning the packer cannot miss.
-const RETURN_ADDRESS = (import.meta.env.VITE_RETURN_ADDRESS as string | undefined)?.trim();
-const RETURN_LINES = RETURN_ADDRESS ? RETURN_ADDRESS.split("|").map((l) => l.trim()).filter(Boolean) : [];
 
-function Labels({ orders }: { orders: StaffOrder[] }) {
+
+function Labels({ orders, from }: { orders: StaffOrder[]; from: string }) {
+  const sender = returnLines(from);
   return (
     <section className="mo-print mo-print-labels" aria-hidden>
       {orders.map((o) => (
         <article key={o.order_ref} className="mo-label">
-          <div className="from">
-            {RETURN_LINES.length ? (
-              RETURN_LINES.map((l, n) => <div key={n}>{l}</div>)
-            ) : (
-              <strong>Return address not set — VITE_RETURN_ADDRESS</strong>
-            )}
-          </div>
+          {sender.length > 0 && (
+            <div className="from">
+              {sender.map((l, n) => (
+                <div key={n}>{l}</div>
+              ))}
+            </div>
+          )}
           <div className="to">
             {addressLines(o).map((l, n) => (
               <div key={n} className={n === 0 ? "who" : undefined}>
@@ -540,12 +564,13 @@ function Labels({ orders }: { orders: StaffOrder[] }) {
             ))}
             {!addressLines(o).length && <div className="who">No address on the order</div>}
           </div>
+          {/* No checkout session id: sixty characters of Stripe reference on a
+              parcel helps nobody, and the pack list already carries it. */}
           <div className="foot">
-            <span>{o.order_ref}</span>
             <span>
               {itemCount(o)} {itemCount(o) === 1 ? "piece" : "pieces"}
             </span>
-            <span>{o.tracking_number ? `AP ${o.tracking_number}` : "No tracking yet"}</span>
+            <span>{o.tracking_number ? `AP ${o.tracking_number}` : ""}</span>
           </div>
         </article>
       ))}
