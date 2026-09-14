@@ -66,7 +66,17 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
       </div>
       <div style={{ display: "grid", gridTemplateColumns: mode === "page" ? "repeat(auto-fill, minmax(300px, 1fr))" : "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
         {matches.map((m, i) => (
-          <article key={m.frag.id} style={{ border: `1px solid ${i === 0 ? "rgba(201,169,97,0.7)" : "#1f1f27"}`, background: "#101015", display: "grid", gridTemplateColumns: "96px 1fr", gap: 16, padding: 14 }}>
+          <article key={m.frag.id} className="mo-card" style={{ position: "relative", border: `1px solid ${i === 0 ? "rgba(201,169,97,0.7)" : "#1f1f27"}`, background: "#101015", display: "grid", gridTemplateColumns: "96px 1fr", gap: 16, padding: 14 }}>
+            {/* The whole card is the Explore link — a result you have already
+                decided on should not need a small target. It sits above the
+                text and under the two buttons, and stays out of the tab order:
+                Explore below is the same action, already announced. */}
+            <button
+              aria-hidden
+              tabIndex={-1}
+              onClick={() => navigate(paths.product(m.frag.slug))}
+              style={{ position: "absolute", inset: 0, zIndex: 1, background: "none", border: 0, padding: 0, cursor: "pointer" }}
+            />
             <BottleImage imageUrl={m.frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt={`${m.frag.name} bottle`} accent={m.frag.accent} liquid={m.frag.liquid} height={116} />
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
@@ -83,7 +93,7 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
                 <span style={{ fontFamily: MONO, fontSize: 11, color: CREAM }}>{fromLabel(m.frag)}</span>
-                <span style={{ display: "flex", gap: 14 }}>
+                <span style={{ display: "flex", gap: 14, position: "relative", zIndex: 2 }}>
                   {onQuickView && (
                     <button style={btnLink} onClick={() => onQuickView(m.frag)}>Choose format</button>
                   )}
