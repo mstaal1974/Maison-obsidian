@@ -5,7 +5,7 @@ staff membership, configure payment services, or publish the Sites preview.
 
 ## Deployment sequence
 
-1. Test `0027_checkout_security.sql` on a staging copy with migrations 0001–0026
+1. Test `0029_checkout_security.sql` on a staging copy with migrations 0001–0028
    already applied. Back up production before applying it there. This migration
    removes public writes and legacy client-side billing, switches the staff desk
    to account membership, and adds the atomic paid-order RPC. Do not restore
@@ -54,4 +54,4 @@ The per-session transaction lock and unique marker protect new handler replays;
 existing sessions with order rows are adopted without reinserting their lines.
 Inspect any suspected historical duplicates manually before reconciliation.
 Historical staff seed migrations now generate unknown random values rather than
-ship a usable default password. Migration 0027 ignores all stored password hashes.
+ship a usable default password. Migration 0029 ignores all stored password hashes.
