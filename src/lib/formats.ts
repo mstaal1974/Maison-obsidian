@@ -224,6 +224,22 @@ export function referenceOf(f: Fragrance): { brand: string; fragrance: string } 
   return m ? { brand: m[1].trim(), fragrance: m[2].trim() } : { brand: s.trim(), fragrance: "" };
 }
 
+/**
+ * Does a fragrance's reference — the house and scent it is built on — match
+ * what a shopper typed? People write a house every which way ("Tom Ford",
+ * "tomford", "TOM-FORD"), so both sides are squashed to bare alphanumerics and
+ * every word of the query has to appear. An empty query matches everything, so
+ * the caller can pass the box straight through.
+ */
+export function matchesReference(f: Fragrance, query: string): boolean {
+  const squash = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
+  const parts = query.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean);
+  if (!parts.length) return true;
+  const ref = referenceOf(f);
+  const hay = squash(`${ref.brand} ${ref.fragrance}`);
+  return parts.every((p) => hay.includes(p));
+}
+
 export function referenceLine(f: Fragrance): string {
   const r = referenceOf(f);
   return r.fragrance ? `Inspired by the scent profile of ${r.brand} ${r.fragrance}` : `Inspired by the scent profile of ${r.brand}`;
