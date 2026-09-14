@@ -322,10 +322,10 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
           <div>
             <div style={eyebrow}>Keep it</div>
             <h2 style={{ margin: "14px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(30px, 4vw, 48px)", color: SD.text, lineHeight: 1.04 }}>
-              Have your Scentprint sent to you.
+              Keep your Scentprint.
             </h2>
             <p style={{ ...bodyText, marginTop: 14, maxWidth: 560 }}>
-              We'll email the card and your match list, and keep your Scentprint on file so it sharpens every time you tell us something new — a bottle you loved, a sample you didn't.
+              Leave your address and we'll hold your Scentprint on file, so it sharpens every time you tell us something new — a bottle you loved, a sample you didn't. Your link reopens this result on any device; the card is yours to download above.
             </p>
             <LeadForm print={shown} onCode={onCode} />
 
@@ -610,9 +610,9 @@ function LeadForm({ print, onCode }: { print: Scentprint; onCode: (code: string)
   if (state === "done") {
     return (
       <div style={{ ...glass, marginTop: 26, padding: "24px 26px" }}>
-        <p style={{ margin: 0, fontFamily: SERIF, fontSize: 26, color: SD.softGold }}>On its way.</p>
+        <p style={{ margin: 0, fontFamily: SERIF, fontSize: 26, color: SD.softGold }}>Kept.</p>
         <p style={{ margin: "8px 0 0", fontSize: 13.5, lineHeight: 1.7, color: ink(0.6) }}>
-          Your Scentprint is saved{marketing ? " and you're on the inner-circle list — unsubscribe any time from your account" : ""}. Keep the link: it opens this result on any device.
+          Your Scentprint is on file{marketing ? " and you're on the inner-circle list — unsubscribe any time from your account" : ""}. Keep the link: it opens this result on any device.
         </p>
       </div>
     );
@@ -631,7 +631,7 @@ function LeadForm({ print, onCode }: { print: Scentprint; onCode: (code: string)
           style={{ flex: 1, background: "none", border: 0, outline: "none", color: SD.text, fontFamily: MONO, fontSize: 13, letterSpacing: "0.04em", padding: "14px 0" }}
         />
         <button className="sd-cta" type="submit" style={{ ...ctaGold, height: 46, padding: "0 22px", fontSize: 10 }} disabled={state === "busy"}>
-          {state === "busy" ? "Sending…" : "Send it to me"}
+          {state === "busy" ? "Saving…" : "Keep my Scentprint"}
         </button>
       </div>
       <label style={{ display: "flex", gap: 11, marginTop: 16, alignItems: "flex-start", cursor: "pointer" }}>
