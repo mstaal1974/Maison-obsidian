@@ -6,6 +6,7 @@ import {
   ringPoints,
   type Scentprint,
 } from "../../lib/scentdna";
+import { shareTargets } from "../../lib/scentShare";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, glass, goldA, ink, micro } from "./theme";
 
 const W = 1080;
@@ -31,6 +32,8 @@ export default function ShareCard({ print, url, code, topMatch }: ShareProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const identity = identityOf(print);
+  const caption = `My Scent DNA is ${identity.primary} — ${identity.character.slice(0, 3).join(" · ")}.`;
+  const targets = shareTargets(url, caption);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -59,7 +62,7 @@ export default function ShareCard({ print, url, code, topMatch }: ShareProps) {
   const share = useCallback(async () => {
     setBusy(true);
     try {
-      const text = `My Scent DNA is ${identity.primary} — ${identity.character.slice(0, 3).join(" · ")}.`;
+      const text = caption;
       const blob = await toBlob();
       const file = blob ? new File([blob], "maison-obsidian-scent-dna.png", { type: "image/png" }) : null;
       if (file && navigator.canShare?.({ files: [file] })) {
@@ -77,7 +80,7 @@ export default function ShareCard({ print, url, code, topMatch }: ShareProps) {
     } finally {
       setBusy(false);
     }
-  }, [identity, toBlob, url, flash]);
+  }, [caption, toBlob, url, flash]);
 
   const download = useCallback(async () => {
     const blob = await toBlob();
@@ -123,6 +126,25 @@ export default function ShareCard({ print, url, code, topMatch }: ShareProps) {
             Copy link
           </button>
         </div>
+        <div style={{ marginTop: 22, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ ...micro, color: ink(0.4), marginRight: 2 }}>Send it to</span>
+          {targets.map((t) => (
+            <a
+              key={t.id}
+              className="sd-chip"
+              href={t.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-flex", alignItems: "center", height: 34, padding: "0 14px", border: `1px solid ${goldA(0.28)}`, color: ink(0.82), textDecoration: "none", fontFamily: MONO, fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase" }}
+            >
+              {t.label}
+            </a>
+          ))}
+        </div>
+        <p style={{ margin: "14px 0 0", fontSize: 12.5, lineHeight: 1.6, color: ink(0.42), maxWidth: 460 }}>
+          For Instagram, download the card and post it — Instagram is the one that
+          won't let a link fill a post for you.
+        </p>
         <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <code style={{ fontFamily: MONO, fontSize: 11.5, letterSpacing: "0.08em", color: goldA(0.9), border: `1px solid ${goldA(0.24)}`, padding: "8px 12px", wordBreak: "break-all" }}>{url}</code>
           <span style={{ ...micro, color: ink(0.35) }} aria-live="polite">
