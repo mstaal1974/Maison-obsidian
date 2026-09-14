@@ -93,21 +93,6 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
             <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={548} objectPosition="center 45%" />
             <SideCaption lines={[...profile, "—", "A bolder", "you"]} style={{ position: "absolute", left: 18, top: 20, background: "rgba(11,11,13,0.55)", padding: "10px 12px", backdropFilter: "blur(2px)" }} />
           </div>
-          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-            {gallery.map((g, i) => (
-              <button key={g.label} onClick={() => setShot(i)} aria-label={g.label} aria-pressed={shot === i} style={{ padding: 0, border: `1px solid ${shot === i ? GOLD : "#1f1f27"}`, background: "#0e0e12", cursor: "pointer", height: 96, overflow: "hidden" }}>
-                {g.kind === "bottle" ? (
-                  <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={94} />
-                ) : (
-                  <img src={g.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                )}
-              </button>
-            ))}
-            <button aria-label="Play video" style={{ border: "1px solid #1f1f27", background: "#0e0e12", color: GOLD, cursor: "pointer", height: 96, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <span style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid rgba(201,169,97,0.7)", display: "grid", placeItems: "center" }}><Icon name="play" size={14} /></span>
-              <span style={{ ...micro, fontSize: 7.5, color: CREAM }}>Play video</span>
-            </button>
-          </div>
         </div>
 
         {/* DETAILS */}
