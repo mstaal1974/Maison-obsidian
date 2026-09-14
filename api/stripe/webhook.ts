@@ -31,8 +31,10 @@ export default route("webhook", async function handler(req: any, res: any) {
 
   try {
     switch (event.type) {
+      case "checkout.session.async_payment_succeeded":
       case "checkout.session.completed": {
         const session = event.data.object;
+        if (session.payment_status !== "paid") break;
         if (session.mode === "payment" && session.metadata?.kind === "order") await recordOrder(stripe, db, session);
         if (session.mode === "subscription") await recordSubscriptionStart(stripe, db, session);
         break;

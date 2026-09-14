@@ -160,8 +160,16 @@ export interface PricedLine extends CheckoutLine {
 
 /** Validates and prices the bag server-side. Throws on anything not buyable. */
 export function priceLines(lines: CheckoutLine[], catalogue: Map<string, CatalogueItem>): PricedLine[] {
+  if (!Array.isArray(lines) || !lines.length || lines.length > 100) throw new Error("Invalid bag size");
+  for (const l of lines) {
+    if (!l || !Number.isInteger(l.qty) || l.qty < 1 || l.qty > 20) throw new Error("Quantity must be between 1 and 20");
+    if (l.engraving != null && typeof l.engraving !== "string") throw new Error("Invalid engraving");
+    if (l.label && l.label !== "Discovery Box") throw new Error("Invalid bundle");
+    if (l.label === "Discovery Box" && l.format !== "perf10") throw new Error("Discovery Boxes contain only 10 ml fragrances");
+  }
   const boxPieces = lines.filter((l) => l.label === "Discovery Box" && l.format === "perf10").reduce((n, l) => n + l.qty, 0);
   const boxPriced = boxPieces > 0 && boxPieces % DISCOVERY_BOX_SIZE === 0;
+  if (boxPieces && !boxPriced) throw new Error("Discovery Boxes must contain complete sets of five");
   return lines.map((l) => {
     const f = catalogue.get(l.fragranceId);
     if (!f) throw new Error(`unknown fragrance ${l.fragranceId}`);
@@ -169,7 +177,7 @@ export function priceLines(lines: CheckoutLine[], catalogue: Map<string, Catalog
     if (!def) throw new Error(`unknown format ${l.format}`);
     if (!buyable(f, l.format)) throw new Error(`${f.name} ${def.name} is not available`);
     const qty = Math.max(1, Math.min(20, Math.floor(l.qty || 1)));
-    const unit = l.label === "Discovery Box" && boxPriced ? Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE) : formatPrice(f, l.format);
+    const unit = l.format === "perf10" && l.label === "Discovery Box" && boxPriced ? Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE) : formatPrice(f, l.format);
     return { ...l, qty, engraving: l.engraving?.trim().slice(0, 28) || null, name: f.name, formatName: def.name, sizeMl: def.sizeMl, unitCents: unit };
   });
 }

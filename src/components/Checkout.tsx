@@ -32,7 +32,7 @@ const field: CSSProperties = {
   padding: "0 13px",
   color: CREAM,
   fontFamily: MONO,
-  fontSize: 12,
+  fontSize: 16,
   boxSizing: "border-box",
 };
 const blockLabel: CSSProperties = { ...micro, display: "block", marginBottom: 10 };
@@ -61,8 +61,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   const [notes, setNotes] = useState("");
   const [chosen, setChosen] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
-  // Postage is unavailable (route not deployed, or no Australia Post key):
-  // fall back to confirming it after checkout rather than blocking the order.
+  // Postal checkout remains blocked until a valid quote is available.
   const [postageOff, setPostageOff] = useState(false);
 
   // ── Live Australia Post quote ─────────────────────────────────────────────
@@ -122,7 +121,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
 
   const missing = alternate
     ? [contact, fullName, phone, notes].some((v) => !v.trim())
-    : [contact, fullName, address, city].some((v) => !v.trim()) || postcode.trim().length !== 4;
+    : [contact, fullName, address, city, region].some((v) => !v.trim()) || !/^\d{4}$/.test(postcode.trim());
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.trim());
   const formError = !rows.length
     ? "Your bag is empty."
@@ -132,7 +131,9 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         : "Please fill in your email and shipping address."
       : !validEmail
         ? "That email address doesn't look right."
-        : null;
+        : !alternate && (!rate || postageOff || ship?.status !== "ready")
+          ? "Please wait for a valid postage quote before continuing."
+          : null;
 
   const place = () => {
     if (formError) {
@@ -146,7 +147,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   const shippingCell = alternate
     ? { value: "Free", note: "Alternate delivery — arranged with you", tone: "#8bb98a" }
     : postageOff
-      ? { value: "To confirm", note: "We'll confirm the postage with you after checkout.", tone: CREAM }
+      ? { value: "Unavailable", note: "Postage quotes are unavailable. Please try again shortly.", tone: CREAM }
       : ship?.status === "loading"
         ? { value: "Calculating…", note: "", tone: CREAM }
         : ship?.status === "error"
@@ -159,7 +160,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
     return (
       <main data-screen-label="Checkout" style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
         <h1 style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 44, color: CREAM, margin: 0 }}>Your bag is empty.</h1>
-        <p style={{ marginTop: 12, fontSize: 13, color: "rgba(243,236,220,0.5)" }}>One scent, every part of your day — start with the one you'd wear.</p>
+        <p style={{ marginTop: 12, fontSize: 14, color: "rgba(243,236,220,0.5)" }}>One scent, every part of your day — start with the one you'd wear.</p>
         <button className="mo-cta" style={{ ...btnGold, marginTop: 26 }} onClick={() => navigate(paths.fragrances)}>
           Shop fragrances <Arrow />
         </button>
@@ -174,7 +175,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
       </button>
       <h1 style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 46, color: CREAM, margin: "14px 0 0" }}>Checkout</h1>
       {cancelled && (
-        <p style={{ marginTop: 14, border: "1px solid rgba(201,169,97,0.5)", padding: "12px 16px", fontSize: 13, lineHeight: 1.6, color: "rgba(243,236,220,0.75)" }}>
+        <p style={{ marginTop: 14, border: "1px solid rgba(201,169,97,0.5)", padding: "12px 16px", fontSize: 14, lineHeight: 1.6, color: "rgba(243,236,220,0.75)" }}>
           You came back without paying — nothing was charged. Your bag is exactly as you left it.
         </p>
       )}
@@ -185,13 +186,13 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           <div>
             <span style={blockLabel}>Contact</span>
             <input type="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} />
-            <p style={{ margin: "8px 0 0", fontSize: 11.5, lineHeight: 1.6, color: "rgba(243,236,220,0.5)" }}>
+            <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.6, color: "rgba(243,236,220,0.5)" }}>
               {signedIn ? (
                 "Your receipt and any delivery questions go here."
               ) : (
                 <>
                   No account needed — checking out as a guest is fine.{" "}
-                  <button onClick={onSignIn} style={{ ...btnLink, fontSize: 11.5, letterSpacing: 0, textTransform: "none", fontFamily: "inherit", padding: 0 }}>
+                  <button onClick={onSignIn} style={{ ...btnLink, fontSize: 14, letterSpacing: 0, textTransform: "none", fontFamily: "inherit", padding: 0 }}>
                     Sign in
                   </button>{" "}
                   if you have one, for order history and faster checkout.
@@ -205,7 +206,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
             <div style={{ display: "grid", gap: 10 }}>
               {(
                 [
-                  { key: "auspost" as const, title: "Ship via Australia Post", body: postageOff ? "We'll confirm the postage with you after checkout." : "Live rate to your address, calculated below." },
+                  { key: "auspost" as const, title: "Ship via Australia Post", body: postageOff ? "Postage quotes are unavailable. Please try again shortly." : "Live rate to your address, calculated below." },
                   { key: "alternate" as const, title: "Arrange alternate delivery", body: "Hand delivery or via a friend — no postage charged." },
                 ]
               ).map((o) => (
@@ -213,7 +214,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                   <input type="radio" name="mo-delivery" checked={method === o.key} onChange={() => setMethod(o.key)} style={{ marginTop: 3, accentColor: "#c9a961" }} />
                   <span>
                     <span style={{ display: "block", fontFamily: SERIF, fontSize: 18, color: CREAM, lineHeight: 1.2 }}>{o.title}</span>
-                    <span style={{ display: "block", marginTop: 3, fontSize: 12, lineHeight: 1.5, color: "rgba(243,236,220,0.55)" }}>{o.body}</span>
+                    <span style={{ display: "block", marginTop: 3, fontSize: 14, lineHeight: 1.5, color: "rgba(243,236,220,0.55)" }}>{o.body}</span>
                   </span>
                 </label>
               ))}
@@ -269,7 +270,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                       <span style={{ display: "block", fontFamily: SERIF, fontSize: 17, color: CREAM, lineHeight: 1.2 }}>{r.name}</span>
                       {etaLabel(r) && <span style={{ display: "block", ...micro, fontSize: 8 }}>{etaLabel(r)}</span>}
                     </span>
-                    <span style={{ fontFamily: MONO, fontSize: 12, color: r.chargeCents === 0 ? "#8bb98a" : CREAM }}>{r.chargeCents === 0 ? "Free" : moneyExact(r.chargeCents)}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 14, color: r.chargeCents === 0 ? "#8bb98a" : CREAM }}>{r.chargeCents === 0 ? "Free" : moneyExact(r.chargeCents)}</span>
                   </label>
                 ))}
               </div>
@@ -280,7 +281,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
             <span style={blockLabel}>Payment</span>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-start", border: "1px solid #1f1f27", padding: "14px 16px" }}>
               <Icon name="lock" size={15} color={GOLD} />
-              <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.65, color: "rgba(243,236,220,0.62)" }}>
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.65, color: "rgba(243,236,220,0.62)" }}>
                 Card details are entered on Stripe's secure checkout after you place the order. We never see or store your card — only Stripe does.
               </p>
             </div>
@@ -302,14 +303,14 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                       {line.engraving ? ` · “${line.engraving}”` : ""}
                     </span>
                   </span>
-                  <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM }}>{money(unit({ line, frag }) * line.qty)}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 14, color: CREAM }}>{money(unit({ line, frag }) * line.qty)}</span>
                 </div>
               );
             })}
           </div>
 
           <div style={{ display: "grid", gap: 6, borderTop: "1px solid #1f1f27", paddingTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 12, color: CREAM }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 14, color: CREAM }}>
               <span style={micro}>Subtotal</span>
               <span>{moneyExact(subtotal)}</span>
             </div>
@@ -317,7 +318,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
               <span style={micro}>Shipping</span>
               <span data-testid="summary-shipping" style={{ color: shippingCell.tone }}>{shippingCell.value}</span>
             </div>
-            {shippingCell.note && <div style={{ fontSize: 11, lineHeight: 1.5, color: shippingCell.tone === "#d98a6a" ? "#d98a6a" : "rgba(243,236,220,0.5)" }}>{shippingCell.note}</div>}
+            {shippingCell.note && <div style={{ fontSize: 14, lineHeight: 1.5, color: shippingCell.tone === "#d98a6a" ? "#d98a6a" : "rgba(243,236,220,0.5)" }}>{shippingCell.note}</div>}
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid #1f1f27", paddingTop: 14, fontFamily: MONO, color: CREAM }}>
@@ -325,12 +326,13 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
             <span style={{ fontFamily: SERIF, fontSize: 30 }}>{moneyExact(total)}</span>
           </div>
 
-          <button className="mo-cta" style={{ ...btnGold, justifyContent: "center", opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={place}>
-            {busy ? "Opening secure checkout…" : `Place order · ${moneyExact(total)}`} <Arrow />
+          <button className="mo-cta" style={{ ...btnGold, minHeight: 48, height: "auto", padding: "14px 18px", fontSize: 14, letterSpacing: "0.06em", flexWrap: "wrap", justifyContent: "center", opacity: busy || (!alternate && (!rate || postageOff)) ? 0.6 : 1 }} disabled={busy || (!alternate && (!rate || postageOff))} onClick={place}>
+            {busy ? "Opening secure checkout…" : `Continue to secure payment · ${moneyExact(total)}`} <Arrow />
           </button>
-          <p style={{ margin: 0, fontSize: 11, lineHeight: 1.55, color: "rgba(243,236,220,0.45)", textAlign: "center" }}>Secured by Stripe · you'll confirm payment on the next step.</p>
-          {(showError && formError) || error ? <div style={{ fontSize: 12, lineHeight: 1.55, color: "#d98a6a" }}>{error ?? formError}</div> : null}
-          <div style={{ ...micro, fontSize: 8, display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+          {postageOff && !alternate && <button type="button" onClick={() => setPostageOff(false)} style={btnLink}>Retry postage quote</button>}
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: "rgba(243,236,220,0.45)", textAlign: "center" }}>Secured by Stripe · you'll confirm payment on the next step.</p>
+          {(showError && formError) || error ? <div style={{ fontSize: 14, lineHeight: 1.55, color: "#d98a6a" }}>{error ?? formError}</div> : null}
+          <div style={{ ...micro, fontSize: 14, display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
             <span>
               <Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100
             </span>

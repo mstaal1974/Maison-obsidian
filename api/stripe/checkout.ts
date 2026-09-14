@@ -54,7 +54,7 @@ export default route("checkout", async function handler(req: any, res: any) {
   const deliveryNotes = clean(delivery.notes, 450);
   const contactEmail = clean(delivery.email, 200);
   const email = contactEmail || user?.email || "";
-  if (!user && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return json(res, 400, { error: "Enter an email address so we can send your receipt." });
   }
   if (alternate && (!deliveryName || !deliveryPhone || !deliveryNotes)) {
@@ -72,7 +72,10 @@ export default route("checkout", async function handler(req: any, res: any) {
   const shipRegion = alternate ? "" : clean(delivery.region, 100);
   const haveAddress = !alternate && !!deliveryName && !!shipAddress && !!shipCity && /^\d{4}$/.test(postcode);
   let shipping: { name: string; chargeCents: number; etaDays?: { min: number; max: number } } | null = null;
-  if (!alternate && auspostConfigured() && /^\d{4}$/.test(postcode) && serviceCode) {
+  if (!alternate) {
+    if (!haveAddress || !shipRegion) return json(res, 400, { error: "Enter a complete Australian delivery address." });
+    if (!auspostConfigured()) return json(res, 503, { error: "Postage quotes are temporarily unavailable. Please try again shortly." });
+    if (!serviceCode) return json(res, 400, { error: "Choose a postage option before continuing to payment." });
     const subtotalCents = priced.reduce((n, l) => n + l.unitCents * l.qty, 0);
     const rates = await quoteRates(parcelFor(priced.map((l) => ({ format: l.format, qty: l.qty }))), postcode, subtotalCents);
     const chosen = rates.find((r) => r.code === serviceCode);

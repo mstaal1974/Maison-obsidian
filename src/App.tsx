@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type Fragrance, type FormatKey, money } from "./lib/data";
-import { useFragrances, recordCommit, enrollVip, isVipSubscriber, fetchMyCommits, fetchMyShipments, type CommitRow, type ShipmentRow } from "./lib/store";
+import { useFragrances, enrollVip, isVipSubscriber, fetchMyCommits, fetchMyShipments, type CommitRow, type ShipmentRow } from "./lib/store";
 import { useAuth } from "./lib/auth";
 import { useIsAdmin, type AdminCommitRow } from "./lib/admin";
 import { demoShipments, subscribeShipments } from "./lib/catalogue";
-import { authorizePayment, confirmStripeSession, stripeCheckout, stripeSubscribe } from "./lib/stripe";
+import { confirmStripeSession, stripeCheckout, stripeSubscribe } from "./lib/stripe";
 import type { CheckoutDelivery } from "./lib/shipping";
 import { currentRoute, parseHash, navigate, paths, type Route } from "./lib/route";
-import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, recordOrders, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
-import { sku as skuOf, FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
+import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
+import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
 import AuthModal from "./components/AuthModal";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
 import AdminConsole from "./components/AdminConsole";
@@ -23,6 +23,7 @@ import MoodShop from "./components/MoodShop";
 import RangeBanners from "./components/RangeBanners";
 import Collection from "./components/Collection";
 import Discovery from "./components/Discovery";
+import Help from "./components/Help";
 import About from "./components/About";
 import ProductDetail from "./components/ProductDetail";
 import QuickView from "./components/QuickView";
@@ -33,9 +34,9 @@ import Footer from "./components/Footer";
 import Subscribe from "./components/Subscribe";
 import SubscribeBand from "./components/SubscribeBand";
 import SubscriptionPanel from "./components/SubscriptionPanel";
-import { type PickMode, drawSurpriseScent, startSubscription, subscriptionPrice, useSubscriptions } from "./lib/subscription";
+import { type PickMode, useSubscriptions } from "./lib/subscription";
 import PreferencesPanel from "./components/PreferencesPanel";
-import { type Consents, affinityOf, setConsents, useConsents, useMyTaste } from "./lib/profile";
+import { type Consents, setConsents, useConsents, useMyTaste } from "./lib/profile";
 import { demoRequestQueries } from "./lib/requests";
 
 export default function App() {
@@ -113,16 +114,15 @@ export default function App() {
   }, []);
 
   // Place the order. With Stripe configured the bag goes to hosted Checkout
-  // and comes back to the thank-you page; otherwise the stub records it
-  // locally. An account is optional — a guest checks out with an email.
+  // and comes back to the thank-you page. Unconfigured previews cannot order.
+  // An account is optional — a guest checks out with an email.
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const checkout = useCallback(async (delivery: CheckoutDelivery) => {
     setCheckingOut(true);
     setCheckoutError(null);
     try {
       // A real deployment always pays through Stripe. If that can't start we
-      // stop and say so — recording an order nobody paid for would be worse
-      // than failing. The local stub below is only for the offline demo.
+      // stop without recording an unpaid order.
       if (auth.configured) {
         const r = await stripeCheckout(
           lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })),
@@ -140,22 +140,13 @@ export default function App() {
         );
         return;
       }
-      const done: Omit<Order, "id" | "createdAt">[] = [];
-      for (const l of lines) {
-        const frag = fragrances.find((f) => f.id === l.fragranceId);
-        if (!frag) continue;
-        const s = skuOf(frag, l.format);
-        const unit = l.unitPrice ?? s.price;
-        const { paymentIntentId } = await authorizePayment(frag.id, unit * l.qty);
-        await recordCommit(frag.id, l.engraving, s.def.sizeMl, unit, paymentIntentId, l.format, l.qty);
-        done.push({ fragranceId: frag.id, format: l.format, sizeMl: s.def.sizeMl, qty: l.qty, chargeCents: unit, engraving: l.engraving });
-      }
-      setPlaced(recordOrders(done));
-      setBagOpen(true);
+      setCheckoutError("Preview only — payments are not connected. No order has been placed.");
+      return;
+
     } finally {
       setCheckingOut(false);
     }
-  }, [lines, fragrances, auth.configured, isAdmin]);
+  }, [lines, auth.configured, isAdmin]);
 
   // ── Monthly Pour ───────────────────────────────────────────────────────────
   const { subscriptions, loading: subsLoading, reload: reloadSubs } = useSubscriptions(!!auth.user);
@@ -173,7 +164,6 @@ export default function App() {
   const localRequests = useMemo(() => (auth.configured || !onAccountView ? [] : demoRequestQueries()), [auth.configured, onAccountView]);
   const taste = useMyTaste(auth.user, fragrances, subscriptions, localPurchases, localRequests);
   const aiProfile = consents.ai && taste && !taste.empty ? taste.summary : undefined;
-  const surpriseAffinity = consents.ai && taste ? affinityOf(taste) : undefined;
   const saveConsents = useCallback(
     async (c: Consents, source = "account") => {
       await setConsents(c, source, auth.user?.email ?? null);
@@ -183,7 +173,7 @@ export default function App() {
   );
 
   const startSub = useCallback(
-    async (format: FormatKey, pick: Fragrance | null, mode: PickMode, email?: string) => {
+    async (format: FormatKey, pick: Fragrance | null, mode: PickMode) => {
       setSubBusy(true);
       setSubError(null);
       try {
@@ -202,26 +192,12 @@ export default function App() {
           );
           return;
         }
-        // Surprise mode: the house draws month 1 now so the charge is a real bottle's.
-        const frag = pick ?? drawSurpriseScent(fragrances, format, [], surpriseAffinity);
-        if (!frag) {
-          setSubError("Choose a scent to start.");
-          return;
-        }
-        const charge = subscriptionPrice(frag, format);
-        const { paymentIntentId } = await authorizePayment(frag.id, charge);
-        const res = await startSubscription(format, frag.id, charge, paymentIntentId, email || auth.user?.email || null, mode);
-        if (!res.ok) {
-          setSubError(res.error ?? "Could not start the subscription.");
-          return;
-        }
-        setSubStarted(true);
-        reloadSubs();
+        setSubError("Preview only — subscriptions are not connected. No subscription has been started.");
       } finally {
         setSubBusy(false);
       }
     },
-    [auth.user, auth.configured, fragrances, reloadSubs, surpriseAffinity, isAdmin],
+    [auth.configured, isAdmin],
   );
 
   const requestSubscribe = useCallback(
@@ -363,9 +339,10 @@ export default function App() {
 
   // The order desk is a tool, not a page of the storefront: no header, no
   // footer, no bag — just the orders and the printer. It has its own
-  // passphrase, so it does not go through the site's admin sign-in.
+  // individual account, with fulfilment access enforced by database membership.
   if (route.view === "staff") {
-    return <StaffDesk />;
+    if (!auth.configured || auth.user) return <StaffDesk onSignOut={() => void auth.signOut()} />;
+    return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff sign in</h1><p>Use your individual staff account to access orders.</p><button onClick={() => setAuthOpen(true)}>Sign in</button><a href="#/">Return to shop</a>{authOpen && <AuthModal onClose={() => setAuthOpen(false)} configured={auth.configured} signInEmail={auth.signInEmail} signUpEmail={auth.signUpEmail} signInGoogle={auth.signInGoogle} />}</main>;
   }
 
   // Discover Your Scent DNA is a standalone campaign experience: it brings its
@@ -492,6 +469,7 @@ export default function App() {
         </main>
       )}
 
+      {route.view === "help" && <Help />}
       {route.view === "about" && <About vip={vip} signedIn={!!auth.user} onJoin={joinVip} />}
 
       {route.view === "account" && (
@@ -551,7 +529,7 @@ export default function App() {
               // Runs before the auth state re-renders, so carry the email along.
               const { format, frag, mode } = pendingSub;
               setPendingSub(null);
-              void startSub(format, frag, mode, email);
+              void startSub(format, frag, mode);
             }
           }}
           signInEmail={auth.signInEmail}

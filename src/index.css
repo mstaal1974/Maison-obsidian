@@ -567,3 +567,13 @@ body {
   .mo-label .to .who { font-family: "Cormorant Garamond", Georgia, serif; font-size: 19pt; }
   .mo-label .foot { display: flex; justify-content: space-between; gap: 4mm; font-size: 7.5pt; letter-spacing: 0.08em; border-top: 1px solid #000; padding-top: 3mm; }
 }
+
+/* Readable shopper controls, including narrow screens and enlarged text. */
+main[data-screen-label="Checkout"] input,
+main[data-screen-label="Checkout"] textarea { font-size: 1rem !important; }
+main[data-screen-label="Checkout"] p,
+main[data-screen-label="Checkout"] label,
+main[data-screen-label="Checkout"] button,
+main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
+.mo-help a { color: #c9a961; text-decoration: underline; }
+.mo-help a:focus-visible { outline: 2px solid #c9a961; outline-offset: 4px; }
