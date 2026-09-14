@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, type Filter, GOLD, CREAM, matches } from "../lib/data";
-import { MOODS, type Mood, moodsOf, sku as skuOf, formatStatus } from "../lib/formats";
+import { MOODS, type Mood, moodsOf, sku as skuOf, formatStatus, matchesReference } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import FragranceCard from "./FragranceCard";
 import { Art, Chip, Container } from "./ui";
@@ -48,6 +48,7 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
   const [gender, setGender] = useState<Filter | "unisex">(initialGender);
   const [mood, setMood] = useState<Mood | null>(initialMood);
   const [format, setFormat] = useState<string | null>(initialFormat);
+  const [inspired, setInspired] = useState("");
 
   const list = useMemo(() => {
     let out = fragrances;
@@ -58,8 +59,9 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
       const key = FORMAT_FACETS.find((x) => x.id === format)?.key;
       if (key) out = out.filter((f) => formatStatus(f, key) !== "hidden");
     }
+    if (inspired.trim()) out = out.filter((f) => matchesReference(f, inspired));
     return out;
-  }, [fragrances, gender, mood, format]);
+  }, [fragrances, gender, mood, format, inspired]);
 
   const intro = INTRO[mode];
   const defaultFormat: FormatKey | undefined = mode === "car" ? "car" : mode === "body" ? "wash" : FORMAT_FACETS.find((x) => x.id === format)?.key;
@@ -105,11 +107,20 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
               ))}
             </>
           )}
+          <span style={{ ...micro, marginLeft: 16, marginRight: 4 }}>Inspired by</span>
+          <input
+            type="search"
+            value={inspired}
+            onChange={(e) => setInspired(e.target.value)}
+            placeholder="Tom Ford, Black Opium…"
+            aria-label="Search by the fragrance or house it is inspired by"
+            style={{ background: "none", border: "1px solid rgba(201,169,97,0.45)", outline: "none", color: CREAM, fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.02em", padding: "7px 10px", width: 190 }}
+          />
           <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 10, color: "rgba(243,236,220,0.5)" }}>{list.length} of {fragrances.length}</span>
         </div>
 
         {list.length === 0 ? (
-          <p style={{ ...body, marginTop: 30 }}>Nothing matches those filters yet. <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => { setGender("all"); setMood(null); setFormat(null); }}>Clear filters</button> or <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => navigate(paths.find())}>find your scent</button>.</p>
+          <p style={{ ...body, marginTop: 30 }}>Nothing matches those filters yet. <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => { setGender("all"); setMood(null); setFormat(null); setInspired(""); }}>Clear filters</button> or <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => navigate(paths.find())}>find your scent</button>.</p>
         ) : (
           <div className="mo-vault-grid" style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {list.map((f) => (
