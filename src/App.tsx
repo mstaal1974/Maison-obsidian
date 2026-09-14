@@ -6,13 +6,15 @@ import { useIsAdmin, type AdminCommitRow } from "./lib/admin";
 import { demoShipments, subscribeShipments } from "./lib/catalogue";
 import { authorizePayment, confirmStripeSession, stripeCheckout, stripeSubscribe } from "./lib/stripe";
 import type { CheckoutDelivery } from "./lib/shipping";
-import { parseHash, navigate, paths, type Route } from "./lib/route";
+import { currentRoute, parseHash, navigate, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, recordOrders, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
 import AuthModal from "./components/AuthModal";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
 import AdminConsole from "./components/AdminConsole";
+import StaffDesk from "./components/StaffDesk";
 import ChatWidget from "./components/ChatWidget";
+import ScentDna from "./components/ScentDna";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import ChooseObsidian from "./components/ChooseObsidian";
@@ -37,7 +39,7 @@ import { type Consents, affinityOf, setConsents, useConsents, useMyTaste } from 
 import { demoRequestQueries } from "./lib/requests";
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(() => parseHash(window.location.hash));
+  const [route, setRoute] = useState<Route>(() => currentRoute());
   const [vip, setVip] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   // Signing in was offered at checkout (never required), so the dialog says so.
@@ -345,6 +347,49 @@ export default function App() {
 
   const selected = route.view === "product" ? fragrances.find((f) => f.slug === route.slug) ?? null : null;
 
+  const bagDrawer = bagOpen ? (
+    <BagDrawer
+      lines={lines}
+      fragrances={fragrances}
+      placed={placed}
+      onClose={() => setBagOpen(false)}
+      onCheckout={() => {
+        setBagOpen(false);
+        navigate(paths.checkout);
+      }}
+      onAddCar={(f) => addToBag(f.id, "car", 1)}
+    />
+  ) : null;
+
+  // The order desk is a tool, not a page of the storefront: no header, no
+  // footer, no bag — just the orders and the printer. It has its own
+  // passphrase, so it does not go through the site's admin sign-in.
+  if (route.view === "staff") {
+    return <StaffDesk />;
+  }
+
+  // Discover Your Scent DNA is a standalone campaign experience: it brings its
+  // own chrome so a visitor arriving from Instagram or a QR code never has to
+  // pass through the storefront first. The bag still follows them.
+  if (route.view === "scent") {
+    return (
+      <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
+        <ScentDna
+          fragrances={fragrances}
+          code={route.code}
+          onOpenProduct={(slug) => navigate(paths.product(slug))}
+          onAddSample={(f) => {
+            addToBag(f.id, "perf10", 1);
+            setPlaced(null);
+            setBagOpen(true);
+          }}
+          onAddDiscoveryBox={addBox}
+        />
+        {bagDrawer}
+      </div>
+    );
+  }
+
   return (
     <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
       <Header
@@ -482,19 +527,7 @@ export default function App() {
 
       {quick && <QuickView frag={quick.frag} initialFormat={quick.format} onClose={() => setQuick(null)} onAdd={(f, k, q) => add(f, k, q)} />}
 
-      {bagOpen && (
-        <BagDrawer
-          lines={lines}
-          fragrances={fragrances}
-          placed={placed}
-          onClose={() => setBagOpen(false)}
-          onCheckout={() => {
-            setBagOpen(false);
-            navigate(paths.checkout);
-          }}
-          onAddCar={(f) => addToBag(f.id, "car", 1)}
-        />
-      )}
+      {bagDrawer}
 
       {authOpen && (
         <AuthModal

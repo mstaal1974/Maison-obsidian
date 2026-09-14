@@ -236,6 +236,8 @@ export interface Match {
   score: number; // 0..1
   percent: number; // 0..100 presentation score
   reason: string;
+  /** True when the query named a house rather than a scent ("Tom Ford"). */
+  matchedHouse?: boolean;
 }
 
 /**
@@ -267,6 +269,21 @@ export function findMatches(query: string, frags: Fragrance[], limit = 3): Match
   const q = tokens(query);
   if (!q.length) return [];
   const qJoined = q.join(" ");
+
+  // Naming a house means the whole range. Scored individually every scent by
+  // that house ties on exactly the same points, so a ranked cut would return an
+  // arbitrary handful of them and hide the rest.
+  const house = frags.filter((f) => tokens(referenceOf(f).brand).join(" ") === qJoined);
+  if (house.length) {
+    return house.map((frag) => ({
+      frag,
+      score: 0.95, // we carry this house — the results lead, not a request
+      percent: 100,
+      matchedHouse: true,
+      reason: frag.tagline,
+    }));
+  }
+
   const scored = frags.map((f) => {
     const ref = referenceOf(f);
     const refTokens = tokens(`${ref.brand} ${ref.fragrance}`);
@@ -299,7 +316,13 @@ export function findMatches(query: string, frags: Fragrance[], limit = 3): Match
     }
     return { f, score, reasons };
   });
-  const top = scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit);
+  // Keep everything tied with the last place shown: cutting mid-tie is what
+  // dropped half the Tom Fords, and the choice of which half was arbitrary.
+  const ranked = scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+  const cutoff = ranked[Math.min(limit, ranked.length) - 1]?.score ?? 0;
+  // A broad note ("vanilla") can tie dozens of scents at the bottom; past this
+  // many the answer stops being a shortlist and the search needs narrowing.
+  const top = ranked.filter((x) => x.score >= cutoff).slice(0, Math.max(limit, 12));
   if (!top.length) return [];
   const best = top[0].score;
   return top.map(({ f, score, reasons }) => ({

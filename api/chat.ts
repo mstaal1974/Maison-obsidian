@@ -5,7 +5,8 @@
 // conversation plus a compact live catalogue summary; we prepend a house system
 // prompt and stream Claude's reply back as plain text.
 //
-// Set ANTHROPIC_API_KEY in Vercel → Project → Settings → Environment Variables.
+// Set ANTHROPIC_API_KEY (or ANTHROPIC_KEY) in Vercel → Project → Settings →
+// Environment Variables.
 // Without it the endpoint returns 501 and the client falls back to a local
 // concierge so the demo still answers.
 
@@ -98,7 +99,10 @@ export default async function handler(req: any, res: any) {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Either name works: Vercel projects have been set up with both
+  // ANTHROPIC_API_KEY and the shorter ANTHROPIC_KEY, and a mismatch here
+  // fails silently — the route 501s and the fallback hides it.
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_KEY;
   if (!apiKey) {
     res.status(501).json({ error: "Concierge is not configured" });
     return;

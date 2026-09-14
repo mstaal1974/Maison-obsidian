@@ -4,7 +4,7 @@
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCatalogue, memberPrice, CURRENCY } from "./stripe.js";
-import type { FormatKey } from "./catalogue.js";
+import { FORMATS, type FormatKey } from "./catalogue.js";
 
 interface CompactLine {
   f: string; // fragrance id
@@ -15,11 +15,80 @@ interface CompactLine {
   u: number; // unit cents
 }
 
+// ─── The bag, carried through Stripe ─────────────────────────────────────────
+//
+// Stripe caps a metadata value at 500 characters. The bag used to be written as
+// one value truncated to 490, which silently corrupted any order past about
+// eight lines: the JSON was cut mid-object, JSON.parse threw in the webhook,
+// and a paid order was never recorded. It is now split across numbered keys —
+// `lines`, `lines2`, `lines3` … — and joined back here.
+
+/** Below Stripe's 500-character ceiling, with room to spare. */
+export const BAG_CHUNK = 460;
+/** Stripe allows 50 metadata keys; the order uses a dozen others. */
+export const BAG_MAX_CHUNKS = 20;
+
+export function chunkBag(compact: unknown): Record<string, string> {
+  const json = JSON.stringify(compact);
+  const out: Record<string, string> = {};
+  for (let i = 0, n = 0; i < json.length; i += BAG_CHUNK, n += 1) {
+    out[n === 0 ? "lines" : `lines${n + 1}`] = json.slice(i, i + BAG_CHUNK);
+  }
+  return out;
+}
+
+export function bagFits(compact: unknown): boolean {
+  return JSON.stringify(compact).length <= BAG_CHUNK * BAG_MAX_CHUNKS;
+}
+
+function joinBag(metadata: Stripe.Metadata | null): string {
+  let json = metadata?.lines ?? "";
+  for (let n = 2; metadata?.[`lines${n}`]; n += 1) json += metadata[`lines${n}`];
+  return json;
+}
+
+/**
+ * The bag for a session. Sessions created before the chunking fix carry a
+ * truncated value that cannot be parsed; rather than lose a paid order, the
+ * lines are rebuilt from what Stripe itself kept — the product name on each
+ * line item, which is `${fragrance} — ${format}`.
+ */
+async function bagLines(stripe: Stripe, session: Stripe.Checkout.Session): Promise<CompactLine[]> {
+  const json = joinBag(session.metadata);
+  if (json) {
+    try {
+      return JSON.parse(json) as CompactLine[];
+    } catch {
+      console.warn(`recordOrder: ${session.id} has truncated line metadata — rebuilding from Stripe line items`);
+    }
+  }
+  return rebuildFromLineItems(stripe, session);
+}
+
+async function rebuildFromLineItems(stripe: Stripe, session: Stripe.Checkout.Session): Promise<CompactLine[]> {
+  const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100, expand: ["data.price.product"] });
+  const catalogue = await loadCatalogue();
+  const byName = new Map([...catalogue.values()].map((f) => [f.name.trim().toLowerCase(), f]));
+  const lines: CompactLine[] = [];
+  for (const item of items.data) {
+    const product = item.price?.product;
+    const label = product && typeof product === "object" && "name" in product ? String(product.name ?? "") : (item.description ?? "");
+    const [fragName, formatName] = label.split(" — ");
+    const frag = byName.get((fragName ?? "").trim().toLowerCase());
+    const def = FORMATS.find((f) => f.name === (formatName ?? "").trim());
+    if (!frag || !def) continue; // anything that is not a catalogue line
+    const description = product && typeof product === "object" && "description" in product ? String(product.description ?? "") : "";
+    const engraved = description.match(/^Engraved\s+[“"](.+)[”"]$/)?.[1] ?? null;
+    lines.push({ f: frag.id, k: def.key, q: item.quantity ?? 1, e: engraved, s: def.sizeMl, u: item.price?.unit_amount ?? 0 });
+  }
+  return lines;
+}
+
 /** Order: one row per bag line, keyed by the Checkout Session. */
 export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ recorded: number }> {
   const { data: already } = await db.from("commits").select("id").eq("checkout_session_id", session.id).limit(1);
   if (already?.length) return { recorded: 0 };
-  const lines = JSON.parse(session.metadata?.lines ?? "[]") as CompactLine[];
+  const lines = await bagLines(stripe, session);
   if (!lines.length) return { recorded: 0 };
   const piId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
   const customer = typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null);

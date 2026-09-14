@@ -31,17 +31,10 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
   const [engraveOn, setEngraveOn] = useState(false);
   const [engraving, setEngraving] = useState("");
   const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
-  const [shot, setShot] = useState(0);
   const chosen = skuOf(frag, key);
   const locked = !!frag.vipOnly && !vip;
   const profile = profileOf(frag);
   const related = useMemo(() => relatedTo(frag, fragrances, 4), [frag, fragrances]);
-
-  // The bottle itself, and one alternate shot.
-  const gallery = [
-    { kind: "bottle" as const, label: "Bottle" },
-    { kind: "img" as const, src: "/assets/bottle-pdp.jpg", label: "Detail" },
-  ];
 
   const canEngrave = chosen.def.group === "wear";
   const finalEngraving = canEngrave && engraveOn ? engraving.trim().slice(0, ENGRAVE_MAX) || null : null;
@@ -92,16 +85,12 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
 
   return (
     <main data-screen-label="Product">
-      {/* ── Top: gallery + details ── */}
+      {/* ── Top: hero image + details ── */}
       <div className="mo-pdp-grid" style={{ display: "grid", gridTemplateColumns: "0.72fr 1.28fr", borderBottom: "1px solid #1f1f27" }}>
-        {/* GALLERY */}
+        {/* HERO IMAGE */}
         <div style={{ borderRight: "1px solid #1f1f27", padding: "18px 24px 22px 32px" }}>
-          <div style={{ position: "relative", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27", minHeight: 420 }}>
-            {gallery[shot].kind === "bottle" ? (
-              <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={440} objectPosition="center 40%" />
-            ) : (
-              <img src={gallery[shot].src} alt={`${frag.name} — ${gallery[shot].label}`} style={{ display: "block", width: "100%", height: 440, objectFit: "cover" }} />
-            )}
+          <div style={{ position: "relative", background: bottleBackdrop(frag.accent, frag.liquid), border: "1px solid #1f1f27" }}>
+            <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-pdp.jpg" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={548} objectPosition="center 45%" />
             <SideCaption lines={[...profile, "—", "A bolder", "you"]} style={{ position: "absolute", left: 18, top: 20, background: "rgba(11,11,13,0.55)", padding: "10px 12px", backdropFilter: "blur(2px)" }} />
           </div>
           <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>

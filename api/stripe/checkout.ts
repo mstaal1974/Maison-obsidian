@@ -9,6 +9,7 @@
 
 import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLines, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route, notConfigured } from "../_lib/stripe.js";
 import { auspostConfigured, quoteRates } from "../_lib/auspost.js";
+import { bagFits, chunkBag } from "../_lib/record.js";
 import { parcelFor } from "../_lib/parcel.js";
 
 export const config = { runtime: "nodejs" };
@@ -84,6 +85,11 @@ export default route("checkout", async function handler(req: any, res: any) {
   const customer = user ? await customerFor(stripe, db, user) : undefined;
   const site = siteUrl(req);
   const compact = priced.map((l) => ({ f: l.fragranceId, k: l.format, q: l.qty, e: l.engraving, s: l.sizeMl, u: l.unitCents }));
+  // Refuse now rather than take the money and be unable to record what was
+  // bought. Twenty chunks is roughly 180 bag lines, so this is a real outlier.
+  if (!bagFits(compact)) {
+    return json(res, 400, { error: "That bag is too large to check out in one go — please split it into two orders." });
+  }
 
   const session = await stripe.checkout.sessions.create({
     // Checkout Studio configuration (hosted page).
@@ -136,7 +142,10 @@ export default route("checkout", async function handler(req: any, res: any) {
       user_id: user?.id ?? "",
       user_email: email,
       kind: "order",
-      lines: JSON.stringify(compact).slice(0, 490),
+      // The bag, split across `lines`, `lines2`, … — see chunkBag(). It used
+      // to be one value truncated to 490 characters, which corrupted any order
+      // past about eight lines and made it unrecordable after payment.
+      ...chunkBag(compact),
       delivery_method: alternate ? "alternate" : "auspost",
       ...(contactEmail ? { contact_email: contactEmail } : {}),
       ...(deliveryName ? { delivery_name: deliveryName } : {}),

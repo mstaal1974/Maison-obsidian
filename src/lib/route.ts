@@ -9,13 +9,20 @@ export type Route =
   | { view: "car" }
   | { view: "body" }
   | { view: "find"; query: string }
+  // Discover Your Scent DNA — a standalone campaign experience. Reachable at
+  // /discover and /scent-dna (clean paths, rewritten to the app) as well as the
+  // hash form, and /scent/<code> opens a shared Scentprint.
+  | { view: "scent"; code: string | null }
   | { view: "subscribe"; slug: string | null; format: string | null }
   | { view: "checkout"; cancelled: boolean }
   | { view: "thanks"; sessionId: string | null }
   | { view: "product"; slug: string }
   | { view: "about" }
   | { view: "account"; checkout: "success" | null; subscribed: boolean; sessionId: string | null }
-  | { view: "admin" };
+  | { view: "admin" }
+  // The staff order desk: packing, tracking, labels. Its own page, reachable at
+  // /staff as well as the hash form, and behind its own passphrase.
+  | { view: "staff" };
 
 export function parseHash(hash: string): Route {
   const h = hash.replace(/^#\/?/, "");
@@ -35,6 +42,13 @@ export function parseHash(hash: string): Route {
       return { view: "car" };
     case "body":
       return { view: "body" };
+    case "discover":
+    case "scent-dna":
+      return { view: "scent", code: null };
+    case "scent":
+      return { view: "scent", code: tail ? decodeURIComponent(tail) : null };
+    case "staff":
+      return { view: "staff" };
     case "find": {
       const q = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)).get("q") ?? "" : "";
       return { view: "find", query: q };
@@ -66,6 +80,36 @@ export function parseHash(hash: string): Route {
   }
 }
 
+/**
+ * The route for a clean path, so a link pasted from Instagram or printed on a
+ * QR code (maisonobsidian.com.au/discover) opens the right screen. Vercel
+ * rewrites these paths to the app; anything else falls back to the storefront.
+ */
+export function parsePath(pathname: string): Route {
+  const segments = pathname.replace(/^\/+|\/+$/g, "").split("/");
+  const [head, ...rest] = segments;
+  switch (head) {
+    case "discover":
+    case "scent-dna":
+      return { view: "scent", code: null };
+    case "scent":
+      return { view: "scent", code: rest[0] ? decodeURIComponent(rest[0]) : null };
+    case "staff":
+      return { view: "staff" };
+    default:
+      return { view: "home" };
+  }
+}
+
+/**
+ * The current route: the hash whenever there is one — even "#/" — so navigating
+ * home from /discover lands on the storefront instead of bouncing back to the
+ * campaign page. The clean path is only read on a cold open.
+ */
+export function currentRoute(): Route {
+  return window.location.hash ? parseHash(window.location.hash) : parsePath(window.location.pathname);
+}
+
 export function navigate(to: string, scrollTop = true): void {
   window.location.hash = to;
   if (scrollTop) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -79,6 +123,8 @@ export const paths = {
   car: "#/car",
   body: "#/body",
   find: (q?: string) => (q ? `#/find?q=${encodeURIComponent(q)}` : "#/find"),
+  discover: "#/discover",
+  scent: (code: string) => `#/scent/${encodeURIComponent(code)}`,
   product: (slug: string) => `#/fragrance/${encodeURIComponent(slug)}`,
   subscribe: (slug?: string, format?: string) => {
     const q = new URLSearchParams();
@@ -92,4 +138,5 @@ export const paths = {
   about: "#/about",
   account: "#/account",
   admin: "#/admin",
+  staff: "#/staff",
 };

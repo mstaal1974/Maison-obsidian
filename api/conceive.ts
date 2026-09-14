@@ -236,15 +236,28 @@ function normalise(raw: Record<string, unknown>): Conception {
   };
 }
 
+
+// The API's own message names the field it rejected — a bare "Claude error 400"
+// does not, and that cost a production round trip. It describes the request, so
+// there is nothing sensitive in it.
+function apiDetail(err: unknown): string {
+  const nested = (err as { error?: { error?: { message?: unknown } } })?.error?.error?.message;
+  const text = typeof nested === "string" ? nested : String((err as { message?: unknown })?.message ?? "");
+  return text.slice(0, 300);
+}
+
 // ─── Handler ─────────────────────────────────────────────────────────────────
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Either name works: Vercel projects have been set up with both
+  // ANTHROPIC_API_KEY and the shorter ANTHROPIC_KEY, and a mismatch here
+  // fails silently — the route 501s and the fallback hides it.
+  const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_KEY;
   if (!apiKey) {
-    res.status(501).json({ error: "AI conception is not configured (ANTHROPIC_API_KEY missing)" });
+    res.status(501).json({ error: "AI conception is not configured (ANTHROPIC_API_KEY / ANTHROPIC_KEY missing)" });
     return;
   }
 
@@ -319,7 +332,8 @@ export default async function handler(req: any, res: any) {
     } else if (err instanceof Anthropic.AuthenticationError) {
       res.status(501).json({ error: "AI conception is misconfigured (invalid API key)" });
     } else if (err instanceof Anthropic.APIError) {
-      res.status(502).json({ error: `Claude error ${err.status ?? ""}`.trim() });
+      const detail = apiDetail(err);
+      res.status(502).json({ error: `Claude error ${err.status ?? ""}${detail ? `: ${detail}` : ""}`.trim() });
     } else {
       res.status(500).json({ error: "Conception failed" });
     }
