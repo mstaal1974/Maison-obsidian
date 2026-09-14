@@ -341,7 +341,7 @@ export default function App() {
   // footer, no bag — just the orders and the printer. It has its own
   // individual account, with fulfilment access enforced by database membership.
   if (route.view === "staff") {
-    if (!auth.configured || auth.user) return <StaffDesk onSignOut={() => void auth.signOut()} />;
+    if (!auth.configured || auth.user) return <StaffDesk isAdmin={isAdmin} onSignOut={() => void auth.signOut()} />;
     return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff sign in</h1><p>Use your individual staff account to access orders.</p><button onClick={() => setAuthOpen(true)}>Sign in</button><a href="#/">Return to shop</a>{authOpen && <AuthModal onClose={() => setAuthOpen(false)} configured={auth.configured} signInEmail={auth.signInEmail} signUpEmail={auth.signUpEmail} signInGoogle={auth.signInGoogle} />}</main>;
   }
 

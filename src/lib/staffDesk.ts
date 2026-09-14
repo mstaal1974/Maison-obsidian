@@ -76,25 +76,61 @@ export function forgetPass(): void {
 /** The demo desk when Supabase isn't configured. Its passphrase is "demo". */
 export const DEMO_PASS = "demo";
 
+// ─── The sender block on a label ─────────────────────────────────────────────
+// Set once at the desk and kept in this browser, because the person who prints
+// is the person who knows the address, and asking them to redeploy for it is
+// absurd. VITE_RETURN_ADDRESS (lines separated by "|") seeds it for a fresh
+// browser; nothing is invented, and an unset address prints nothing at all
+// rather than a warning on a parcel that is going out the door.
+const RETURN_KEY = "mo.staff.return";
+
+export function loadReturnAddress(): string {
+  try {
+    const saved = localStorage.getItem(RETURN_KEY);
+    if (saved !== null) return saved;
+  } catch {
+    /* fall back to the build-time value */
+  }
+  const env = (import.meta.env.VITE_RETURN_ADDRESS as string | undefined) ?? "";
+  return env.split("|").map((l) => l.trim()).filter(Boolean).join("\n");
+}
+
+export function saveReturnAddress(text: string): void {
+  try {
+    localStorage.setItem(RETURN_KEY, text);
+  } catch {
+    /* it still prints for this session */
+  }
+}
+
+export function returnLines(text: string): string[] {
+  return text.split("\n").map((l) => l.trim()).filter(Boolean);
+}
+
 // ─── Calls ───────────────────────────────────────────────────────────────────
 
-export async function loadOrders(pass: string): Promise<StaffResult<StaffOrder[]>> {
-  if (!supabase) return demoLoad(pass);
+/**
+ * An admin needs no passphrase: staff_ok() returns true for is_admin() before
+ * it looks at one, so the signed-in session is the credential. The flag only
+ * matters for the demo desk, which has no session to check.
+ */
+export async function loadOrders(pass: string, admin = false): Promise<StaffResult<StaffOrder[]>> {
+  if (!supabase) return demoLoad(pass, admin);
   const res = await call(() => supabase.rpc("staff_orders", { p_pass: pass }));
   if (!res.ok) return { ok: false, error: res.error ?? UNKNOWN };
   return { ok: true, value: (res.value ?? []) as StaffOrder[] };
 }
 
-export async function setPacked(pass: string, ref: string, packed: boolean): Promise<StaffResult<null>> {
-  if (!supabase) return demoWrite(pass, ref, (o) => ({ ...o, packed, packed_at: packed ? new Date().toISOString() : null }));
+export async function setPacked(pass: string, ref: string, packed: boolean, admin = false): Promise<StaffResult<null>> {
+  if (!supabase) return demoWrite(pass, admin, ref, (o) => ({ ...o, packed, packed_at: packed ? new Date().toISOString() : null }));
   const res = await call(() => supabase.rpc("staff_set_packed", { p_pass: pass, p_order_ref: ref, p_packed: packed }));
   return res.ok ? { ok: true, value: null } : { ok: false, error: res.error ?? UNKNOWN };
 }
 
-export async function setTracking(pass: string, ref: string, tracking: string): Promise<StaffResult<null>> {
+export async function setTracking(pass: string, ref: string, tracking: string, admin = false): Promise<StaffResult<null>> {
   const clean = tracking.trim();
   if (!supabase) {
-    return demoWrite(pass, ref, (o) => ({
+    return demoWrite(pass, admin, ref, (o) => ({
       ...o,
       tracking_number: clean || null,
       shipped_at: clean ? o.shipped_at ?? new Date().toISOString() : null,
@@ -300,13 +336,13 @@ function demoWriteAll(orders: StaffOrder[]): void {
   }
 }
 
-function demoLoad(pass: string): StaffResult<StaffOrder[]> {
-  if (pass !== DEMO_PASS) return { ok: false, error: "That passphrase was not recognised." };
+function demoLoad(pass: string, admin: boolean): StaffResult<StaffOrder[]> {
+  if (!admin && pass !== DEMO_PASS) return { ok: false, error: "That passphrase was not recognised." };
   return { ok: true, value: demoRead() };
 }
 
-function demoWrite(pass: string, ref: string, change: (o: StaffOrder) => StaffOrder): StaffResult<null> {
-  if (pass !== DEMO_PASS) return { ok: false, error: "That passphrase was not recognised." };
+function demoWrite(pass: string, admin: boolean, ref: string, change: (o: StaffOrder) => StaffOrder): StaffResult<null> {
+  if (!admin && pass !== DEMO_PASS) return { ok: false, error: "That passphrase was not recognised." };
   demoWriteAll(demoRead().map((o) => (o.order_ref === ref ? change(o) : o)));
   return { ok: true, value: null };
 }

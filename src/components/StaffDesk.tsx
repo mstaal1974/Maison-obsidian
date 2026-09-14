@@ -9,9 +9,12 @@ import {
   formatLabel,
   itemCount,
   loadOrders,
+  loadReturnAddress,
   matchesFilter,
   recallPass,
   rememberPass,
+  returnLines,
+  saveReturnAddress,
   searchOrders,
   setPacked,
   setTracking,
@@ -19,6 +22,7 @@ import {
   type DeskFilter,
   type StaffOrder,
 } from "../lib/staffDesk";
+import { navigate, paths } from "../lib/route";
 import { btnGhost, btnGold, field, label } from "./adminStyles";
 
 /**
@@ -30,8 +34,8 @@ import { btnGhost, btnGold, field, label } from "./adminStyles";
  * Production uses individual Supabase accounts and staff membership (0027).
  * The passphrase UI is only used for local demo data.
  */
-export default function StaffDesk({ onSignOut }: { onSignOut: () => void }) {
-  const [pass, setPass] = useState(() => isSupabaseConfigured ? "account-session" : recallPass());
+export default function StaffDesk({ isAdmin = false, onSignOut }: { isAdmin?: boolean; onSignOut: () => void }) {
+  const [pass, setPass] = useState(() => (isSupabaseConfigured ? "account-session" : recallPass()));
   const [typed, setTyped] = useState("");
   const [orders, setOrders] = useState<StaffOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +46,7 @@ export default function StaffDesk({ onSignOut }: { onSignOut: () => void }) {
   const refresh = useCallback(
     async (withPass: string) => {
       setBusy(true);
-      const res = await loadOrders(withPass);
+      const res = await loadOrders(withPass, isAdmin);
       setBusy(false);
       if (!res.ok) {
         setError(res.error);
@@ -53,17 +57,17 @@ export default function StaffDesk({ onSignOut }: { onSignOut: () => void }) {
       setOrders(res.value);
       return true;
     },
-    [],
+    [isAdmin],
   );
 
   // A remembered passphrase reopens the desk without asking again. The load is
   // kicked off from a timeout rather than the effect body so the first render
   // is not chased by a synchronous state write.
   useEffect(() => {
-    if (!pass) return;
+    if (!pass && !isAdmin) return;
     const id = window.setTimeout(() => void refresh(pass), 0);
     return () => window.clearTimeout(id);
-  }, [pass, refresh]);
+  }, [pass, isAdmin, refresh]);
 
   const unlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,10 +93,24 @@ export default function StaffDesk({ onSignOut }: { onSignOut: () => void }) {
     [orders, query, filter],
   );
 
-  if (isSupabaseConfigured && !orders) {
-    return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff order desk</h1><p>{busy ? "Loading orders…" : error || "Checking staff access…"}</p><p>Your individual account must be authorised for order fulfilment.</p><button onClick={() => void refresh("account-session")}>Retry</button><a href="#/">Return to shop</a></main>;
+  const [returnAddress, setReturnAddress] = useState(loadReturnAddress);
+
+  if (!orders) {
+    // An admin is already authenticated; anything it could go wrong with is a
+    // real error, not a missing passphrase.
+    if (isAdmin) {
+      return <AdminWait error={error} onRetry={() => void refresh(pass)} busy={busy} />;
+    }
+    // With Supabase configured there is no shared passphrase: the desk is
+    // opened by an individual staff account, so an empty desk is a question of
+    // authorisation, not a locked gate.
+    if (isSupabaseConfigured) {
+      return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff order desk</h1><p>{busy ? "Loading orders…" : error || "Checking staff access…"}</p><p>Your individual account must be authorised for order fulfilment.</p><button onClick={() => void refresh("account-session")}>Retry</button><a href="#/">Return to shop</a></main>;
+    }
+    return <Gate typed={typed} onTyped={setTyped} onSubmit={unlock} error={error} busy={busy} />;
   }
-  if (!pass || !orders) {
+  // Demo mode only: an admin needs no passphrase, anyone else does.
+  if (!pass && !isAdmin) {
     return <Gate typed={typed} onTyped={setTyped} onSubmit={unlock} error={error} busy={busy} />;
   }
 
@@ -109,13 +127,19 @@ export default function StaffDesk({ onSignOut }: { onSignOut: () => void }) {
         onFilter={setFilter}
         onQuery={setQuery}
         onRefresh={() => void refresh(pass)}
+        isAdmin={isAdmin}
         onLock={lock}
         onChanged={(next) => setOrders(next)}
+        returnAddress={returnAddress}
+        onReturnAddress={(v) => {
+          setReturnAddress(v);
+          saveReturnAddress(v);
+        }}
       />
       {/* Both print sheets live in the page and are invisible until printing;
           building them in a popup is the version browsers block. */}
       <PackList orders={shown} />
-      <Labels orders={shown} />
+      <Labels orders={shown} from={returnAddress} />
     </>
   );
 }
@@ -174,6 +198,29 @@ function Gate({
   );
 }
 
+/** An admin arriving before the first load, or after one that failed. */
+function AdminWait({ error, onRetry, busy }: { error: string | null; onRetry: () => void; busy: boolean }) {
+  return (
+    <main
+      className="mo-screen"
+      data-screen-label="Staff desk — loading"
+      style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#0b0b0d", textAlign: "center" }}
+    >
+      <div>
+        <div style={{ ...label, color: "rgba(201,169,97,0.85)", letterSpacing: "0.28em" }}>Maison Obsidian · Order desk</div>
+        <p style={{ margin: "16px 0 0", fontSize: 13, color: error ? "#e0736f" : "rgba(243,236,220,0.5)" }}>
+          {error ?? (busy ? "Loading orders…" : "Opening the desk…")}
+        </p>
+        {error && (
+          <button style={{ ...btnGhost, marginTop: 18 }} onClick={onRetry} disabled={busy}>
+            Try again
+          </button>
+        )}
+      </div>
+    </main>
+  );
+}
+
 // ─── The desk ────────────────────────────────────────────────────────────────
 
 const FILTERS: { key: DeskFilter; label: string }[] = [
@@ -194,8 +241,11 @@ function Desk({
   onFilter,
   onQuery,
   onRefresh,
+  isAdmin,
   onLock,
   onChanged,
+  returnAddress,
+  onReturnAddress,
 }: {
   orders: StaffOrder[];
   shown: StaffOrder[];
@@ -207,8 +257,11 @@ function Desk({
   onFilter: (f: DeskFilter) => void;
   onQuery: (q: string) => void;
   onRefresh: () => void;
+  isAdmin: boolean;
   onLock: () => void;
   onChanged: (next: StaffOrder[]) => void;
+  returnAddress: string;
+  onReturnAddress: (value: string) => void;
 }) {
   const [saving, setSaving] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -247,7 +300,7 @@ function Desk({
     // back if the write fails.
     apply(order.order_ref, (o) => ({ ...o, packed: next }));
     setSaving(order.order_ref);
-    const res = await setPacked(pass, order.order_ref, next);
+    const res = await setPacked(pass, order.order_ref, next, isAdmin);
     setSaving(null);
     if (!res.ok) {
       apply(order.order_ref, (o) => ({ ...o, packed: !next }));
@@ -261,7 +314,7 @@ function Desk({
     const clean = value.trim();
     if (clean === (order.tracking_number ?? "")) return;
     setSaving(order.order_ref);
-    const res = await setTracking(pass, order.order_ref, clean);
+    const res = await setTracking(pass, order.order_ref, clean, isAdmin);
     setSaving(null);
     if (!res.ok) {
       setFailed(res.error);
@@ -298,9 +351,15 @@ function Desk({
             <button style={btnGhost} onClick={() => downloadCsv(shown)} disabled={!shown.length}>
               Export CSV
             </button>
-            <button style={btnGhost} onClick={onLock}>
-              Lock
-            </button>
+            {isAdmin ? (
+              <button style={btnGhost} onClick={() => navigate(paths.admin)}>
+                Console
+              </button>
+            ) : (
+              <button style={btnGhost} onClick={onLock}>
+                Lock
+              </button>
+            )}
           </div>
         </div>
 
@@ -330,6 +389,20 @@ function Desk({
           <span style={{ ...label }}>
             {shown.length} of {orders.length} {orders.length === 1 ? "order" : "orders"}
           </span>
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ ...label, whiteSpace: "nowrap" }}>Return address</span>
+            <textarea
+              rows={1}
+              value={returnAddress}
+              onChange={(e) => onReturnAddress(e.target.value)}
+              placeholder="Maison Obsidian&#10;PO Box 000, Suburb QLD 4000"
+              aria-label="Return address printed on labels"
+              style={{ ...field, width: 300, height: 32, padding: "7px 10px", resize: "vertical", lineHeight: 1.4 }}
+            />
+          </label>
+          {!returnLines(returnAddress).length && (
+            <span style={{ ...label, color: "rgba(224,115,111,0.9)" }}>Labels will print without a sender</span>
+          )}
           {!isSupabaseConfigured && <span style={{ ...label, color: "rgba(224,115,111,0.9)" }}>Demo data</span>}
         </div>
 
@@ -515,25 +588,21 @@ function PackList({ orders }: { orders: StaffOrder[] }) {
 
 // ─── Print: the address labels ───────────────────────────────────────────────
 
-// The sender block. Set VITE_RETURN_ADDRESS (lines separated by "|") in the
-// Vercel project and in .env locally. Nothing is guessed here on purpose: a
-// plausible-looking wrong return address is how an undelivered parcel stops
-// coming back, so an unset one prints as a warning the packer cannot miss.
-const RETURN_ADDRESS = (import.meta.env.VITE_RETURN_ADDRESS as string | undefined)?.trim();
-const RETURN_LINES = RETURN_ADDRESS ? RETURN_ADDRESS.split("|").map((l) => l.trim()).filter(Boolean) : [];
 
-function Labels({ orders }: { orders: StaffOrder[] }) {
+
+function Labels({ orders, from }: { orders: StaffOrder[]; from: string }) {
+  const sender = returnLines(from);
   return (
     <section className="mo-print mo-print-labels" aria-hidden>
       {orders.map((o) => (
         <article key={o.order_ref} className="mo-label">
-          <div className="from">
-            {RETURN_LINES.length ? (
-              RETURN_LINES.map((l, n) => <div key={n}>{l}</div>)
-            ) : (
-              <strong>Return address not set — VITE_RETURN_ADDRESS</strong>
-            )}
-          </div>
+          {sender.length > 0 && (
+            <div className="from">
+              {sender.map((l, n) => (
+                <div key={n}>{l}</div>
+              ))}
+            </div>
+          )}
           <div className="to">
             {addressLines(o).map((l, n) => (
               <div key={n} className={n === 0 ? "who" : undefined}>
@@ -542,12 +611,13 @@ function Labels({ orders }: { orders: StaffOrder[] }) {
             ))}
             {!addressLines(o).length && <div className="who">No address on the order</div>}
           </div>
+          {/* No checkout session id: sixty characters of Stripe reference on a
+              parcel helps nobody, and the pack list already carries it. */}
           <div className="foot">
-            <span>{o.order_ref}</span>
             <span>
               {itemCount(o)} {itemCount(o) === 1 ? "piece" : "pieces"}
             </span>
-            <span>{o.tracking_number ? `AP ${o.tracking_number}` : "No tracking yet"}</span>
+            <span>{o.tracking_number ? `AP ${o.tracking_number}` : ""}</span>
           </div>
         </article>
       ))}
