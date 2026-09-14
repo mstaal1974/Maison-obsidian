@@ -115,6 +115,34 @@ export function scentUrl(code: string): string {
   return `${origin}/scent/${code}`;
 }
 
+export interface ShareTarget {
+  id: string;
+  label: string;
+  href: string;
+}
+
+/**
+ * Where a Scentprint can go, as plain web intents. The native share sheet is
+ * the better path on a phone — it can carry the card itself — but on a desktop
+ * it is either missing or a list of printers, so these give the destinations
+ * people actually mean by "share" without one.
+ *
+ * Instagram is deliberately absent: it has no intent that can prefill a post,
+ * so the 1080 x 1350 download is the path there, which is what it is sized for.
+ */
+export function shareTargets(url: string, text: string): ShareTarget[] {
+  const t = encodeURIComponent(text);
+  const u = encodeURIComponent(url);
+  const both = encodeURIComponent(`${text} ${url}`);
+  return [
+    { id: "whatsapp", label: "WhatsApp", href: `https://wa.me/?text=${both}` },
+    { id: "x", label: "X", href: `https://x.com/intent/tweet?text=${t}&url=${u}` },
+    { id: "facebook", label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${u}` },
+    { id: "pinterest", label: "Pinterest", href: `https://www.pinterest.com/pin/create/button/?url=${u}&description=${t}` },
+    { id: "email", label: "Email", href: `mailto:?subject=${encodeURIComponent("My Scent DNA — Maison Obsidian")}&body=${both}` },
+  ];
+}
+
 /** The page's own canonical link, for "start yours". */
 export function discoverUrl(): string {
   const origin = typeof window === "undefined" ? "https://maisonobsidian.com.au" : window.location.origin;
