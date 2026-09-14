@@ -70,7 +70,7 @@ export type FormatStatus = "live" | "coming_soon" | "hidden";
  * The house price list, in cents. Every fragrance is priced the same: what
  * changes between them is the scent, not the bill. (A deployment with a
  * populated `fragrances` table uses the prices stored there — see
- * supabase/migrations/0019_house_prices.sql, which sets these same numbers.)
+ * supabase/migrations/0027_house_prices.sql, which sets these same numbers.)
  */
 export const HOUSE_PRICE = { ml10: 1200, ml30: 3200, ml50: 4000, car: 1000 } as const;
 
