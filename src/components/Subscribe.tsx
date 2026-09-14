@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
+import { type Fragrance, type FormatKey, GOLD, CREAM, money, moneyExact } from "../lib/data";
 import { formatPrice, FORMAT_BY_KEY, MOODS, moodsOf, profileOf, referenceOf } from "../lib/formats";
 import { type PickMode, SUBSCRIPTION_FORMATS, SUBSCRIPTION_MONTHS, rangeLabel, subscriptionFrom, subscriptionPrice, subscriptionRange } from "../lib/subscription";
 import { navigate, paths } from "../lib/route";
@@ -129,7 +129,7 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
                       <FormatGlyph formatKey={key} liquid={frag?.liquid ?? "#6b4a2a"} height={72} />
                     </div>
                     <div style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.05 }}>{def.name}</div>
-                    <div style={{ fontFamily: MONO, fontSize: 10.5, color: GOLD }}>from {money(subscriptionFrom(pool, key))}/month</div>
+                    <div style={{ fontFamily: MONO, fontSize: 10.5, color: GOLD }}>from {moneyExact(subscriptionFrom(pool, key))}/month</div>
                   </button>
                 );
               })}
@@ -184,7 +184,7 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
                       <div style={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.05 }}>{f.name}</div>
                       <div style={{ ...micro, fontSize: 8.5, color: "rgba(243,236,220,0.55)" }}>{profileOf(f).join(" · ")}</div>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                        <span style={{ fontFamily: MONO, fontSize: 10.5, color: GOLD }}>{money(subscriptionPrice(f, format))}/mo</span>
+                        <span style={{ fontFamily: MONO, fontSize: 10.5, color: GOLD }}>{moneyExact(subscriptionPrice(f, format))}/mo</span>
                         <span style={{ fontFamily: MONO, fontSize: 9.5, color: "rgba(243,236,220,0.4)", textDecoration: "line-through" }}>{money(formatPrice(f, format))}</span>
                       </div>
                     </div>
@@ -250,7 +250,7 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", color: CREAM, fontSize: 15, marginTop: 4 }}>
                     <span>This month</span>
-                    <span>{member !== null ? money(member) : "—"}</span>
+                    <span>{member !== null ? moneyExact(member) : "—"}</span>
                   </div>
                   <div style={{ fontSize: 10.5, lineHeight: 1.6, color: "rgba(243,236,220,0.45)", fontFamily: "inherit" }}>
                     Then monthly at 10% under the shelf price of each month's pick. Your card is charged today for month 1.

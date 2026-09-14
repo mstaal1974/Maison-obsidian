@@ -10,7 +10,7 @@
 // without a backend.
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { type Fragrance, type FormatKey, money } from "./data";
+import { type Fragrance, type FormatKey, moneyExact } from "./data";
 import { FORMAT_BY_KEY, SUBSCRIPTION_DISCOUNT, SUBSCRIPTION_MONTHS, subscriptionPrice } from "./formats";
 import { supabase } from "./supabase";
 import { cancelStripeSubscription } from "./stripe";
@@ -69,9 +69,9 @@ export function drawSurpriseScent(frags: Fragrance[], format: FormatKey, sent: s
   return from[from.length - 1];
 }
 
-/** "$9" when every scent costs the same, else "$16–$22". */
+/** "$10.80" when every scent costs the same, else "$16–$22". */
 export function rangeLabel([lo, hi]: [number, number]): string {
-  return lo === hi ? money(lo) : `${money(lo)}–${money(hi)}`;
+  return lo === hi ? moneyExact(lo) : `${moneyExact(lo)}–${moneyExact(hi)}`;
 }
 
 /** Member price range across the catalogue for a format, for surprise mode. */

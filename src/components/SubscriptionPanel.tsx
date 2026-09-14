@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { type Fragrance, GOLD, CREAM, money } from "../lib/data";
+import { type Fragrance, GOLD, CREAM, money, moneyExact } from "../lib/data";
 import { referenceOf } from "../lib/formats";
 import {
   type Subscription,
@@ -140,7 +140,7 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                       {next && <InspiredBy {...referenceOf(next)} size="sm" />}
                       {next && (
                         <div style={{ fontFamily: MONO, fontSize: 11, color: "rgba(243,236,220,0.6)" }}>
-                          <span style={{ color: GOLD }}>{money(subscriptionPrice(next, s.format))}</span> · 10% under shelf
+                          <span style={{ color: GOLD }}>{moneyExact(subscriptionPrice(next, s.format))}</span> · 10% under shelf
                         </div>
                       )}
                     </div>
@@ -156,7 +156,7 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                           >
                             <option value="" disabled>Pick a fragrance</option>
                             {fragrances.map((f) => (
-                              <option key={f.id} value={f.id}>{f.name} — {money(subscriptionPrice(f, s.format))}</option>
+                              <option key={f.id} value={f.id}>{f.name} — {moneyExact(subscriptionPrice(f, s.format))}</option>
                             ))}
                           </select>
                         </label>
