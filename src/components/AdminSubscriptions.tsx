@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { type Fragrance, GOLD, money } from "../lib/data";
+import { type Fragrance, GOLD, money, moneyExact } from "../lib/data";
 import { FORMAT_BY_KEY } from "../lib/formats";
 import { authorizePayment } from "../lib/stripe";
 import {
@@ -118,7 +118,7 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
                     {surprise ? (
                       <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: GOLD }}>random, no repeats</div>
                     ) : (
-                      next && <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: GOLD }}>{money(subscriptionPrice(next, s.format))}</div>
+                      next && <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: GOLD }}>{moneyExact(subscriptionPrice(next, s.format))}</div>
                     )}
                   </div>
                   <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: "rgba(243,236,220,0.65)" }}>

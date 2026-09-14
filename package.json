@@ -8,7 +8,8 @@
     "build": "tsc -b && node scripts/check_output_schemas.mjs && vite build",
     "check:schemas": "node scripts/check_output_schemas.mjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:security": "node scripts/test_checkout_security.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

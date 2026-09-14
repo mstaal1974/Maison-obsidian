@@ -31,13 +31,11 @@ import { btnGhost, btnGold, field, label } from "./adminStyles";
  * labels — the four things someone standing at a bench with a roll of tape
  * actually needs.
  *
- * It is deliberately not part of the admin console: packing is done by whoever
- * is packing, who may have no account. A shared passphrase opens it, checked in
- * the database (migration 0025), and kept in sessionStorage so the tab locks
- * itself when it closes.
+ * Production uses individual Supabase accounts and staff membership (0027).
+ * The passphrase UI is only used for local demo data.
  */
-export default function StaffDesk({ isAdmin = false }: { isAdmin?: boolean }) {
-  const [pass, setPass] = useState(recallPass);
+export default function StaffDesk({ isAdmin = false, onSignOut }: { isAdmin?: boolean; onSignOut: () => void }) {
+  const [pass, setPass] = useState(() => (isSupabaseConfigured ? "account-session" : recallPass()));
   const [typed, setTyped] = useState("");
   const [orders, setOrders] = useState<StaffOrder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +82,7 @@ export default function StaffDesk({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const lock = () => {
     forgetPass();
+    if (isSupabaseConfigured) { setOrders(null); onSignOut(); return; }
     setPass("");
     setOrders(null);
     setError(null);
@@ -102,6 +101,16 @@ export default function StaffDesk({ isAdmin = false }: { isAdmin?: boolean }) {
     if (isAdmin) {
       return <AdminWait error={error} onRetry={() => void refresh(pass)} busy={busy} />;
     }
+    // With Supabase configured there is no shared passphrase: the desk is
+    // opened by an individual staff account, so an empty desk is a question of
+    // authorisation, not a locked gate.
+    if (isSupabaseConfigured) {
+      return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff order desk</h1><p>{busy ? "Loading orders…" : error || "Checking staff access…"}</p><p>Your individual account must be authorised for order fulfilment.</p><button onClick={() => void refresh("account-session")}>Retry</button><a href="#/">Return to shop</a></main>;
+    }
+    return <Gate typed={typed} onTyped={setTyped} onSubmit={unlock} error={error} busy={busy} />;
+  }
+  // Demo mode only: an admin needs no passphrase, anyone else does.
+  if (!pass && !isAdmin) {
     return <Gate typed={typed} onTyped={setTyped} onSubmit={unlock} error={error} busy={busy} />;
   }
 

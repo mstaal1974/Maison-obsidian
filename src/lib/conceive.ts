@@ -9,7 +9,7 @@
 // `fragrance-images` Supabase bucket (public URL) or, in the offline demo,
 // inlines it as a data URL so the tile and product page still show it.
 
-import { type Fragrance, type Gender } from "./data";
+import { type Fragrance, type Gender, HOUSE_PRICE } from "./data";
 import { supabase } from "./supabase";
 
 export interface Conception {
@@ -97,14 +97,7 @@ export async function conceiveFragrance(
   }
 }
 
-/** Median of the catalogue's per-size prices — sensible defaults for a new scent. */
-function median(xs: number[], fallback: number): number {
-  const s = xs.filter((x) => x > 0).sort((a, b) => a - b);
-  if (!s.length) return fallback;
-  return s[Math.floor(s.length / 2)];
-}
-
-/** Builds a catalogue draft from a conception, priced like the existing range. */
+/** Builds a catalogue draft from a conception, priced on the house list. */
 export function conceptionToFragrance(c: Conception, catalogue: Fragrance[], imageUrl?: string): Fragrance {
   // Story on the card and product page: the packaging copy (falls back to the
   // one-liner when the model returned none).
@@ -116,9 +109,9 @@ export function conceptionToFragrance(c: Conception, catalogue: Fragrance[], ima
     inspiration: c.inspiration,
     tagline: c.tagline,
     story,
-    price: median(catalogue.map((f) => f.price), 4700),
-    price10: median(catalogue.map((f) => f.price10), 2100),
-    price30: median(catalogue.map((f) => f.price30), 3400),
+    price: HOUSE_PRICE.ml50,
+    price10: HOUSE_PRICE.ml10,
+    price30: HOUSE_PRICE.ml30,
     gender: c.gender,
     moq: 20,
     committed: 0,

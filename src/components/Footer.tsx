@@ -9,10 +9,7 @@ import { GOLD, CREAM } from "../lib/data";
 const LINKS: { label: string; to: string }[] = [
   { label: "Scent DNA", to: paths.discover },
   { label: "About", to: paths.about },
-  { label: "Sustainability", to: paths.about },
-  { label: "Journal", to: paths.about },
-  { label: "FAQ", to: paths.about },
-  { label: "Contact", to: paths.about },
+  { label: "Shopping help", to: paths.help },
 ];
 
 export default function Footer() {
@@ -30,7 +27,7 @@ export default function Footer() {
         </button>
         <nav style={{ display: "flex", gap: 30, flexWrap: "wrap" }} aria-label="Footer">
           {LINKS.map((l) => (
-            <button key={l.label} className="mo-navlink" onClick={() => navigate(l.to)} style={{ background: "none", border: 0, cursor: "pointer", color: "rgba(243,236,220,0.7)", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.22em", textTransform: "uppercase" }}>
+            <button key={l.label} className="mo-navlink" onClick={() => navigate(l.to)} style={{ background: "none", border: 0, cursor: "pointer", color: "rgba(243,236,220,0.7)", fontFamily: MONO, fontSize: 14, letterSpacing: "0.22em", textTransform: "uppercase" }}>
               {l.label}
             </button>
           ))}
@@ -43,11 +40,11 @@ export default function Footer() {
           }}
           style={{ display: "flex", alignItems: "center", gap: 14 }}
         >
-          <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.12em", color: "rgba(243,236,220,0.6)" }}>{joined ? "Welcome to the inner circle. Unsubscribe any time from your account." : "Join our inner circle"}</span>
+          <span style={{ fontFamily: MONO, fontSize: 14, letterSpacing: "0.12em", color: "rgba(243,236,220,0.6)" }}>{joined ? "Welcome to the inner circle. Unsubscribe any time from your account." : "Join our inner circle"}</span>
           {!joined && (
             <label style={{ display: "flex", alignItems: "center", border: "1px solid #2a2a33", height: 38, paddingLeft: 14 }}>
               <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Email</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email" type="email" style={{ background: "none", border: 0, outline: "none", color: CREAM, fontFamily: MONO, fontSize: 11, width: 170 }} />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email" type="email" style={{ background: "none", border: 0, outline: "none", color: CREAM, fontFamily: MONO, fontSize: 16, width: 170 }} />
               <button type="submit" aria-label="Join" style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: "0 14px", display: "grid", placeItems: "center" }}>
                 <Arrow />
               </button>

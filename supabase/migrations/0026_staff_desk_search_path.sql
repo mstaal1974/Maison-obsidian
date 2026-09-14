@@ -76,7 +76,7 @@ $$;
 -- can have failed the same way), put it back. Existing rows are left alone, so
 -- a passphrase already set is not reset by running this.
 insert into public.staff_access (id, passphrase_hash)
-values (true, crypt('obsidian-change-me', gen_salt('bf')))
+values (true, crypt(gen_random_uuid()::text, gen_salt('bf')))
 on conflict (id) do nothing;
 
 revoke execute on function public.staff_ok(text)                   from public;

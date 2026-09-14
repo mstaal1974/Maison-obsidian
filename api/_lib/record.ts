@@ -53,7 +53,7 @@ function joinBag(metadata: Stripe.Metadata | null): string {
  * lines are rebuilt from what Stripe itself kept — the product name on each
  * line item, which is `${fragrance} — ${format}`.
  */
-async function bagLines(stripe: Stripe, session: Stripe.Checkout.Session): Promise<CompactLine[]> {
+export async function bagLines(stripe: Stripe, session: Stripe.Checkout.Session): Promise<CompactLine[]> {
   const json = joinBag(session.metadata);
   if (json) {
     try {
@@ -86,8 +86,7 @@ async function rebuildFromLineItems(stripe: Stripe, session: Stripe.Checkout.Ses
 
 /** Order: one row per bag line, keyed by the Checkout Session. */
 export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ recorded: number }> {
-  const { data: already } = await db.from("commits").select("id").eq("checkout_session_id", session.id).limit(1);
-  if (already?.length) return { recorded: 0 };
+  if (session.payment_status !== "paid") throw new Error("Payment is not paid");
   const lines = await bagLines(stripe, session);
   if (!lines.length) return { recorded: 0 };
   const piId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
@@ -117,9 +116,9 @@ export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: S
     ship_region: session.metadata?.ship_region ?? session.customer_details?.address?.state ?? null,
     ship_postcode: session.metadata?.ship_postcode ?? session.customer_details?.address?.postal_code ?? null,
   }));
-  const { error } = await db.from("commits").insert(rows);
+  const { data, error } = await db.rpc("record_paid_order", { p_session_id: session.id, p_rows: rows });
   if (error) throw new Error(error.message);
-  return { recorded: rows.length };
+  return { recorded: Number(data ?? 0) };
 }
 
 /** Subscription: the row plus month 1, keyed by the Stripe subscription id. */
