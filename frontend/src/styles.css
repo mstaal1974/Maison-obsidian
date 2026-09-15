@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@500;600&display=swap');
+@theme { --font-sans: "DM Sans", sans-serif; --font-serif: "Playfair Display", serif; }
+body { margin: 0; font-family: var(--font-sans); }
+.card { border: 1px solid rgb(255 255 255 / .08); background: rgb(255 255 255 / .025); border-radius: 14px; padding: 20px; }
+.card h2 { color: white; font-weight: 500; }
+.card h2 + p { margin-top: 3px; color: #78716c; font-size: 12px; }
+.icon { display:grid; place-items:center; width:36px; height:36px; border:1px solid rgb(255 255 255 / .1); border-radius:8px; color:#a8a29e; }
