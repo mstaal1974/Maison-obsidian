@@ -6,6 +6,12 @@ interface AuthModalProps {
   configured: boolean;
   /** When set ("checkout" | "subscribe"), the modal explains why sign-in is required. */
   reason?: string | null;
+  /**
+   * Which tab opens first. Set it when the button that opened the modal already
+   * said which one the person wants — "Create an account" must not land them on
+   * a sign-in form for an account they have not made yet.
+   */
+  initialMode?: "signin" | "signup";
   onClose: () => void;
   /** Fired once, after authentication succeeds — before onClose — with the email used. */
   onAuthed?: (email: string) => void;
@@ -21,6 +27,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function AuthModal({
   configured,
   reason,
+  initialMode,
   onClose,
   onAuthed,
   onConsents,
@@ -28,8 +35,9 @@ export default function AuthModal({
   signUpEmail,
   signInGoogle,
 }: AuthModalProps) {
-  // A reservation attempt lands new visitors on the sign-up tab by default.
-  const [mode, setMode] = useState<"signin" | "signup">(reason === "subscribe" ? "signup" : "signin");
+  // The opener's own wording wins; otherwise a reservation attempt lands new
+  // visitors on the sign-up tab and everything else opens on sign-in.
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode ?? (reason === "subscribe" ? "signup" : "signin"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

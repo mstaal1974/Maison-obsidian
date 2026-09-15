@@ -45,6 +45,9 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   // Signing in was offered at checkout (never required), so the dialog says so.
   const [authFromCheckout, setAuthFromCheckout] = useState(false);
+  // "Create an account" on the thank-you page: the same checkout copy, but the
+  // sign-up tab, because the guest saying yes has no account to sign in to.
+  const [authJoin, setAuthJoin] = useState(false);
   const [quick, setQuick] = useState<{ frag: Fragrance; format?: FormatKey } | null>(null);
   const [bagOpen, setBagOpen] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -433,6 +436,7 @@ export default function App() {
           signedIn={!!auth.user}
           onJoin={() => {
             setAuthFromCheckout(true);
+            setAuthJoin(true);
             setAuthOpen(true);
           }}
         />
@@ -511,9 +515,11 @@ export default function App() {
         <AuthModal
           configured={auth.configured}
           reason={authFromCheckout ? "checkout" : pendingSub ? "subscribe" : null}
+          initialMode={authJoin ? "signup" : undefined}
           onClose={() => {
             setAuthOpen(false);
             setAuthFromCheckout(false);
+            setAuthJoin(false);
             setPendingSub(null);
           }}
           onConsents={(c) => {
