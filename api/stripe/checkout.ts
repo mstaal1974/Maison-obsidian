@@ -115,7 +115,10 @@ export default route("checkout", async function handler(req: any, res: any) {
               shipping_rate_data: {
                 type: "fixed_amount" as const,
                 fixed_amount: { amount: shipping.chargeCents, currency: CURRENCY },
-                display_name: shipping.chargeCents === 0 ? `${shipping.name} — free` : shipping.name,
+                // Named on the Stripe receipt, which is the document the
+                // customer keeps: postage is GST-inclusive, so the tax says so
+                // there rather than only on our own checkout page.
+                display_name: shipping.chargeCents === 0 ? `${shipping.name} — free` : `${shipping.name} (incl. GST)`,
                 ...(shipping.etaDays ? { delivery_estimate: { minimum: { unit: "business_day" as const, value: shipping.etaDays.min }, maximum: { unit: "business_day" as const, value: shipping.etaDays.max } } } : {}),
               },
             },

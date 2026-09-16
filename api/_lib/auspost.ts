@@ -21,7 +21,26 @@ export interface ShippingRate {
   priceCents: number; // what Australia Post charges
   /** What the customer pays — 0 when the order earns free shipping. */
   chargeCents: number;
+  /** The GST already inside chargeCents, for the receipt. Zero when free. */
+  gstCents: number;
   etaDays?: { min: number; max: number };
+}
+
+/** GST on domestic postage. */
+export const GST_RATE = 0.1;
+
+/**
+ * The GST component of a GST-inclusive amount — what to name on an invoice,
+ * not something to add on.
+ *
+ * PAC returns Australia Post's retail prices, and retail domestic postage is
+ * advertised GST-inclusive, so the tax is already in the number the customer
+ * is quoted. Charging price * 1.1 would bill it a second time. If a PAC quote
+ * is ever found to sit below the published retail price for the same parcel,
+ * that assumption is wrong and this is where to fix it.
+ */
+export function gstInsideCents(inclusiveCents: number): number {
+  return Math.round(inclusiveCents - inclusiveCents / (1 + GST_RATE));
 }
 
 export function auspostConfigured(): boolean {
@@ -77,12 +96,15 @@ export async function quoteRates(parcel: Parcel, toPostcode: string, subtotalCen
     .filter((s): s is PacService & { code: string } => typeof s.code === "string" && CODE_ORDER.includes(s.code))
     .map((s) => {
       const priceCents = Math.round(Number(s.price ?? 0) * 100);
+      // Free shipping applies to the standard service only.
+      const chargeCents = free && s.code === "AUS_PARCEL_REGULAR" ? 0 : priceCents;
       return {
         code: s.code,
         name: String(s.name ?? s.code),
         priceCents,
-        // Free shipping applies to the standard service only.
-        chargeCents: free && s.code === "AUS_PARCEL_REGULAR" ? 0 : priceCents,
+        chargeCents,
+        // Nothing charged, nothing collected: free postage carries no GST.
+        gstCents: gstInsideCents(chargeCents),
         etaDays: ETA[s.code],
       };
     })

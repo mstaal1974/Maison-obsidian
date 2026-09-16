@@ -153,7 +153,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         : ship?.status === "error"
           ? { value: "Unavailable", note: ship.error ?? "", tone: "#d98a6a" }
           : rate
-            ? { value: rate.chargeCents === 0 ? "Free" : moneyExact(rate.chargeCents), note: `Australia Post · ${rate.name}`, tone: rate.chargeCents === 0 ? "#8bb98a" : CREAM }
+            ? { value: rate.chargeCents === 0 ? "Free" : moneyExact(rate.chargeCents), note: rate.chargeCents === 0 ? `Australia Post · ${rate.name}` : `Australia Post · ${rate.name} · incl. GST ${moneyExact(rate.gstCents)}`, tone: rate.chargeCents === 0 ? "#8bb98a" : CREAM }
             : { value: "Enter postcode", note: "", tone: "rgba(243,236,220,0.55)" };
 
   if (!rows.length) {
