@@ -41,7 +41,12 @@ export default route("status", async function handler(req: any, res: any) {
 
   const secret = process.env.STRIPE_SECRET_KEY;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const anon = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
+  // Two separate variables, and only one of them is public: VITE_ names are
+  // compiled into the browser bundle. Collapsing them hides which is which,
+  // and that is the difference between "replace it" and "rotate it now".
+  const anonServer = process.env.SUPABASE_ANON_KEY;
+  const anonBrowser = process.env.VITE_SUPABASE_ANON_KEY;
+  const anon = anonServer ?? anonBrowser;
   const url = supabaseUrl();
 
   const env = {
@@ -50,7 +55,8 @@ export default route("status", async function handler(req: any, res: any) {
     SITE_URL: process.env.SITE_URL ?? "MISSING (falls back to the request host)",
     "SUPABASE_URL / VITE_SUPABASE_URL": url ? "set" : "MISSING",
     SUPABASE_SERVICE_ROLE_KEY: serviceKey ? `set (${keyKind(serviceKey)})` : "MISSING",
-    "SUPABASE_ANON_KEY / VITE_SUPABASE_ANON_KEY": anon ? `set (${keyKind(anon)})` : "MISSING",
+    SUPABASE_ANON_KEY: anonServer ? `set (${keyKind(anonServer)})` : "MISSING",
+    VITE_SUPABASE_ANON_KEY: anonBrowser ? `set (${keyKind(anonBrowser)}, public)` : "MISSING",
     // Postage is the other half of a delivered order, and its absence shows up
     // at checkout as "Postage quotes are unavailable" with nothing saying why.
     AUSPOST_PAC_KEY: present(process.env.AUSPOST_PAC_KEY),
@@ -77,9 +83,13 @@ export default route("status", async function handler(req: any, res: any) {
   if (serviceKey && BROWSER_SAFE.has(serviceKind ?? "")) {
     blocking.push(`SUPABASE_SERVICE_ROLE_KEY holds a ${serviceKind} key — it must be the service_role or sb_secret_ key`);
   }
-  const anonKind = keyKind(anon);
-  if (anon && SERVER_ONLY.has(anonKind ?? "")) {
-    blocking.push(`SUPABASE_ANON_KEY / VITE_SUPABASE_ANON_KEY holds a ${anonKind} key — VITE_ variables are compiled into the browser bundle, so rotate it and use the anon or publishable key`);
+  const browserKind = keyKind(anonBrowser);
+  if (anonBrowser && SERVER_ONLY.has(browserKind ?? "")) {
+    blocking.push(`VITE_SUPABASE_ANON_KEY holds a ${browserKind} key — this one is compiled into the browser bundle, so it is already public. Rotate it in Supabase, then set the anon or publishable key here.`);
+  }
+  const serverKind = keyKind(anonServer);
+  if (anonServer && SERVER_ONLY.has(serverKind ?? "")) {
+    blocking.push(`SUPABASE_ANON_KEY holds a ${serverKind} key — not public, but the functions use it to identify a signed-in customer and that should run with anon privileges, not past RLS. Replace it with the anon or publishable key.`);
   }
 
   return json(res, 200, {

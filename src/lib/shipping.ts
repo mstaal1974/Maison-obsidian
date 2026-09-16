@@ -13,6 +13,8 @@ export interface ShippingRate {
   priceCents: number;
   /** What the customer pays — 0 when the order earns free shipping. */
   chargeCents: number;
+  /** The GST already inside chargeCents — shown, never added on. */
+  gstCents: number;
   etaDays?: { min: number; max: number };
 }
 
