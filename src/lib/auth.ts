@@ -9,6 +9,8 @@ export interface AuthUser {
 
 export interface AuthResult {
   error: string | null;
+  /** Sign-up only: the account exists but waits on the emailed confirmation. */
+  needsConfirmation?: boolean;
 }
 
 const DEMO_KEY = "mo:demo-user";
@@ -78,8 +80,10 @@ export function useAuth() {
       setDemo(email.trim());
       return { error: null };
     }
-    const { error } = await supabase.auth.signUp({ email: email.trim(), password });
-    return { error: error?.message ?? null };
+    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+    // No session back means the project requires a confirmed address: the
+    // account is made, but nothing happens until they follow the link.
+    return { error: error?.message ?? null, needsConfirmation: !error && !data.session };
   };
 
   const signInGoogle = async (): Promise<AuthResult> => {

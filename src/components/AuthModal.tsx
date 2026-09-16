@@ -50,7 +50,7 @@ export default function AuthModal({
   const [ai, setAi] = useState(false);
   // The forgotten-password detour: same modal, email only, no tabs.
   const [forgot, setForgot] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<null | "reset" | "confirm">(null);
 
   const valid = EMAIL_RE.test(email.trim()) && password.length >= 6;
 
@@ -61,13 +61,20 @@ export default function AuthModal({
       return;
     }
     setBusy(true);
-    const { error: err } = mode === "signin" ? await signInEmail(email, password) : await signUpEmail(email, password);
+    const res = mode === "signin" ? await signInEmail(email, password) : await signUpEmail(email, password);
     setBusy(false);
-    if (err) {
-      setError(err);
+    if (res.error) {
+      setError(res.error);
       return;
     }
-    if (mode === "signup") onConsents?.({ marketing, ai });
+    if (mode === "signup") {
+      onConsents?.({ marketing, ai });
+      // Closing here would leave them signed out with nothing explaining why.
+      if (res.needsConfirmation) {
+        setSent("confirm");
+        return;
+      }
+    }
     onAuthed?.(email.trim());
     onClose();
   };
@@ -85,12 +92,12 @@ export default function AuthModal({
       setError(err);
       return;
     }
-    setSent(true);
+    setSent("reset");
   };
 
   const leaveForgot = () => {
     setForgot(false);
-    setSent(false);
+    setSent(null);
     setError(null);
   };
 
@@ -200,10 +207,10 @@ export default function AuthModal({
         </div>
 
         <h2 className="mo-auth-title" style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
-          {forgot
-            ? sent
-              ? "Check your email."
-              : "Reset your password."
+          {sent
+            ? "Check your email."
+            : forgot
+            ? "Reset your password."
             : reason === "checkout"
             ? mode === "signin"
               ? "Welcome back."
@@ -216,14 +223,12 @@ export default function AuthModal({
                 ? "Welcome back."
                 : "Create your account."}
         </h2>
-        {forgot ? (
-          sent ? (
-            <div style={{ height: 24 }} />
-          ) : (
-            <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
-              Tell us the address on the account and we'll send a link to set a new password.
-            </p>
-          )
+        {sent ? (
+          <div style={{ height: 24 }} />
+        ) : forgot ? (
+          <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
+            Tell us the address on the account and we'll send a link to set a new password.
+          </p>
         ) : reason === "checkout" ? (
           <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
             An account is optional — you're welcome to check out as a guest. With one, your details fill themselves in and every order, with its tracking, stays in one place.
@@ -236,7 +241,7 @@ export default function AuthModal({
           <div style={{ height: 24 }} />
         )}
 
-        {!forgot && (
+        {!forgot && !sent && (
           <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
             <button onClick={() => { setMode("signin"); setError(null); }} style={tab(mode === "signin")}>
               Sign In
@@ -248,10 +253,18 @@ export default function AuthModal({
         )}
 
         {sent ? (
-          <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: "rgba(243,236,220,0.6)" }}>
-            If {email.trim()} has an account with us, a link to set a new password is on its way. It
-            can only be used once, and it expires — ask for another if it goes stale.
-          </p>
+          <div>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: "rgba(243,236,220,0.6)" }}>
+              {sent === "reset"
+                ? `If ${email.trim()} has an account with us, a link to set a new password is on its way. It can only be used once, and it expires — ask for another if it goes stale.`
+                : `Your account is made. We've sent ${email.trim()} a link to confirm the address — following it finishes the job and signs you in.`}
+            </p>
+            <p style={{ margin: "12px 0 0", fontSize: 12, lineHeight: 1.7, color: "rgba(201,169,97,0.85)" }}>
+              Not there in a minute or two? Look in junk or spam — we're a new sender, and some
+              mail systems hold the first letter from an unfamiliar house. Marking it "not junk"
+              means the next one arrives where it should.
+            </p>
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <input
@@ -279,7 +292,7 @@ export default function AuthModal({
           </div>
         )}
 
-        {!forgot && mode === "signin" && (
+        {!forgot && !sent && mode === "signin" && (
           <button
             onClick={() => { setForgot(true); setError(null); }}
             style={{ marginTop: 10, background: "none", border: 0, padding: 0, cursor: "pointer", color: "rgba(243,236,220,0.55)", fontFamily: "'Space Mono',monospace", fontSize: 10.5, letterSpacing: "0.1em", textDecoration: "underline" }}
@@ -288,7 +301,7 @@ export default function AuthModal({
           </button>
         )}
 
-        {!forgot && mode === "signup" && (
+        {!forgot && !sent && mode === "signup" && (
           <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
             {(
               [
@@ -310,7 +323,7 @@ export default function AuthModal({
         {error && <div style={{ marginTop: 12, fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{error}</div>}
 
         <button
-          onClick={() => void (forgot ? (sent ? leaveForgot() : requestReset()) : submit())}
+          onClick={() => void (sent ? (sent === "confirm" ? onClose() : leaveForgot()) : forgot ? requestReset() : submit())}
           disabled={busy}
           className="mo-cta"
           style={{
@@ -330,13 +343,15 @@ export default function AuthModal({
         >
           {busy
             ? "One moment…"
-            : forgot
-              ? sent
+            : sent === "confirm"
+              ? "Done"
+              : sent === "reset"
                 ? "Back to sign in"
-                : "Send the link"
-              : mode === "signin"
-                ? "Sign In"
-                : "Create Account"}
+                : forgot
+                  ? "Send the link"
+                  : mode === "signin"
+                    ? "Sign In"
+                    : "Create Account"}
         </button>
 
         {forgot && !sent && (
@@ -348,7 +363,7 @@ export default function AuthModal({
           </button>
         )}
 
-        {!forgot && (
+        {!forgot && !sent && (
           <>
           <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "22px 0" }}>
             <span style={{ flex: 1, height: 1, background: "#1f1f27" }} />
