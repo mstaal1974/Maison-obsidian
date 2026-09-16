@@ -357,6 +357,7 @@ export default function App() {
       <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
         <ScentDna
           fragrances={fragrances}
+          userId={auth.user?.id ?? null}
           code={route.code}
           onOpenProduct={(slug) => navigate(paths.product(slug))}
           onAddSample={(f) => {

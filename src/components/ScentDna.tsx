@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Fragrance } from "../lib/data";
 import { navigate, paths } from "../lib/route";
 import type { QuizAnswers } from "../lib/scentQuiz";
 import { computeScentprint } from "../lib/scentQuiz";
 import { encodeScentprint, type ScentDim, type Scentprint, type Wearer } from "../lib/scentdna";
-import { discoverUrl, fetchScentprint, loadScentCode, loadScentprint, publishScentprint, storeScentprint } from "../lib/scentShare";
+import { claimScentprint, discoverUrl, fetchScentprint, loadMyScentprint, loadScentCode, loadScentprint, publishScentprint, storeScentprint } from "../lib/scentShare";
 import Logo from "./Logo";
 import Atmosphere from "./scent/Atmosphere";
 import DiscoverQuiz from "./scent/DiscoverQuiz";
@@ -16,6 +16,8 @@ import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, goldA, ink, micr
 
 interface ScentDnaProps {
   fragrances: Fragrance[];
+  /** The signed-in customer, so their Scentprint reaches them on any device. */
+  userId?: string | null;
   /** Share code from /scent/<code>, when the visitor arrived on someone's result. */
   code: string | null;
   onOpenProduct: (slug: string) => void;
@@ -51,7 +53,7 @@ const DEMO_DIMS: { dim: ScentDim; value: number }[] = [
  * Linkable straight from social, a QR code or an ad: no storefront navigation
  * required, its own chrome, and every result shareable as its own URL.
  */
-export default function ScentDna({ fragrances, code: initialCode, onOpenProduct, onAddSample, onAddDiscoveryBox }: ScentDnaProps) {
+export default function ScentDna({ fragrances, userId, code: initialCode, onOpenProduct, onAddSample, onAddDiscoveryBox }: ScentDnaProps) {
   const [stage, setStage] = useState<Stage>(initialCode ? "opening" : "hero");
   const [print, setPrint] = useState<Scentprint | null>(null);
   const [code, setCode] = useState<string>(initialCode ?? "");
@@ -59,7 +61,27 @@ export default function ScentDna({ fragrances, code: initialCode, onOpenProduct,
   const [section, setSection] = useState<ResultSection>("scentprint");
   const [shared, setShared] = useState(!!initialCode);
   const [notice, setNotice] = useState<string | null>(null);
-  const stored = useMemo(() => loadScentprint(), []);
+  const [stored, setStored] = useState<Scentprint | null>(() => loadScentprint());
+
+  // A Scentprint belongs to the person, not to the browser. Signing in claims
+  // the one made here before the account existed, and — on a machine that has
+  // never seen it — fetches the one already on file.
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    void (async () => {
+      const localCode = loadScentCode();
+      if (localCode) await claimScentprint(localCode);
+      if (loadScentprint()) return; // this browser already has it
+      const mine = await loadMyScentprint(userId);
+      if (!live || !mine) return;
+      storeScentprint(mine.print, mine.code);
+      setStored(mine.print);
+    })();
+    return () => {
+      live = false;
+    };
+  }, [userId]);
 
   // Campaign traffic lands here cold: the page names itself for the crawler and
   // for whatever social card the link is pasted into.
