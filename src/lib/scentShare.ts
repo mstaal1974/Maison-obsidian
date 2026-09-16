@@ -93,6 +93,50 @@ interface ProfileRow {
   wearer: string | null;
 }
 
+/**
+ * The signed-in customer's own Scentprint, newest first — so the profile
+ * follows the person rather than the browser it happened to be made in.
+ *
+ * user_id is filtered here rather than left to row-level security: this table
+ * also carries an admin read policy that sees every row, so an admin asking for
+ * "mine" would otherwise be handed the most recent customer's.
+ */
+export async function loadMyScentprint(userId: string): Promise<{ print: Scentprint; code: string } | null> {
+  if (!supabase || !userId) return null;
+  try {
+    const { data, error } = await supabase
+      .from("scent_profiles")
+      .select("code, dims, behaviour, occasions, loves, wearer")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const row = data as (ProfileRow & { code: string }) | null;
+    if (error || !row?.dims) return null;
+    return {
+      print: scentprintFrom(row.dims, row.behaviour ?? undefined, row.occasions ?? undefined, row.loves, row.wearer),
+      code: row.code,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hands a Scentprint made before signing in to the account that just appeared.
+ * A no-op for a code that already belongs to someone, and for the self-contained
+ * codes the offline fallback mints, which were never a row to begin with.
+ */
+export async function claimScentprint(code: string): Promise<boolean> {
+  if (!supabase || !code || isEncodedCode(code)) return false;
+  try {
+    const { data, error } = await supabase.rpc("claim_scentprint", { p_code: code });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
 /** Opens a shared result: a stored code, or a code that carries its own payload. */
 export async function fetchScentprint(code: string): Promise<Scentprint | null> {
   const c = code.trim();
