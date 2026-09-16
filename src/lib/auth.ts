@@ -31,6 +31,9 @@ function loadDemoUser(): AuthUser | null {
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(() => (supabase ? null : loadDemoUser()));
   const [loading, setLoading] = useState<boolean>(!!supabase);
+  // A reset link was followed: Supabase has established a session, but the
+  // password behind it is still the forgotten one until it is replaced.
+  const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
     if (!supabase) return; // loading already initialised to false when unconfigured
@@ -41,8 +44,9 @@ export function useAuth() {
       setUser(s ? { id: s.user.id, email: s.user.email ?? "" } : null);
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session ? { id: session.user.id, email: session.user.email ?? "" } : null);
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
     });
     return () => {
       active = false;
@@ -90,6 +94,27 @@ export function useAuth() {
     return { error: error?.message ?? null };
   };
 
+  /**
+   * Sends the reset link. Supabase answers the same way whether or not the
+   * address has an account, and the caller says so too: telling a stranger
+   * which addresses are registered here is not ours to give away.
+   */
+  const sendPasswordReset = async (email: string): Promise<AuthResult> => {
+    if (!supabase) return { error: "Password reset needs the live site — the offline demo has no accounts." };
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+    return { error: error?.message ?? null };
+  };
+
+  /** Replaces the password of the session a reset link opened. */
+  const updatePassword = async (password: string): Promise<AuthResult> => {
+    if (!supabase) return { error: "Password reset needs the live site." };
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) setRecovery(false);
+    return { error: error?.message ?? null };
+  };
+
+  const clearRecovery = () => setRecovery(false);
+
   const signOut = async (): Promise<void> => {
     if (!supabase) {
       try {
@@ -104,5 +129,5 @@ export function useAuth() {
     setUser(null);
   };
 
-  return { user, loading, configured: !!supabase, signInEmail, signUpEmail, signInGoogle, signOut };
+  return { user, loading, configured: !!supabase, recovery, signInEmail, signUpEmail, signInGoogle, sendPasswordReset, updatePassword, clearRecovery, signOut };
 }

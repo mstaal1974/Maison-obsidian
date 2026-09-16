@@ -10,6 +10,7 @@ import { currentRoute, parseHash, navigate, paths, type Route } from "./lib/rout
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
 import AuthModal from "./components/AuthModal";
+import PasswordReset from "./components/PasswordReset";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
 import AdminConsole from "./components/AdminConsole";
 import StaffDesk from "./components/StaffDesk";
@@ -511,6 +512,10 @@ export default function App() {
 
       {bagDrawer}
 
+      {auth.recovery && (
+        <PasswordReset updatePassword={auth.updatePassword} onDismiss={auth.clearRecovery} />
+      )}
+
       {authOpen && (
         <AuthModal
           configured={auth.configured}
@@ -539,6 +544,7 @@ export default function App() {
             }
           }}
           signInEmail={auth.signInEmail}
+          sendPasswordReset={auth.sendPasswordReset}
           signUpEmail={auth.signUpEmail}
           signInGoogle={auth.signInGoogle}
         />

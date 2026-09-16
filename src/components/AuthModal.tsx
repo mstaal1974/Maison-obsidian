@@ -18,6 +18,8 @@ interface AuthModalProps {
   /** Sign-up only: the consents the person ticked (both default off). */
   onConsents?: (c: { marketing: boolean; ai: boolean }) => void;
   signInEmail: (email: string, password: string) => Promise<AuthResult>;
+  /** Sends the reset link. Optional: the staff sign-in renders without it. */
+  sendPasswordReset?: (email: string) => Promise<AuthResult>;
   signUpEmail: (email: string, password: string) => Promise<AuthResult>;
   signInGoogle: () => Promise<AuthResult>;
 }
@@ -32,6 +34,7 @@ export default function AuthModal({
   onAuthed,
   onConsents,
   signInEmail,
+  sendPasswordReset,
   signUpEmail,
   signInGoogle,
 }: AuthModalProps) {
@@ -45,6 +48,9 @@ export default function AuthModal({
   // Consent is opt-in: nothing is ticked until the person ticks it.
   const [marketing, setMarketing] = useState(false);
   const [ai, setAi] = useState(false);
+  // The forgotten-password detour: same modal, email only, no tabs.
+  const [forgot, setForgot] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const valid = EMAIL_RE.test(email.trim()) && password.length >= 6;
 
@@ -64,6 +70,28 @@ export default function AuthModal({
     if (mode === "signup") onConsents?.({ marketing, ai });
     onAuthed?.(email.trim());
     onClose();
+  };
+
+  const requestReset = async () => {
+    setError(null);
+    if (!EMAIL_RE.test(email.trim())) {
+      setError("Enter the email address you signed up with.");
+      return;
+    }
+    setBusy(true);
+    const { error: err } = (await sendPasswordReset?.(email)) ?? { error: "Password reset isn't available here." };
+    setBusy(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setSent(true);
+  };
+
+  const leaveForgot = () => {
+    setForgot(false);
+    setSent(false);
+    setError(null);
   };
 
   const google = async () => {
@@ -172,7 +200,11 @@ export default function AuthModal({
         </div>
 
         <h2 className="mo-auth-title" style={{ margin: "14px 0 0", fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 34, color: "#f3ecdc" }}>
-          {reason === "checkout"
+          {forgot
+            ? sent
+              ? "Check your email."
+              : "Reset your password."
+            : reason === "checkout"
             ? mode === "signin"
               ? "Welcome back."
               : "Keep your orders together."
@@ -184,7 +216,15 @@ export default function AuthModal({
                 ? "Welcome back."
                 : "Create your account."}
         </h2>
-        {reason === "checkout" ? (
+        {forgot ? (
+          sent ? (
+            <div style={{ height: 24 }} />
+          ) : (
+            <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
+              Tell us the address on the account and we'll send a link to set a new password.
+            </p>
+          )
+        ) : reason === "checkout" ? (
           <p style={{ margin: "10px 0 24px", fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.55)" }}>
             An account is optional — you're welcome to check out as a guest. With one, your details fill themselves in and every order, with its tracking, stays in one place.
           </p>
@@ -196,38 +236,59 @@ export default function AuthModal({
           <div style={{ height: 24 }} />
         )}
 
-        <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
-          <button onClick={() => { setMode("signin"); setError(null); }} style={tab(mode === "signin")}>
-            Sign In
-          </button>
-          <button onClick={() => { setMode("signup"); setError(null); }} style={tab(mode === "signup")}>
-            Sign Up
-          </button>
-        </div>
+        {!forgot && (
+          <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
+            <button onClick={() => { setMode("signin"); setError(null); }} style={tab(mode === "signin")}>
+              Sign In
+            </button>
+            <button onClick={() => { setMode("signup"); setError(null); }} style={tab(mode === "signup")}>
+              Sign Up
+            </button>
+          </div>
+        )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            aria-label="Email"
-            className="mo-engrave-input"
-            style={input}
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void submit()}
-            placeholder="Password (min 6 characters)"
-            aria-label="Password"
-            className="mo-engrave-input"
-            style={input}
-          />
-        </div>
+        {sent ? (
+          <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: "rgba(243,236,220,0.6)" }}>
+            If {email.trim()} has an account with us, a link to set a new password is on its way. It
+            can only be used once, and it expires — ask for another if it goes stale.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && forgot && void requestReset()}
+              placeholder="you@example.com"
+              aria-label="Email"
+              className="mo-engrave-input"
+              style={input}
+            />
+            {!forgot && (
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void submit()}
+                placeholder="Password (min 6 characters)"
+                aria-label="Password"
+                className="mo-engrave-input"
+                style={input}
+              />
+            )}
+          </div>
+        )}
 
-        {mode === "signup" && (
+        {!forgot && mode === "signin" && (
+          <button
+            onClick={() => { setForgot(true); setError(null); }}
+            style={{ marginTop: 10, background: "none", border: 0, padding: 0, cursor: "pointer", color: "rgba(243,236,220,0.55)", fontFamily: "'Space Mono',monospace", fontSize: 10.5, letterSpacing: "0.1em", textDecoration: "underline" }}
+          >
+            Forgot your password?
+          </button>
+        )}
+
+        {!forgot && mode === "signup" && (
           <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
             {(
               [
@@ -249,7 +310,7 @@ export default function AuthModal({
         {error && <div style={{ marginTop: 12, fontSize: 11.5, lineHeight: 1.5, color: "#d98a6a" }}>{error}</div>}
 
         <button
-          onClick={() => void submit()}
+          onClick={() => void (forgot ? (sent ? leaveForgot() : requestReset()) : submit())}
           disabled={busy}
           className="mo-cta"
           style={{
@@ -267,46 +328,67 @@ export default function AuthModal({
             opacity: busy ? 0.7 : 1,
           }}
         >
-          {busy ? "One moment…" : mode === "signin" ? "Sign In" : "Create Account"}
+          {busy
+            ? "One moment…"
+            : forgot
+              ? sent
+                ? "Back to sign in"
+                : "Send the link"
+              : mode === "signin"
+                ? "Sign In"
+                : "Create Account"}
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "22px 0" }}>
-          <span style={{ flex: 1, height: 1, background: "#1f1f27" }} />
-          <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(243,236,220,0.4)" }}>
-            or
-          </span>
-          <span style={{ flex: 1, height: 1, background: "#1f1f27" }} />
-        </div>
+        {forgot && !sent && (
+          <button
+            onClick={leaveForgot}
+            style={{ marginTop: 14, width: "100%", background: "none", border: 0, padding: 0, cursor: "pointer", color: "rgba(243,236,220,0.5)", fontFamily: "'Space Mono',monospace", fontSize: 10.5, letterSpacing: "0.1em" }}
+          >
+            Remembered it? Sign in
+          </button>
+        )}
 
-        <button
-          onClick={() => void google()}
-          disabled={busy}
-          className="mo-pill"
-          style={{
-            width: "100%",
-            height: 50,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 11,
-            background: "none",
-            border: "1px solid #1f1f27",
-            cursor: busy ? "default" : "pointer",
-            color: "#f3ecdc",
-            fontSize: 11,
-            letterSpacing: "0.16em",
-            textTransform: "uppercase",
-            fontWeight: 500,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden>
-            <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />
-            <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
-            <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
-            <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95L3.97 7.28C4.68 5.16 6.66 3.58 9 3.58z" />
-          </svg>
-          Continue with Google
-        </button>
+        {!forgot && (
+          <>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "22px 0" }}>
+            <span style={{ flex: 1, height: 1, background: "#1f1f27" }} />
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(243,236,220,0.4)" }}>
+              or
+            </span>
+            <span style={{ flex: 1, height: 1, background: "#1f1f27" }} />
+          </div>
+
+          <button
+            onClick={() => void google()}
+            disabled={busy}
+            className="mo-pill"
+            style={{
+              width: "100%",
+              height: 50,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 11,
+              background: "none",
+              border: "1px solid #1f1f27",
+              cursor: busy ? "default" : "pointer",
+              color: "#f3ecdc",
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              fontWeight: 500,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden>
+              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z" />
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+              <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95L3.97 7.28C4.68 5.16 6.66 3.58 9 3.58z" />
+            </svg>
+            Continue with Google
+          </button>
+          </>
+        )}
 
         {!configured && (
           <p style={{ margin: "18px 0 0", fontSize: 10.5, lineHeight: 1.6, color: "rgba(243,236,220,0.4)", textAlign: "center" }}>

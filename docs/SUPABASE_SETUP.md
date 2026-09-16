@@ -150,6 +150,33 @@ Supabase's own documentation says not to ship on it. Replace it with Mailgun.
    Mailgun names, and the tracking `CNAME`. Add the `MX` records too unless the
    subdomain already receives mail. Wait for every row to verify — an unverified
    domain sends, but straight to spam.
+
+   **Strip the zone off each name before you paste it.** Mailgun prints names in
+   full; most registrars treat the Name field as relative and append the zone
+   themselves, so a pasted full name resolves at
+   `mg.maisonobsidian.com.au.maisonobsidian.com.au` and nothing verifies:
+
+   | Record | Mailgun prints | Enter as Name |
+   | --- | --- | --- |
+   | SPF `TXT` | `mg.maisonobsidian.com.au` | `mg` |
+   | DKIM `TXT` | `<selector>._domainkey.mg.maisonobsidian.com.au` | `<selector>._domainkey.mg` |
+   | Tracking `CNAME` | `email.mg.maisonobsidian.com.au` | `email.mg` |
+   | `MX` | `mg.maisonobsidian.com.au` | `mg` |
+
+   Only the name is relative — paste every value (the SPF string, the DKIM key,
+   `mailgun.org`) exactly as given. The rule underneath is the trailing dot: a
+   name without one is relative and the zone gets appended, so a registrar that
+   does take full names wants `mg.maisonobsidian.com.au.` with the dot.
+   Cloudflare strips the zone for you and shows what it saved; GoDaddy,
+   Namecheap and cPanel want the relative form; Route 53 and raw zone files want
+   the dot. Check a name landed where you meant before waiting on Mailgun:
+
+   ```bash
+   dig TXT mg.maisonobsidian.com.au +short
+   dig CNAME email.mg.maisonobsidian.com.au +short
+   ```
+
+   Empty output means the record is sitting at the doubled name.
 3. **Supabase → Project Settings → Authentication → SMTP Settings**, enable
    custom SMTP:
 
