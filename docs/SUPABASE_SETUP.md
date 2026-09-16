@@ -134,6 +134,55 @@ Email** → you may turn *Confirm email* off so sign-ups log in immediately.)
 The `AuthModal` already calls `signInWithPassword`, `signUp`, and
 `signInWithOAuth({ provider: "google" })`; no code changes needed.
 
+### Auth email: send it as Maison Obsidian, via Mailgun
+
+Out of the box Supabase sends confirmation, reset and magic-link mail from its
+own shared address. It cannot be rebranded and is rate-limited hard enough that
+Supabase's own documentation says not to ship on it. Replace it with Mailgun.
+
+1. **Mailgun → Sending → Domains → Add New Domain.** Use a subdomain —
+   `mg.maisonobsidian.com.au` — so the house's own mail records stay untouched.
+   Note which **region** you pick (US or EU): every host below must match it, and
+   a domain made in one region is invisible from the other. This is the single
+   most common reason a correct-looking setup silently fails to send.
+2. **Add the DNS records Mailgun lists** at the registrar for
+   `maisonobsidian.com.au`: the SPF `TXT`, the DKIM `TXT` on the selector
+   Mailgun names, and the tracking `CNAME`. Add the `MX` records too unless the
+   subdomain already receives mail. Wait for every row to verify — an unverified
+   domain sends, but straight to spam.
+3. **Supabase → Project Settings → Authentication → SMTP Settings**, enable
+   custom SMTP:
+
+   | Field | Value |
+   | --- | --- |
+   | Host | `smtp.mailgun.org` — EU region: `smtp.eu.mailgun.org` |
+   | Port | `587` |
+   | Username | the domain's SMTP login, e.g. `postmaster@mg.maisonobsidian.com.au` |
+   | Password | that login's SMTP password (Mailgun → Domain settings → SMTP credentials — **not** the API key) |
+   | Sender email | `no-reply@mg.maisonobsidian.com.au` |
+   | Sender name | `Maison Obsidian` |
+
+4. **Authentication → Emails → Templates** — rewrite *Confirm signup*, *Reset
+   password* and *Magic link* in the house voice. Keep `{{ .ConfirmationURL }}`
+   exactly as it is; that is the link.
+5. Check **Email OTP Expiration** on the same screen. A short expiry is what
+   produces `otp_expired` on a link that was clicked in good time.
+
+The link inside every one of these emails is built from **Site URL** (step 3 of
+Google sign-in, above). If that is wrong, a perfectly branded email still lands
+the customer on a dead host.
+
+> Corporate mail security — Microsoft 365 Safe Links and similar — follows links
+> in incoming mail to scan them. Supabase's confirmation links are single-use, so
+> the scanner can spend the token before the customer clicks, and they see
+> `otp_expired` on a link they never used. Custom SMTP does not change this.
+> Test with an address that is not behind a scanner.
+
+Mail the app sends itself is separate and uses the Mailgun **API**, not SMTP —
+`MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAILGUN_API_BASE` and `MAILGUN_FROM` in
+`.env.example`. Point both at the same Mailgun domain so every message a
+customer receives comes from one sender.
+
 ---
 
 ## 6. Make yourself an admin
