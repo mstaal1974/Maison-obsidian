@@ -1,4 +1,4 @@
-// GET /api/stripe/status — is Stripe wired up on this deployment?
+// GET /api/stripe/status — is checkout wired up on this deployment?
 //
 // Open it in a browser to see which environment variables the serverless
 // functions can actually see. It reports presence and, for the Supabase keys,
@@ -39,7 +39,17 @@ export default route("status", async function handler(req: any, res: any) {
     "SUPABASE_URL / VITE_SUPABASE_URL": url ? "set" : "MISSING",
     SUPABASE_SERVICE_ROLE_KEY: serviceKey ? `set (role: ${jwtRole(serviceKey)})` : "MISSING",
     "SUPABASE_ANON_KEY / VITE_SUPABASE_ANON_KEY": anon ? `set (role: ${jwtRole(anon)})` : "MISSING",
+    // Postage is the other half of a delivered order, and its absence shows up
+    // at checkout as "Postage quotes are unavailable" with nothing saying why.
+    AUSPOST_PAC_KEY: present(process.env.AUSPOST_PAC_KEY),
+    AUSPOST_FROM_POSTCODE: process.env.AUSPOST_FROM_POSTCODE ?? "MISSING",
   };
+
+  // Not blocking: an order can still be placed for alternate delivery, but
+  // nothing can be posted until both are set.
+  const postage: string[] = [];
+  if (!process.env.AUSPOST_PAC_KEY) postage.push("AUSPOST_PAC_KEY");
+  if (!process.env.AUSPOST_FROM_POSTCODE) postage.push("AUSPOST_FROM_POSTCODE");
 
   const blocking: string[] = [];
   if (!secret) blocking.push("STRIPE_SECRET_KEY");
@@ -53,6 +63,8 @@ export default route("status", async function handler(req: any, res: any) {
   return json(res, 200, {
     checkoutReady: blocking.length === 0,
     blocking,
+    postageReady: postage.length === 0,
+    postageBlocking: postage,
     env,
     note: blocking.length === 0 ? "Checkout should work. If it still fails, the error is from Stripe itself." : "Set these in Vercel → Settings → Environment Variables (Production), then redeploy.",
   });
