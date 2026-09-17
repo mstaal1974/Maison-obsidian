@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, lazy, type ReactNode, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type Fragrance, type FormatKey, money } from "./lib/data";
 import { useFragrances, enrollVip, isVipSubscriber, fetchMyCommits, fetchMyShipments, type CommitRow, type ShipmentRow } from "./lib/store";
 import { useAuth } from "./lib/auth";
@@ -12,10 +12,13 @@ import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/fo
 import AuthModal from "./components/AuthModal";
 import PasswordReset from "./components/PasswordReset";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
-import AdminConsole from "./components/AdminConsole";
-import StaffDesk from "./components/StaffDesk";
+// Split out of the storefront bundle: the console and the order desk are
+// staff tools, and the Scent DNA experience is its own campaign page. A
+// shopper was downloading all three to look at a bottle.
+const AdminConsole = lazy(() => import("./components/AdminConsole"));
+const StaffDesk = lazy(() => import("./components/StaffDesk"));
 import ChatWidget from "./components/ChatWidget";
-import ScentDna from "./components/ScentDna";
+const ScentDna = lazy(() => import("./components/ScentDna"));
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import ChooseObsidian from "./components/ChooseObsidian";
@@ -39,6 +42,19 @@ import { type PickMode, useSubscriptions } from "./lib/subscription";
 import PreferencesPanel from "./components/PreferencesPanel";
 import { type Consents, setConsents, useConsents, useMyTaste } from "./lib/profile";
 import { demoRequestQueries } from "./lib/requests";
+
+/**
+ * Holds the screen while a split-out route arrives. The house dark rather than
+ * a white flash, and no spinner: on a warm cache the chunk is there before this
+ * would have finished appearing.
+ */
+function Loading({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#0b0b0d" }} aria-busy="true" aria-live="polite" />}>
+      {children}
+    </Suspense>
+  );
+}
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => currentRoute());
@@ -345,7 +361,7 @@ export default function App() {
   // footer, no bag — just the orders and the printer. It has its own
   // individual account, with fulfilment access enforced by database membership.
   if (route.view === "staff") {
-    if (!auth.configured || auth.user) return <StaffDesk isAdmin={isAdmin} onSignOut={() => void auth.signOut()} />;
+    if (!auth.configured || auth.user) return <Loading><StaffDesk isAdmin={isAdmin} onSignOut={() => void auth.signOut()} /></Loading>;
     return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff sign in</h1><p>Use your individual staff account to access orders.</p><button onClick={() => setAuthOpen(true)}>Sign in</button><a href="#/">Return to shop</a>{authOpen && <AuthModal onClose={() => setAuthOpen(false)} configured={auth.configured} signInEmail={auth.signInEmail} signUpEmail={auth.signUpEmail} signInGoogle={auth.signInGoogle} />}</main>;
   }
 
@@ -355,7 +371,7 @@ export default function App() {
   if (route.view === "scent") {
     return (
       <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
-        <ScentDna
+        <Loading><ScentDna
           fragrances={fragrances}
           userId={auth.user?.id ?? null}
           code={route.code}
@@ -366,7 +382,7 @@ export default function App() {
             setBagOpen(true);
           }}
           onAddDiscoveryBox={addBox}
-        />
+        /></Loading>
         {bagDrawer}
       </div>
     );
@@ -499,7 +515,7 @@ export default function App() {
 
       {route.view === "admin" &&
         (isAdmin ? (
-          <AdminConsole fragrances={fragrances} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} />
+          <Loading><AdminConsole fragrances={fragrances} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} /></Loading>
         ) : (
           <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
             <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 44, color: "#f3ecdc" }}>Admins only.</h1>
