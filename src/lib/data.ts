@@ -546,7 +546,7 @@ const SEED: Fragrance[] = [
     id: "f25",
     slug: "desert-nomad",
     name: "Desert Nomad",
-    inspiration: "Inspired by Tom Ford - Ombre Nomade",
+    inspiration: "Inspired by Louis Vuitton - Ombre Nomade",
     tagline: "Raspberry, Saffron, Oud.",
     story: "Masterful, high-impact oriental fragrance combining deeply smoky oud wood with rich leather and sweet, dark raspberry.",
     price: HOUSE_PRICE.ml50,
