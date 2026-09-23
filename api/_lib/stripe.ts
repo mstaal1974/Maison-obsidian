@@ -15,10 +15,14 @@ import { type CatalogueItem, type FormatKey, FORMAT_BY_KEY, buyable, formatPrice
 
 export const CURRENCY = (process.env.STRIPE_CURRENCY ?? "aud").toLowerCase();
 
+// Pinned so the shape of every response (invoices especially) changes only
+// when this line does, not when the SDK is bumped. Keep it in step with the
+// version the installed `stripe` package was built for.
+export const STRIPE_API_VERSION = "2026-08-26.dahlia" as const;
+
 export function getStripe(): Stripe | null {
   const key = process.env.STRIPE_SECRET_KEY;
-  // No apiVersion: the account's default version applies.
-  return key ? new Stripe(key) : null;
+  return key ? new Stripe(key, { apiVersion: STRIPE_API_VERSION }) : null;
 }
 
 export function supabaseUrl(): string | undefined {
@@ -81,13 +85,22 @@ export function readBody(req: any): Record<string, any> {
   return typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body ?? {});
 }
 
-/** Raw request bytes, for Stripe signature verification (bodyParser must be off). */
-export async function rawBody(req: any): Promise<Buffer> {
+/**
+ * Raw request bytes, for Stripe signature verification. The stream is read
+ * first, before anything touches `req.body`: on Vercel that getter parses the
+ * JSON, and bytes re-serialised from a parsed object no longer match the
+ * signature. Returns null when only a parsed body is left, so the webhook can
+ * say so rather than report a bad signature.
+ */
+export async function rawBody(req: any): Promise<Buffer | null> {
+  const chunks: Buffer[] = [];
+  if (!req.readableEnded) {
+    for await (const c of req) chunks.push(typeof c === "string" ? Buffer.from(c) : c);
+  }
+  if (chunks.length) return Buffer.concat(chunks);
   if (Buffer.isBuffer(req.body)) return req.body;
   if (typeof req.body === "string") return Buffer.from(req.body);
-  const chunks: Buffer[] = [];
-  for await (const c of req) chunks.push(typeof c === "string" ? Buffer.from(c) : c);
-  return Buffer.concat(chunks);
+  return null;
 }
 
 // ─── Catalogue: prices are computed here, never trusted from the browser ─────
@@ -225,7 +238,8 @@ export function json(res: any, status: number, body: unknown) {
  * Wraps a route so an exception (a Stripe rejection, a missing table, a
  * misconfigured key) comes back as JSON naming the cause, rather than
  * Vercel's plain-text FUNCTION_INVOCATION_FAILED page the app can't read.
- * The console shows `detail` to admins; customers see `error` only.
+ * `detail` (Stripe's error type, code and message) goes to admins only;
+ * everyone else gets `error`, and the full error is in the function logs.
  */
 export function route(name: string, handler: (req: any, res: any) => Promise<unknown>) {
   return async (req: any, res: any) => {
@@ -234,8 +248,10 @@ export function route(name: string, handler: (req: any, res: any) => Promise<unk
     } catch (e) {
       const err = e as { message?: string; type?: string; code?: string; statusCode?: number };
       console.error(`[stripe/${name}]`, e);
-      const detail = [err.type, err.code, err.message].filter(Boolean).join(" · ") || "unknown error";
-      json(res, 500, { error: "Checkout could not start", detail: `${name}: ${detail}` });
+      if (res.headersSent) return;
+      const body: { error: string; detail?: string } = { error: "Checkout could not start" };
+      if (await isAdminRequest(req)) body.detail = `${name}: ${[err.type, err.code, err.message].filter(Boolean).join(" · ") || "unknown error"}`;
+      json(res, 500, body);
     }
   };
 }

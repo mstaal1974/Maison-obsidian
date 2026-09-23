@@ -3,13 +3,16 @@
 // Register https://<site>/api/stripe/webhook in the Stripe dashboard with
 // these events, and put the signing secret in STRIPE_WEBHOOK_SECRET:
 //   checkout.session.completed   orders recorded / subscription started
+//   checkout.session.async_payment_succeeded  the same, for delayed payment methods
 //   invoice.upcoming             re-price the coming month to the customer's pick
 //   invoice.paid                 record the month's delivery; end after month 12
 //   customer.subscription.deleted  mark cancelled
+//   charge.refunded              void an order once it is fully refunded
+//   charge.dispute.created       flag the order as disputed
 // Every handler is idempotent, so Stripe's retries are safe.
 
 import { getStripe, json, rawBody, serviceClient, route, notConfigured } from "../_lib/stripe.js";
-import { prepareRenewal, recordRenewal, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
+import { prepareRenewal, recordDispute, recordRefund, recordRenewal, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
 import type Stripe from "stripe";
 
 export const config = { runtime: "nodejs", api: { bodyParser: false } };
@@ -21,12 +24,20 @@ export default route("webhook", async function handler(req: any, res: any) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!stripe || !db || !secret) return notConfigured(res, "Stripe webhook", ["stripe", "service", "webhook"]);
 
+  const body = await rawBody(req);
+  if (!body) {
+    // The platform parsed the JSON before we could read the bytes Stripe
+    // signed. Every event will fail until that is fixed, so say it plainly.
+    console.error("stripe webhook: raw body unavailable — the request body was parsed before signature verification");
+    return json(res, 400, { error: "Raw body unavailable for signature verification" });
+  }
   let event: Stripe.Event;
   try {
     const sig = String(req.headers["stripe-signature"] ?? "");
-    event = stripe.webhooks.constructEvent(await rawBody(req), sig, secret);
+    event = stripe.webhooks.constructEvent(body, sig, secret);
   } catch (e) {
-    return json(res, 400, { error: `Bad signature: ${e instanceof Error ? e.message : "unknown"}` });
+    console.error("stripe webhook: signature verification failed", e instanceof Error ? e.message : e);
+    return json(res, 400, { error: "Bad signature" });
   }
 
   try {
@@ -56,6 +67,12 @@ export default route("webhook", async function handler(req: any, res: any) {
         await db.from("scent_subscriptions").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("stripe_subscription_id", sub.id).eq("status", "active");
         break;
       }
+      case "charge.refunded":
+        await recordRefund(db, event.data.object);
+        break;
+      case "charge.dispute.created":
+        await recordDispute(db, event.data.object);
+        break;
       default:
         break;
     }

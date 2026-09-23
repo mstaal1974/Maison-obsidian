@@ -121,15 +121,24 @@ export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: S
   return { recorded: Number(data ?? 0) };
 }
 
-/** Subscription: the row plus month 1, keyed by the Stripe subscription id. */
-export async function recordSubscriptionStart(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ created: boolean }> {
+/**
+ * Subscription: the row plus month 1, keyed by the Stripe subscription id.
+ * `duplicate` means the account already had an active Monthly Pour, so this
+ * second one was cancelled and its first payment refunded.
+ */
+export async function recordSubscriptionStart(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ created: boolean; duplicate?: boolean }> {
   const subId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
   if (!subId) return { created: false };
-  const { data: already } = await db.from("scent_subscriptions").select("id").eq("stripe_subscription_id", subId).maybeSingle();
-  if (already) return { created: false };
   const m = session.metadata ?? {};
-  const customer = typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null);
   const months = Number(m.months) || 12;
+  const { data: already } = await db.from("scent_subscriptions").select("id").eq("stripe_subscription_id", subId).maybeSingle();
+  if (already) {
+    // Recorded before, but the term may not have been set if that run failed
+    // part-way; this call is how Stripe's retry finishes the job.
+    await endTermAfter(stripe, subId, months);
+    return { created: false };
+  }
+  const customer = typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null);
   const { data: sub, error } = await db
     .from("scent_subscriptions")
     .insert({
@@ -146,6 +155,15 @@ export async function recordSubscriptionStart(stripe: Stripe, db: SupabaseClient
     })
     .select("id")
     .single();
+  if (error?.code === "23505") {
+    // Either the webhook and the return page recorded this same subscription
+    // at once, or (scent_subscriptions_one_active) the account already has
+    // another active one — two checkout tabs, both paid.
+    const { data: same } = await db.from("scent_subscriptions").select("id").eq("stripe_subscription_id", subId).maybeSingle();
+    if (same) return { created: false };
+    await cancelDuplicate(stripe, subId, session);
+    return { created: false, duplicate: true };
+  }
   if (error || !sub) throw new Error(error?.message ?? "could not create subscription");
 
   // Month 1 is the Checkout's first invoice.
@@ -161,7 +179,57 @@ export async function recordSubscriptionStart(stripe: Stripe, db: SupabaseClient
     { subscription_id: sub.id, month: 1, fragrance_id: m.fragrance_id, charge_cents: charge, payment_intent_id: piId, invoice_id: invoiceId },
     { onConflict: "invoice_id", ignoreDuplicates: true },
   );
+  // Last, so month 1 is already on the books if this fails and Stripe retries.
+  await endTermAfter(stripe, subId, months);
   return { created: true };
+}
+
+/**
+ * The Monthly Pour runs for a fixed number of months. recordRenewal() cancels
+ * it after the last paid month, but only if that webhook arrives; a cancel_at
+ * on the subscription itself means Stripe stops billing regardless.
+ */
+async function endTermAfter(stripe: Stripe, subId: string, months: number): Promise<void> {
+  const sub = await stripe.subscriptions.retrieve(subId);
+  if (sub.cancel_at || sub.status === "canceled" || sub.status === "incomplete_expired") return;
+  const end = new Date(sub.billing_cycle_anchor * 1000);
+  end.setUTCMonth(end.getUTCMonth() + months);
+  await stripe.subscriptions.update(subId, { cancel_at: Math.floor(end.getTime() / 1000), proration_behavior: "none" });
+}
+
+/** A second active subscription for one account: stop it and give the money back. */
+async function cancelDuplicate(stripe: Stripe, subId: string, session: Stripe.Checkout.Session): Promise<void> {
+  console.warn(`stripe: duplicate Monthly Pour ${subId} for user ${session.metadata?.user_id ?? "?"}; cancelling and refunding`);
+  try {
+    await stripe.subscriptions.cancel(subId);
+  } catch (e) {
+    if (!/already been canceled|canceled subscription|No such subscription/i.test(e instanceof Error ? e.message : "")) throw e;
+  }
+  const invoiceId = typeof session.invoice === "string" ? session.invoice : (session.invoice?.id ?? null);
+  if (!invoiceId) return;
+  const pi = paymentIntentOf(await stripe.invoices.retrieve(invoiceId, { expand: ["payments"] }));
+  // Keyed so the webhook and the return page can't refund it twice.
+  if (pi) await stripe.refunds.create({ payment_intent: pi, reason: "duplicate" }, { idempotencyKey: `duplicate-subscription-${subId}` });
+}
+
+/** A fully refunded order comes off the books; a partial refund is left for the team. */
+export async function recordRefund(db: SupabaseClient, charge: Stripe.Charge): Promise<void> {
+  const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : (charge.payment_intent?.id ?? null);
+  if (!pi) return;
+  if (!charge.refunded) {
+    console.warn(`stripe: partial refund on ${pi} (${charge.amount_refunded} of ${charge.amount}); order left as is`);
+    return;
+  }
+  const { error } = await db.from("commits").update({ status: "void" }).eq("payment_intent_id", pi).eq("status", "captured");
+  if (error) throw new Error(error.message);
+}
+
+/** A chargeback opened on an order. */
+export async function recordDispute(db: SupabaseClient, dispute: Stripe.Dispute): Promise<void> {
+  const pi = typeof dispute.payment_intent === "string" ? dispute.payment_intent : (dispute.payment_intent?.id ?? null);
+  if (!pi) return;
+  const { error } = await db.from("commits").update({ disputed_at: new Date(dispute.created * 1000).toISOString() }).eq("payment_intent_id", pi).is("disputed_at", null);
+  if (error) throw new Error(error.message);
 }
 
 function paymentIntentOf(inv: Stripe.Invoice): string | null {

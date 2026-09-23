@@ -349,7 +349,8 @@ Two integrations live **outside** Supabase — listed here so the picture is com
      (`https://maison-obsidian.vercel.app`), and optionally `STRIPE_CURRENCY` (default `aud`).
   2. In Stripe → Developers → Webhooks add an endpoint for
      `https://<site>/api/stripe/webhook` with the events `checkout.session.completed`,
-     `invoice.upcoming`, `invoice.paid` and `customer.subscription.deleted`, then put its
+     `checkout.session.async_payment_succeeded`, `invoice.upcoming`, `invoice.paid`,
+     `customer.subscription.deleted`, `charge.refunded` and `charge.dispute.created`, then put its
      signing secret in `STRIPE_WEBHOOK_SECRET` and redeploy.
   3. Turn on the Customer Portal (Stripe → Settings → Billing → Customer portal) so
      "Update card & invoices" works for subscribers.
