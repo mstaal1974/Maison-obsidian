@@ -7,7 +7,7 @@
 
 import { useEffect } from "react";
 import { type Fragrance } from "./data";
-import { referenceLine, skusInGroup } from "./formats";
+import { referenceLine, referenceOf, skusInGroup } from "./formats";
 import { paths } from "./route";
 
 export const SITE_NAME = "Maison Obsidian";
@@ -41,6 +41,20 @@ function absolute(url: string, origin: string): string {
   return /^https?:\/\//.test(url) ? url : `${origin}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
+/**
+ * "Smoky Timber — Inspired by Tom Ford Oud Wood | Maison Obsidian": the
+ * reference is what people search for, so it follows the name. Search results
+ * show about 60 characters, so a long one drops the house name rather than
+ * lose the reference.
+ */
+export function productTitle(f: Fragrance): string {
+  const { brand, fragrance } = referenceOf(f);
+  const ref = [brand, fragrance].filter(Boolean).join(" ");
+  const core = ref ? `${f.name} — Inspired by ${ref}` : f.name;
+  const full = `${core} | ${SITE_NAME}`;
+  return full.length <= 65 ? full : core;
+}
+
 /** Title, description, card image and Product data for one fragrance. */
 export function productMeta(f: Fragrance, origin: string, image = f.imageUrl): PageMeta {
   const path = paths.product(f.slug);
@@ -65,7 +79,7 @@ export function productMeta(f: Fragrance, origin: string, image = f.imageUrl): P
       url: absolute(path, origin),
     }));
   return {
-    title: `${f.name} | ${SITE_NAME}`,
+    title: productTitle(f),
     description,
     path,
     image,
