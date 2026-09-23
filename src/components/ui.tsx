@@ -10,8 +10,8 @@ export const Arrow = ({ size = 12 }: { size?: number }) => (
   </svg>
 );
 
-export function Container({ children, style }: { children: ReactNode; style?: CSSProperties }) {
-  return <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 32px", ...style }}>{children}</div>;
+export function Container({ children, style, className }: { children: ReactNode; style?: CSSProperties; className?: string }) {
+  return <div className={className} style={{ maxWidth: 1400, margin: "0 auto", padding: "0 32px", ...style }}>{children}</div>;
 }
 
 export function Rule() {
@@ -61,9 +61,10 @@ export function Art({
 }
 
 /** Vertical mono caption used at the edges of hero / product layouts. */
-export function SideCaption({ lines, style }: { lines: string[]; style?: CSSProperties }) {
+export function SideCaption({ lines, style, overlay = false }: { lines: string[]; style?: CSSProperties; overlay?: boolean }) {
+  // Side columns are hidden on phones (index.css); an overlay on a photo stays.
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4, ...style }}>
+    <div className={overlay ? "mo-sidecaption-overlay" : "mo-sidecaption"} style={{ display: "flex", flexDirection: "column", gap: 4, ...style }}>
       {lines.map((l, i) =>
         l === "—" ? (
           <span key={i} style={{ display: "block", width: 34, height: 1, background: "rgba(201,169,97,0.6)", margin: "16px 0" }} />

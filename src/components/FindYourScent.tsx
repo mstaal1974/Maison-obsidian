@@ -40,7 +40,7 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
   const profiles = MOODS.filter((m) => ["Woody", "Fresh", "Spicy", "Floral"].includes(m.id));
 
   const bar = (
-    <form onSubmit={submit} style={{ display: "flex", alignItems: "stretch", border: "1px solid rgba(201,169,97,0.45)", height: 50, flex: 1, minWidth: 320 }}>
+    <form className="mo-find-form" onSubmit={submit} style={{ display: "flex", alignItems: "stretch", border: "1px solid rgba(201,169,97,0.45)", height: 50, flex: 1, minWidth: 320 }}>
       <span style={{ display: "grid", placeItems: "center", padding: "0 14px 0 16px" }}>
         <Icon name="search" size={17} color={CREAM} />
       </span>

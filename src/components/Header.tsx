@@ -101,7 +101,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
           borderBottom: "1px solid #1f1f27",
         }}
       >
-        <div style={{ maxWidth: 1400, margin: "0 auto", padding: "0 32px", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
+        <div className="mo-header-row" style={{ maxWidth: 1400, margin: "0 auto", padding: "0 32px", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
           <button onClick={() => navigate(paths.home)} style={{ display: "flex", alignItems: "center", gap: 12, background: "none", border: 0, cursor: "pointer", padding: 0 }} aria-label="Maison Obsidian home">
             <Logo width={22} height={26} />
             <span style={{ textAlign: "left" }}>
@@ -159,13 +159,13 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
             <button className="mo-navlink" style={{ ...navLink, color: GOLD }} onClick={() => navigate(paths.discover)}>Scent DNA</button>
           </nav>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div className="mo-header-actions" style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <button aria-label="Find your scent" onClick={() => navigate(paths.find())} style={{ background: "none", border: 0, cursor: "pointer", padding: 6, display: "grid", placeItems: "center" }}>
               <Icon name="search" size={19} color={CREAM} />
             </button>
-            <span aria-hidden style={{ width: 1, height: 22, background: "#2a2a33" }} />
+            <span className="mo-header-divider" aria-hidden style={{ width: 1, height: 22, background: "#2a2a33" }} />
             <button
-              className="mo-pill"
+              className="mo-pill mo-bag-btn"
               onClick={onOpenBag}
               aria-label={`Your bag, ${bagCount} items`}
               style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid rgba(201,169,97,0.7)", height: 40, padding: "0 16px", background: "none", color: GOLD, cursor: "pointer", fontFamily: MONO, fontSize: 10, letterSpacing: "0.22em", textTransform: "uppercase" }}

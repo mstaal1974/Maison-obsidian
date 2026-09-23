@@ -90,32 +90,38 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
 
       <Container style={{ padding: "18px 32px 60px" }}>
         {/* Filters: gender is a filter, not the architecture. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", borderBottom: "1px solid #1f1f27", paddingBottom: 14 }}>
-          <span style={{ ...micro, marginRight: 4 }}>For</span>
-          {GENDERS.map((g) => (
-            <Chip key={g.id} active={gender === g.id} onClick={() => setGender(g.id)}>{g.label}</Chip>
-          ))}
-          <span style={{ ...micro, marginLeft: 16, marginRight: 4 }}>Mood</span>
-          {MOODS.slice(0, 8).map((m) => (
-            <Chip key={m.id} active={mood === m.id} onClick={() => setMood(mood === m.id ? null : m.id)}>{m.id}</Chip>
-          ))}
+        <div className="mo-filters" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", borderBottom: "1px solid #1f1f27", paddingBottom: 14 }}>
+          <div className="mo-filter-group" role="group" aria-label="For">
+            <span style={{ ...micro, marginRight: 4 }}>For</span>
+            {GENDERS.map((g) => (
+              <Chip key={g.id} active={gender === g.id} onClick={() => setGender(g.id)}>{g.label}</Chip>
+            ))}
+          </div>
+          <div className="mo-filter-group" role="group" aria-label="Mood">
+            <span style={{ ...micro, marginLeft: 16, marginRight: 4 }}>Mood</span>
+            {MOODS.slice(0, 8).map((m) => (
+              <Chip key={m.id} active={mood === m.id} onClick={() => setMood(mood === m.id ? null : m.id)}>{m.id}</Chip>
+            ))}
+          </div>
           {mode !== "car" && mode !== "body" && (
-            <>
+            <div className="mo-filter-group" role="group" aria-label="Format">
               <span style={{ ...micro, marginLeft: 16, marginRight: 4 }}>Format</span>
               {FORMAT_FACETS.map((x) => (
                 <Chip key={x.id} active={format === x.id} onClick={() => setFormat(format === x.id ? null : x.id)}>{x.label}</Chip>
               ))}
-            </>
+            </div>
           )}
-          <span style={{ ...micro, marginLeft: 16, marginRight: 4 }}>Inspired by</span>
-          <input
-            type="search"
-            value={inspired}
-            onChange={(e) => setInspired(e.target.value)}
-            placeholder="Tom Ford, Black Opium…"
-            aria-label="Search by the fragrance or house it is inspired by"
-            style={{ background: "none", border: "1px solid rgba(201,169,97,0.45)", outline: "none", color: CREAM, fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.02em", padding: "7px 10px", width: 190 }}
-          />
+          <div className="mo-filter-group mo-filter-search">
+            <span style={{ ...micro, marginLeft: 16, marginRight: 4 }}>Inspired by</span>
+            <input
+              type="search"
+              value={inspired}
+              onChange={(e) => setInspired(e.target.value)}
+              placeholder="Tom Ford, Black Opium…"
+              aria-label="Search by the fragrance or house it is inspired by"
+              style={{ background: "none", border: "1px solid rgba(201,169,97,0.45)", outline: "none", color: CREAM, fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.02em", padding: "7px 10px", width: 190 }}
+            />
+          </div>
           <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 10, color: "rgba(243,236,220,0.5)" }}>{list.length} of {fragrances.length}</span>
         </div>
 

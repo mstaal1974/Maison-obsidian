@@ -171,7 +171,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   }
 
   return (
-    <main data-screen-label="Checkout" style={{ maxWidth: 1160, margin: "0 auto", padding: "116px 32px 90px" }}>
+    <main className="mo-checkout" data-screen-label="Checkout" style={{ maxWidth: 1160, margin: "0 auto", padding: "116px 32px 90px" }}>
       <button style={{ ...btnLink, display: "inline-flex", alignItems: "center", gap: 8, fontSize: 9 }} onClick={() => navigate(paths.fragrances)}>
         ← Back to shopping
       </button>

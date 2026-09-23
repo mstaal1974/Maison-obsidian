@@ -248,6 +248,7 @@ export default function ChatWidget({ fragrances, onOpenProduct, profile }: ChatW
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close concierge" : "Open concierge"}
         aria-expanded={open}
+        className="mo-chat-launch"
         style={{
           position: "fixed",
           bottom: 24,
