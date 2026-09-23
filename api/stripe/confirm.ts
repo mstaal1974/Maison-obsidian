@@ -30,7 +30,8 @@ export default route("confirm", async function handler(req: any, res: any) {
     return json(res, 200, { kind: "order", lines: await bagLines(stripe, session), amountTotal: session.amount_total });
   }
   if (session.mode === "subscription") {
-    await recordSubscriptionStart(stripe, db, session);
+    const started = await recordSubscriptionStart(stripe, db, session);
+    if (started.duplicate) return json(res, 409, { error: "You already have an active Monthly Pour, so this second one has been cancelled and refunded in full." });
     return json(res, 200, { kind: "subscription" });
   }
   return json(res, 200, { kind: "other" });
