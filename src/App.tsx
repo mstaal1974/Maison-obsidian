@@ -469,7 +469,7 @@ export default function App() {
       {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
 
       {route.view === "product" && selected && (
-        <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} onAdd={add} onQuickView={openQuick} />
+        <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} onAdd={add} onQuickView={openQuick} userId={auth.user?.id ?? null} onSignIn={() => setAuthOpen(true)} />
       )}
       {route.view === "product" && !selected && (
         <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>

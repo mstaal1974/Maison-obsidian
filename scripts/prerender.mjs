@@ -105,6 +105,28 @@ async function catalogue() {
   return { source: "seed", frags: FRAGS };
 }
 
+/** Published review ratings per fragrance id, for aggregateRating. */
+async function ratings() {
+  const url = env.VITE_SUPABASE_URL;
+  const key = env.VITE_SUPABASE_ANON_KEY;
+  const out = new Map();
+  if (!url || !key) return out;
+  try {
+    const res = await fetch(`${url}/rest/v1/reviews?select=fragrance_id,rating&status=eq.published`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    for (const r of await res.json()) {
+      const cur = out.get(r.fragrance_id) ?? { sum: 0, count: 0 };
+      out.set(r.fragrance_id, { sum: cur.sum + r.rating, count: cur.count + 1 });
+    }
+  } catch (e) {
+    console.warn(`prerender: review ratings unavailable (${e instanceof Error ? e.message : e})`);
+  }
+  return new Map([...out].map(([id, { sum, count }]) => [id, { average: sum / count, count }]));
+}
+
 /** A card image that exists: the fragrance's own, else the house shot. */
 function cardImage(f) {
   const u = f.imageUrl;
@@ -120,11 +142,11 @@ const shell = template
   .replace(/\s*<meta\s+(?:name="description"|property="og:[^"]+"|name="twitter:[^"]+")[\s\S]*?\/>/g, "")
   .replace(/\s*<!-- Social cards\.[\s\S]*?-->/, "");
 
-const { source, frags } = await catalogue();
+const [{ source, frags }, rated] = await Promise.all([catalogue(), ratings()]);
 const pages = [];
 for (const f of frags) {
   if (!f.slug || !/^[a-z0-9-]+$/.test(f.slug)) continue;
-  const meta = productMeta(f, origin, cardImage(f));
+  const meta = productMeta(f, origin, cardImage(f), rated.get(f.id) ?? null);
   const html = shell.replace(/\s*<\/head>/, `\n    ${headTags(meta, origin)}\n  </head>`);
   const dir = join(dist, "fragrance", f.slug);
   await mkdir(dir, { recursive: true });

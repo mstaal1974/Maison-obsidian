@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { type Fragrance } from "./data";
 import { referenceLine, referenceOf, skusInGroup } from "./formats";
 import { paths } from "./route";
+import type { RatingSummary } from "./reviews";
 
 export const SITE_NAME = "Maison Obsidian";
 
@@ -56,7 +57,7 @@ export function productTitle(f: Fragrance): string {
 }
 
 /** Title, description, card image and Product data for one fragrance. */
-export function productMeta(f: Fragrance, origin: string, image = f.imageUrl): PageMeta {
+export function productMeta(f: Fragrance, origin: string, image = f.imageUrl, rating: RatingSummary | null = null): PageMeta {
   const path = paths.product(f.slug);
   const sentence = (t: string | undefined) => (t ? `${t.trim().replace(/[.\s]+$/, "")}. ` : "");
   const description = clip(`${f.name}: ${sentence(f.tagline)}${sentence(referenceLine(f))}${f.story ?? ""}`, 158);
@@ -93,6 +94,7 @@ export function productMeta(f: Fragrance, origin: string, image = f.imageUrl): P
       brand: { "@type": "Brand", name: SITE_NAME },
       ...(image ? { image: [absolute(image, origin)] } : {}),
       ...(offers.length ? { offers } : {}),
+      ...(rating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: rating.average.toFixed(1), reviewCount: rating.count, bestRating: 5, worstRating: 1 } } : {}),
     },
   };
 }
