@@ -3,6 +3,7 @@ import { type Fragrance, GOLD, CREAM, money } from "../lib/data";
 import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { FREE_SHIPPING_THRESHOLD_CENTS } from "../lib/shipping";
 import BottleImage from "./BottleImage";
 import { Arrow, Icon } from "./ui";
 import { MONO, SERIF, btnGold, btnGhost, btnLink, micro } from "./styles";
@@ -113,8 +114,8 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
               </div>
               <div style={{ ...micro, fontSize: 8 }}>Delivery and postage are chosen at checkout</div>
 
+              <FreeShippingProgress subtotal={subtotal} />
               <div style={{ ...micro, fontSize: 8, display: "flex", gap: 14 }}>
-                <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100</span>
                 <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
               </div>
               <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} onClick={onCheckout}>
@@ -127,6 +128,29 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
           </>
         )}
       </aside>
+    </div>
+  );
+}
+
+/** How far the bag is from free standard post, as a line and a bar. */
+function FreeShippingProgress({ subtotal }: { subtotal: number }) {
+  const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD_CENTS - subtotal);
+  const pct = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD_CENTS) * 100));
+  return (
+    <div aria-live="polite" style={{ display: "grid", gap: 7 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: remaining ? "rgba(243,236,220,0.8)" : GOLD }}>
+        <Icon name="truck" size={13} color={remaining ? "rgba(243,236,220,0.6)" : GOLD} />
+        {remaining ? (
+          <span>
+            You're <strong style={{ color: CREAM, fontWeight: 600 }}>{money(remaining)}</strong> away from free standard shipping
+          </span>
+        ) : (
+          <span>Your order ships free (standard post)</span>
+        )}
+      </div>
+      <div role="progressbar" aria-label="Progress to free shipping" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} style={{ height: 3, background: "#26262e", overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: GOLD, transition: "width 320ms cubic-bezier(0.2, 0.8, 0.2, 1)" }} />
+      </div>
     </div>
   );
 }
