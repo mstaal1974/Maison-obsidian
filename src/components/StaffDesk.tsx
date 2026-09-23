@@ -105,7 +105,7 @@ export default function StaffDesk({ isAdmin = false, onSignOut }: { isAdmin?: bo
     // opened by an individual staff account, so an empty desk is a question of
     // authorisation, not a locked gate.
     if (isSupabaseConfigured) {
-      return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff order desk</h1><p>{busy ? "Loading orders…" : error || "Checking staff access…"}</p><p>Your individual account must be authorised for order fulfilment.</p><button onClick={() => void refresh("account-session")}>Retry</button><a href="#/">Return to shop</a></main>;
+      return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff order desk</h1><p>{busy ? "Loading orders…" : error || "Checking staff access…"}</p><p>Your individual account must be authorised for order fulfilment.</p><button onClick={() => void refresh("account-session")}>Retry</button><a href="/">Return to shop</a></main>;
     }
     return <Gate typed={typed} onTyped={setTyped} onSubmit={unlock} error={error} busy={busy} />;
   }

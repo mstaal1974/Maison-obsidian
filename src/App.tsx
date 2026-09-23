@@ -6,7 +6,7 @@ import { useIsAdmin, type AdminCommitRow } from "./lib/admin";
 import { demoShipments, subscribeShipments } from "./lib/catalogue";
 import { confirmStripeSession, stripeCheckout, stripeSubscribe } from "./lib/stripe";
 import type { CheckoutDelivery } from "./lib/shipping";
-import { currentRoute, parseHash, navigate, paths, type Route } from "./lib/route";
+import { currentRoute, navigate, onRouteChange, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
 import AuthModal from "./components/AuthModal";
@@ -70,16 +70,16 @@ export default function App() {
   const boxIds = useSyncExternalStore(subscribeBag, discoveryIds);
   const bagCount = lines.reduce((n, l) => n + l.qty, 0);
 
-  // ── Hash routing ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    const sync = () => {
-      setRoute(parseHash(window.location.hash));
-      setSubStarted(false);
-      setSubError(null);
-    };
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
-  }, []);
+  // ── Routing ────────────────────────────────────────────────────────────────
+  useEffect(
+    () =>
+      onRouteChange(() => {
+        setRoute(currentRoute());
+        setSubStarted(false);
+        setSubError(null);
+      }),
+    [],
+  );
 
   // VIP membership from the backend for a signed-in user.
   useEffect(() => {
@@ -271,7 +271,7 @@ export default function App() {
         setThanks({ status: "paid" });
       }
       // Drop the session id from the URL so a refresh doesn't re-confirm.
-      window.history.replaceState(null, "", onThanks ? "#/thanks" : "#/account");
+      window.history.replaceState(null, "", onThanks ? paths.thanks : paths.account);
     });
     return () => {
       active = false;
@@ -349,7 +349,7 @@ export default function App() {
   // individual account, with fulfilment access enforced by database membership.
   if (route.view === "staff") {
     if (!auth.configured || auth.user) return <Suspense fallback={null}><StaffDesk isAdmin={isAdmin} onSignOut={() => void auth.signOut()} /></Suspense>;
-    return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff sign in</h1><p>Use your individual staff account to access orders.</p><button onClick={() => setAuthOpen(true)}>Sign in</button><a href="#/">Return to shop</a>{authOpen && <AuthModal onClose={() => setAuthOpen(false)} configured={auth.configured} signInEmail={auth.signInEmail} signUpEmail={auth.signUpEmail} signInGoogle={auth.signInGoogle} />}</main>;
+    return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff sign in</h1><p>Use your individual staff account to access orders.</p><button onClick={() => setAuthOpen(true)}>Sign in</button><a href={paths.home}>Return to shop</a>{authOpen && <AuthModal onClose={() => setAuthOpen(false)} configured={auth.configured} signInEmail={auth.signInEmail} signUpEmail={auth.signUpEmail} signInGoogle={auth.signInGoogle} />}</main>;
   }
 
   // Discover Your Scent DNA is a standalone campaign experience: it brings its

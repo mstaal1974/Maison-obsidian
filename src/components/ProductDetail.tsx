@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, experienceOf, relatedTo, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { productMeta, usePageMeta } from "../lib/seo";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import { bottleBackdrop } from "./adminStyles";
@@ -31,6 +32,7 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
   const [engraveOn, setEngraveOn] = useState(false);
   const [engraving, setEngraving] = useState("");
   const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
+  usePageMeta(useMemo(() => productMeta(frag, window.location.origin), [frag]));
   const chosen = skuOf(frag, key);
   const locked = !!frag.vipOnly && !vip;
   const profile = profileOf(frag);

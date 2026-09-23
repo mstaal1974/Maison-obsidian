@@ -214,7 +214,7 @@ customer receives comes from one sender.
 
 ## 6. Make yourself an admin
 
-The admin console (`#/admin`) is gated by the `admins` table.
+The admin console (`/admin`) is gated by the `admins` table.
 
 1. Sign in to the app at least once (so your user exists).
 2. Supabase → **Authentication → Users**, copy your user's **UUID**.

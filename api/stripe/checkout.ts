@@ -158,8 +158,8 @@ export default route("checkout", async function handler(req: any, res: any) {
       ...(alternate ? { delivery_phone: deliveryPhone, delivery_notes: deliveryNotes } : {}),
       ...(haveAddress ? { ship_address: shipAddress, ship_city: shipCity, ship_region: shipRegion, ship_postcode: postcode } : {}),
     },
-    success_url: `${site}/#/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${site}/#/checkout?cancelled=1`,
+    success_url: `${site}/thanks?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${site}/checkout?cancelled=1`,
   });
   return json(res, 200, { url: session.url, sessionId: session.id });
 });

@@ -61,7 +61,7 @@ export async function authorizePayment(
 // When the Stripe routes are configured (STRIPE_SECRET_KEY on Vercel), the bag
 // and the Monthly Pour go through hosted Stripe Checkout: the browser asks for
 // a session URL and redirects to Stripe's payment page; Stripe sends the
-// customer back to #/account with a session id, and the webhook / confirm
+// customer back to /account with a session id, and the webhook / confirm
 // route record the outcome. Each call below returns null when the route isn't
 // there, so the app falls back to the stub flow above.
 

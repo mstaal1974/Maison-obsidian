@@ -105,7 +105,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
           the desk has its own passphrase and its own page. */}
       {tab === "fulfillment" && (
         <p style={{ margin: "-10px 0 22px", fontSize: 11.5 }}>
-          <a href="#/staff" style={{ color: "#c9a961", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 10, textDecoration: "none" }}>
+          <a href="/staff" style={{ color: "#c9a961", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 10, textDecoration: "none" }}>
             Open the staff order desk →
           </a>
           <span style={{ color: "rgba(243,236,220,0.4)", marginLeft: 10 }}>

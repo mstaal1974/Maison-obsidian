@@ -2,19 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/discover",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/scent-dna",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/scent/:code",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/staff",
+      "source": "/((?!api/|assets/).*)",
       "destination": "/index.html"
     }
   ]

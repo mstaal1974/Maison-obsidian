@@ -2,7 +2,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
 import { Icon } from "./ui";
 import { MONO, SERIF } from "./styles";
-import { navigate, paths } from "../lib/route";
+import { navigate, onRouteChange, paths } from "../lib/route";
 import { GOLD, CREAM } from "../lib/data";
 
 interface HeaderProps {
@@ -63,8 +63,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
       setMenuOpen(false);
       setDrawerOpen(false);
     };
-    window.addEventListener("hashchange", close);
-    return () => window.removeEventListener("hashchange", close);
+    return onRouteChange(close);
   }, []);
 
   // An open drawer covers the page: escape closes it, and the page behind it
@@ -251,7 +250,7 @@ function MobileMenu({
   onSignOut: () => void;
   onClose: () => void;
 }) {
-  // navigate() fires a hashchange, which closes the drawer; go() covers the
+  // navigate() fires a route change, which closes the drawer; go() covers the
   // case where the link is to the page we are already on.
   const go = (to: string) => {
     navigate(to);
