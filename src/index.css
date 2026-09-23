@@ -733,3 +733,63 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
     right: 14px !important;
   }
 }
+
+/* ─── Phones: product cards as list rows; readable small capitals ─────────── */
+@media (max-width: 720px) {
+  /* Photo on the left, the essentials on the right. Sizes and "available
+     in" live on the product page and in quick view. */
+  .mo-vault-grid {
+    gap: 10px !important;
+  }
+  .mo-card {
+    flex-direction: row !important;
+  }
+  .mo-card-photo {
+    width: 124px;
+    flex-shrink: 0;
+  }
+  .mo-card-photo > div {
+    height: 100% !important;
+    min-height: 196px;
+  }
+  .mo-card-body {
+    padding: 12px !important;
+    gap: 6px !important;
+    min-width: 0;
+  }
+  .mo-card-name {
+    font-size: 16px !important;
+  }
+  .mo-card .mo-inspired {
+    padding: 6px 8px !important;
+  }
+  .mo-card .mo-inspired > span:nth-child(2) {
+    font-size: 14px !important;
+  }
+  .mo-card-notes,
+  .mo-card-sizes,
+  .mo-card-available {
+    display: none !important;
+  }
+  .mo-card-actions {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0 !important;
+    padding-top: 2px !important;
+  }
+
+  /* The small spaced-out capitals (7.5–10.5px inline) read at 11px with
+     tighter tracking. Matched on the inline style so every label, eyebrow
+     and caps link is covered without a class on each. */
+  [style*="text-transform: uppercase"][style*="font-size: 7px"],
+  [style*="text-transform: uppercase"][style*="font-size: 7.5px"],
+  [style*="text-transform: uppercase"][style*="font-size: 8px"],
+  [style*="text-transform: uppercase"][style*="font-size: 8.5px"],
+  [style*="text-transform: uppercase"][style*="font-size: 9px"],
+  [style*="text-transform: uppercase"][style*="font-size: 9.5px"],
+  [style*="text-transform: uppercase"][style*="font-size: 10px"],
+  [style*="text-transform: uppercase"][style*="font-size: 10.5px"] {
+    font-size: 11px !important;
+    letter-spacing: 0.12em !important;
+  }
+}

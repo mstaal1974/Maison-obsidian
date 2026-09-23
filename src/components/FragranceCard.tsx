@@ -27,22 +27,22 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
   const chips: FormatKey[] = ["perf10", "perf30", "perf50"];
   return (
     <article className="mo-card" style={{ border: "1px solid #1f1f27", background: "#101015", display: "flex", flexDirection: "column" }}>
-      <button onClick={() => navigate(paths.product(frag.slug))} aria-label={`Open ${frag.name}`} style={{ padding: 0, border: 0, background: "none", cursor: "pointer", position: "relative", display: "block" }}>
+      <button className="mo-card-photo" onClick={() => navigate(paths.product(frag.slug))} aria-label={`Open ${frag.name}`} style={{ padding: 0, border: 0, background: "none", cursor: "pointer", position: "relative", display: "block" }}>
         <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-portrait.webp" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={300} />
         {frag.vipOnly && (
           <span style={{ position: "absolute", top: 12, left: 12, ...micro, color: GOLD, border: "1px solid rgba(201,169,97,0.5)", background: "rgba(11,11,13,0.8)", padding: "4px 8px" }}>VIP</span>
         )}
       </button>
-      <div style={{ padding: "16px 18px 18px", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
-        <button onClick={() => navigate(paths.product(frag.slug))} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: SERIF, fontSize: 22, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1.05 }}>
+      <div className="mo-card-body" style={{ padding: "16px 18px 18px", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
+        <button className="mo-card-name" onClick={() => navigate(paths.product(frag.slug))} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: SERIF, fontSize: 22, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1.05 }}>
           {frag.name}
         </button>
         <InspiredBy {...referenceOf(frag)} size="sm" />
         <div style={{ ...micro, color: "rgba(243,236,220,0.75)", fontSize: 8.5 }}>{profileOf(frag).join(" · ")}</div>
-        <div style={{ fontSize: 12.5, color: "rgba(243,236,220,0.55)" }}>{notes}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
+        <div className="mo-card-notes" style={{ fontSize: 12.5, color: "rgba(243,236,220,0.55)" }}>{notes}</div>
+        <div className="mo-card-price" style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 2 }}>
           <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM }}>From {money(fromPrice(frag))}</span>
-          <span style={{ display: "flex", gap: 5 }}>
+          <span className="mo-card-sizes" style={{ display: "flex", gap: 5 }}>
             {chips.map((k) => {
               const s = sku(frag, k);
               return s.status === "hidden" ? null : (
@@ -51,7 +51,7 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
             })}
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, ...micro, fontSize: 8, whiteSpace: "nowrap", letterSpacing: "0.14em" }}>
+        <div className="mo-card-available" style={{ display: "flex", alignItems: "center", gap: 10, ...micro, fontSize: 8, whiteSpace: "nowrap", letterSpacing: "0.14em" }}>
           <span>Available in</span>
           {availableIn(frag).map((a) => (
             <span key={a.group} style={{ color: a.status === "live" ? GOLD : "rgba(243,236,220,0.45)" }}>
@@ -59,7 +59,7 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
             </span>
           ))}
         </div>
-        <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div className="mo-card-actions" style={{ marginTop: "auto", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <button style={{ ...btnLink, color: locked ? "rgba(243,236,220,0.4)" : GOLD, whiteSpace: "nowrap", fontSize: 9 }} onClick={() => (locked ? navigate(paths.about) : onQuickView(frag, defaultFormat))}>
             {locked ? "VIP members only" : <>Choose options <Arrow size={10} /></>}
           </button>
