@@ -41,6 +41,27 @@ export default route("subscribe", async function handler(req: any, res: any) {
   const unit = memberPrice(frag, format);
 
   const customer = await customerFor(stripe, db, user);
+
+  // The row above only exists once a payment has been recorded. Stripe knows
+  // sooner: a Monthly Pour that is paid but not yet recorded still blocks.
+  const live = await stripe.subscriptions.list({ customer, status: "all", limit: 20 });
+  if (live.data.some((s) => s.metadata?.kind === "subscription" && ["active", "trialing", "past_due", "unpaid"].includes(s.status))) {
+    return json(res, 409, { error: "You already have an active subscription" });
+  }
+  // Only the newest checkout can be paid: close any subscription checkout this
+  // account left open in another tab. A session that completes in the
+  // meantime can't be expired, and recordSubscriptionStart refunds it if it
+  // turns out to be a second one.
+  const open = await stripe.checkout.sessions.list({ customer, status: "open", limit: 20 });
+  for (const s of open.data) {
+    if (s.mode !== "subscription") continue;
+    try {
+      await stripe.checkout.sessions.expire(s.id);
+    } catch (e) {
+      console.warn(`stripe/subscribe: could not expire ${s.id}`, e instanceof Error ? e.message : e);
+    }
+  }
+
   const site = siteUrl(req);
   const meta = { user_id: user.id, user_email: user.email ?? "", kind: "subscription", format, pick_mode: pickMode, fragrance_id: fragranceId, months: String(SUBSCRIPTION_MONTHS) };
 
