@@ -167,6 +167,7 @@ export function InspiredBy({ brand, fragrance, size = "md", style }: { brand: st
   const px = size === "lg" ? 28 : size === "md" ? 21 : 19;
   return (
     <div
+      className="mo-inspired"
       style={{
         display: "flex",
         flexDirection: "column",
