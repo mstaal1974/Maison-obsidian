@@ -7,12 +7,14 @@
 //   invoice.upcoming             re-price the coming month to the customer's pick
 //   invoice.paid                 record the month's delivery; end after month 12
 //   customer.subscription.deleted  mark cancelled
+//   checkout.session.expired     email the recovery link, if the shopper asked
 //   charge.refunded              void an order once it is fully refunded
 //   charge.dispute.created       flag the order as disputed
 // Every handler is idempotent, so Stripe's retries are safe.
 
 import { getStripe, json, rawBody, serviceClient, route, notConfigured } from "../_lib/stripe.js";
 import { prepareRenewal, recordDispute, recordRefund, recordRenewal, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
+import { sendRecoveryEmail, withOriginalMetadata } from "../_lib/recovery.js";
 import type Stripe from "stripe";
 
 export const config = { runtime: "nodejs", api: { bodyParser: false } };
@@ -44,12 +46,15 @@ export default route("webhook", async function handler(req: any, res: any) {
     switch (event.type) {
       case "checkout.session.async_payment_succeeded":
       case "checkout.session.completed": {
-        const session = event.data.object;
+        const session = await withOriginalMetadata(stripe, event.data.object);
         if (session.payment_status !== "paid") break;
         if (session.mode === "payment" && session.metadata?.kind === "order") await recordOrder(stripe, db, session);
         if (session.mode === "subscription") await recordSubscriptionStart(stripe, db, session);
         break;
       }
+      case "checkout.session.expired":
+        await sendRecoveryEmail(stripe, db, event.data.object);
+        break;
       case "invoice.upcoming": {
         const inv = event.data.object as unknown as { subscription?: string | { id: string } | null; parent?: { subscription_details?: { subscription?: string | { id: string } | null } } };
         const raw = inv.subscription ?? inv.parent?.subscription_details?.subscription ?? null;

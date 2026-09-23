@@ -133,6 +133,7 @@ export async function stripeCheckout(lines: StripeLine[], delivery?: CheckoutDel
               address: delivery.address,
               city: delivery.city,
               region: delivery.region,
+              remindMe: delivery.remindMe === true,
             },
           }
         : {}),

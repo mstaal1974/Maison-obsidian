@@ -59,6 +59,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   const [postcode, setPostcode] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [remindMe, setRemindMe] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
   // Postal checkout remains blocked until a valid quote is available.
@@ -107,10 +108,11 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   const total = subtotal + shippingCents;
 
   const delivery: CheckoutDelivery = alternate
-    ? { method: "alternate", email: contact.trim(), name: fullName.trim(), phone: phone.trim(), notes: notes.trim() }
+    ? { method: "alternate", email: contact.trim(), name: fullName.trim(), phone: phone.trim(), notes: notes.trim(), remindMe }
     : {
         method: "auspost",
         email: contact.trim(),
+        remindMe,
         name: fullName.trim(),
         address: address.trim(),
         city: city.trim(),
@@ -199,6 +201,10 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                 </>
               )}
             </p>
+            <label style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, lineHeight: 1.5, color: "rgba(243,236,220,0.7)", cursor: "pointer" }}>
+              <input type="checkbox" checked={remindMe} onChange={(e) => setRemindMe(e.target.checked)} style={{ marginTop: 3, accentColor: "#c9a961" }} />
+              <span>If I don't finish paying, email me one reminder with a link back to my bag.</span>
+            </label>
           </div>
 
           <div>
