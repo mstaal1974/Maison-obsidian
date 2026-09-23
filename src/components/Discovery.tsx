@@ -28,7 +28,7 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
   return (
     <main data-screen-label="Discovery">
       <div style={{ borderBottom: "1px solid #1f1f27", background: "linear-gradient(180deg, #0f0f14, #0b0b0d)" }}>
-        <Container style={{ padding: "48px 32px 36px", display: "grid", gridTemplateColumns: "1fr 420px", gap: 40, alignItems: "start" }} >
+        <Container className="mo-discovery-grid" style={{ padding: "48px 32px 36px", display: "grid", gridTemplateColumns: "1fr 420px", gap: 40, alignItems: "start" }} >
           <div>
             <div style={{ ...micro, color: GOLD }}>Discovery Collection</div>
             <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 52, color: CREAM, lineHeight: 1 }}>Meet the fragrance before committing to the bottle.</h1>

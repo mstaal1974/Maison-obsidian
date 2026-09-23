@@ -25,7 +25,7 @@ export default function RangeBanners() {
             </div>
           </Art>
           <Art src="/assets/banner-ritual.jpg" fallback="/assets/bottle-pair.png" alt="Obsidian Ritual body wash and moisturiser" position="right center" style={{ minHeight: 236, border: "1px solid #1f1f27" }} overlay="linear-gradient(90deg, rgba(11,11,13,0.96) 0%, rgba(11,11,13,0.9) 40%, rgba(11,11,13,0.35) 100%)">
-            <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr 30% auto", alignItems: "center", padding: "26px 28px", gap: 20 }}>
+            <div className="mo-range-inner" style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr 30% auto", alignItems: "center", padding: "26px 28px", gap: 20 }}>
               <div>
                 <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: "rgba(243,236,220,0.6)" }}>Maison Obsidian</div>
                 <h3 style={{ margin: "6px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 34, color: CREAM, lineHeight: 1 }}>Obsidian Ritual</h3>

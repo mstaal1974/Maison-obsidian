@@ -38,6 +38,7 @@ export default function Footer() {
             // Express consent to marketing email, recorded with source "footer".
             if (email.trim()) void joinInnerCircle(email, "footer").then((ok) => ok && setJoined(true));
           }}
+          className="mo-footer-join"
           style={{ display: "flex", alignItems: "center", gap: 14 }}
         >
           <span style={{ fontFamily: MONO, fontSize: 14, letterSpacing: "0.12em", color: "rgba(243,236,220,0.6)" }}>{joined ? "Welcome to the inner circle. Unsubscribe any time from your account." : "Join our inner circle"}</span>
