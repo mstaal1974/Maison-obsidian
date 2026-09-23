@@ -16,6 +16,7 @@ export default function Hero() {
         fallback="/assets/bottle-pair.png"
         alt="Maison Obsidian eau de parfum, discovery bottle, car diffuser and body care"
         position="right center"
+        priority
         style={{ minHeight: 520 }}
         overlay="linear-gradient(90deg, rgba(11,11,13,0.96) 0%, rgba(11,11,13,0.82) 32%, rgba(11,11,13,0.25) 60%, rgba(11,11,13,0.15) 100%), linear-gradient(0deg, rgba(11,11,13,0.7) 0%, transparent 30%)"
       >

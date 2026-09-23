@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { type Fragrance, type FormatKey, money } from "./lib/data";
 import { useFragrances, enrollVip, isVipSubscriber, fetchMyCommits, fetchMyShipments, type CommitRow, type ShipmentRow } from "./lib/store";
 import { useAuth } from "./lib/auth";
@@ -12,10 +12,7 @@ import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/fo
 import AuthModal from "./components/AuthModal";
 import PasswordReset from "./components/PasswordReset";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
-import AdminConsole from "./components/AdminConsole";
-import StaffDesk from "./components/StaffDesk";
 import ChatWidget from "./components/ChatWidget";
-import ScentDna from "./components/ScentDna";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import ChooseObsidian from "./components/ChooseObsidian";
@@ -39,6 +36,12 @@ import { type PickMode, useSubscriptions } from "./lib/subscription";
 import PreferencesPanel from "./components/PreferencesPanel";
 import { type Consents, setConsents, useConsents, useMyTaste } from "./lib/profile";
 import { demoRequestQueries } from "./lib/requests";
+
+// Views most shoppers never open load on demand, keeping them out of the
+// storefront's first download.
+const AdminConsole = lazy(() => import("./components/AdminConsole"));
+const StaffDesk = lazy(() => import("./components/StaffDesk"));
+const ScentDna = lazy(() => import("./components/ScentDna"));
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => currentRoute());
@@ -345,7 +348,7 @@ export default function App() {
   // footer, no bag — just the orders and the printer. It has its own
   // individual account, with fulfilment access enforced by database membership.
   if (route.view === "staff") {
-    if (!auth.configured || auth.user) return <StaffDesk isAdmin={isAdmin} onSignOut={() => void auth.signOut()} />;
+    if (!auth.configured || auth.user) return <Suspense fallback={null}><StaffDesk isAdmin={isAdmin} onSignOut={() => void auth.signOut()} /></Suspense>;
     return <main style={{padding: 32, color: "#f3ecdc"}}><h1>Staff sign in</h1><p>Use your individual staff account to access orders.</p><button onClick={() => setAuthOpen(true)}>Sign in</button><a href="#/">Return to shop</a>{authOpen && <AuthModal onClose={() => setAuthOpen(false)} configured={auth.configured} signInEmail={auth.signInEmail} signUpEmail={auth.signUpEmail} signInGoogle={auth.signInGoogle} />}</main>;
   }
 
@@ -355,18 +358,20 @@ export default function App() {
   if (route.view === "scent") {
     return (
       <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
-        <ScentDna
-          fragrances={fragrances}
-          userId={auth.user?.id ?? null}
-          code={route.code}
-          onOpenProduct={(slug) => navigate(paths.product(slug))}
-          onAddSample={(f) => {
-            addToBag(f.id, "perf10", 1);
-            setPlaced(null);
-            setBagOpen(true);
-          }}
-          onAddDiscoveryBox={addBox}
-        />
+        <Suspense fallback={null}>
+          <ScentDna
+            fragrances={fragrances}
+            userId={auth.user?.id ?? null}
+            code={route.code}
+            onOpenProduct={(slug) => navigate(paths.product(slug))}
+            onAddSample={(f) => {
+              addToBag(f.id, "perf10", 1);
+              setPlaced(null);
+              setBagOpen(true);
+            }}
+            onAddDiscoveryBox={addBox}
+          />
+        </Suspense>
         {bagDrawer}
       </div>
     );
@@ -499,7 +504,9 @@ export default function App() {
 
       {route.view === "admin" &&
         (isAdmin ? (
-          <AdminConsole fragrances={fragrances} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} />
+          <Suspense fallback={null}>
+            <AdminConsole fragrances={fragrances} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} />
+          </Suspense>
         ) : (
           <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
             <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 44, color: "#f3ecdc" }}>Admins only.</h1>

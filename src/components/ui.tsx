@@ -30,6 +30,7 @@ export function Art({
   position = "center",
   style,
   overlay = "linear-gradient(90deg, rgba(11,11,13,0.9) 0%, rgba(11,11,13,0.35) 45%, rgba(11,11,13,0.15) 100%)",
+  priority = false,
   children,
 }: {
   src: string;
@@ -38,6 +39,8 @@ export function Art({
   position?: string;
   style?: CSSProperties;
   overlay?: string | null;
+  /** Above-the-fold art (the hero): fetch at once rather than lazily. */
+  priority?: boolean;
   children?: ReactNode;
 }) {
   const [cur, setCur] = useState(src);
@@ -46,7 +49,8 @@ export function Art({
       <img
         src={cur}
         alt={alt}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         onError={() => cur !== fallback && setCur(fallback)}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: position, opacity: cur === fallback ? 0.5 : 1, filter: cur === fallback ? "brightness(0.7)" : undefined }}
       />
