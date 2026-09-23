@@ -214,7 +214,7 @@ customer receives comes from one sender.
 
 ## 6. Make yourself an admin
 
-The admin console (`#/admin`) is gated by the `admins` table.
+The admin console (`/admin`) is gated by the `admins` table.
 
 1. Sign in to the app at least once (so your user exists).
 2. Supabase → **Authentication → Users**, copy your user's **UUID**.
@@ -350,7 +350,8 @@ Two integrations live **outside** Supabase — listed here so the picture is com
   2. In Stripe → Developers → Webhooks add an endpoint for
      `https://<site>/api/stripe/webhook` with the events `checkout.session.completed`,
      `checkout.session.async_payment_succeeded`, `invoice.upcoming`, `invoice.paid`,
-     `customer.subscription.deleted`, `charge.refunded` and `charge.dispute.created`, then put its
+     `customer.subscription.deleted`, `checkout.session.expired`, `charge.refunded` and
+     `charge.dispute.created`, then put its
      signing secret in `STRIPE_WEBHOOK_SECRET` and redeploy.
   3. Turn on the Customer Portal (Stripe → Settings → Billing → Customer portal) so
      "Update card & invoices" works for subscribers.

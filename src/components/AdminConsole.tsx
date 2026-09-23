@@ -27,6 +27,7 @@ import { demoShipments, subscribeShipments } from "../lib/catalogue";
 import ScentRequests from "./ScentRequests";
 import AdminSubscriptions from "./AdminSubscriptions";
 import AdminMarketing from "./AdminMarketing";
+import AdminReviews from "./AdminReviews";
 
 interface AdminConsoleProps {
   fragrances: Fragrance[];
@@ -64,7 +65,7 @@ const BLANK: Fragrance = {
 };
 
 export default function AdminConsole({ fragrances, configured, onReload, demoCommits }: AdminConsoleProps) {
-  const [tab, setTab] = useState<"catalogue" | "matrix" | "fulfillment" | "requests" | "subscriptions" | "marketing">("catalogue");
+  const [tab, setTab] = useState<"catalogue" | "matrix" | "fulfillment" | "requests" | "reviews" | "subscriptions" | "marketing">("catalogue");
 
   return (
     <main data-screen-label="Admin" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
@@ -79,7 +80,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
       )}
 
       <div style={{ display: "flex", gap: 22, margin: "28px 0 30px", borderBottom: "1px solid #1f1f27" }}>
-        {(["catalogue", "matrix", "fulfillment", "subscriptions", "requests", "marketing"] as const).map((t) => (
+        {(["catalogue", "matrix", "fulfillment", "subscriptions", "requests", "reviews", "marketing"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -96,7 +97,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
               fontWeight: 600,
             }}
           >
-            {t === "catalogue" ? "Catalogue & Inventory" : t === "matrix" ? "Product Matrix" : t === "fulfillment" ? "Fulfillment" : t === "subscriptions" ? "Monthly Pour" : t === "requests" ? "Requests" : "Marketing"}
+            {t === "catalogue" ? "Catalogue & Inventory" : t === "matrix" ? "Product Matrix" : t === "fulfillment" ? "Fulfillment" : t === "subscriptions" ? "Monthly Pour" : t === "requests" ? "Requests" : t === "reviews" ? "Reviews" : "Marketing"}
           </button>
         ))}
       </div>
@@ -105,7 +106,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
           the desk has its own passphrase and its own page. */}
       {tab === "fulfillment" && (
         <p style={{ margin: "-10px 0 22px", fontSize: 11.5 }}>
-          <a href="#/staff" style={{ color: "#c9a961", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 10, textDecoration: "none" }}>
+          <a href="/staff" style={{ color: "#c9a961", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 10, textDecoration: "none" }}>
             Open the staff order desk →
           </a>
           <span style={{ color: "rgba(243,236,220,0.4)", marginLeft: 10 }}>
@@ -124,6 +125,8 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
         <AdminSubscriptions fragrances={fragrances} configured={configured} />
       ) : tab === "requests" ? (
         <ScentRequests configured={configured} />
+      ) : tab === "reviews" ? (
+        <AdminReviews fragrances={fragrances} configured={configured} />
       ) : (
         <AdminMarketing fragrances={fragrances} configured={configured} />
       )}

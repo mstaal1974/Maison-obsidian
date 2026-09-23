@@ -8,6 +8,7 @@
 
 import { getStripe, json, serviceClient, userFromRequest, route, notConfigured } from "../_lib/stripe.js";
 import { bagLines, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
+import { withOriginalMetadata } from "../_lib/recovery.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -20,7 +21,7 @@ export default route("confirm", async function handler(req: any, res: any) {
   const id = String(req.query?.session_id ?? "");
   if (!id.startsWith("cs_")) return json(res, 400, { error: "Missing session" });
 
-  const session = await stripe.checkout.sessions.retrieve(id);
+  const session = await withOriginalMetadata(stripe, await stripe.checkout.sessions.retrieve(id));
   const owner = session.metadata?.user_id ?? "";
   if (owner && owner !== user?.id) return json(res, 403, { error: "Not your session" });
   if (session.status !== "complete" || session.payment_status !== "paid") return json(res, 409, { error: "Payment not completed", status: session.status });

@@ -55,7 +55,13 @@ is a *format* (SKU) of that fragrance, not a separate listing.
   (Discover / Wear / Drive / Ritual), **Find your fragrance** (type a scent you
   love → your Maison Obsidian match with a % score), **Shop by mood** chips with
   horizontal scent cards, and the Obsidian Drive / Obsidian Ritual banners.
-- **Fragrance world** (`#/fragrance/:slug`) — gallery, name → profile → "Inspired
+- **Search and sharing.** Every page has a real URL. `npm run build` ends with
+  `scripts/prerender.mjs`, which writes a page per fragrance
+  (`dist/fragrance/<slug>/index.html`) with its own title, description,
+  canonical URL, social card and schema.org Product data, plus `sitemap.xml`
+  and `robots.txt`. It reads the live catalogue, else the seed; set `SITE_URL`
+  in Vercel to the domain Google should index.
+- **Fragrance world** (`/fragrance/:slug`) — gallery, name → profile → "Inspired
   by the scent profile of …" (brand hierarchy reversed), experience icons,
   **Choose your format** in four groups (Wear it / Drive with it / Live in it /
   Complete the ritual) with *Coming soon · Notify me* for unlaunched formats,
@@ -67,8 +73,8 @@ is a *format* (SKU) of that fragrance, not a separate listing.
   *Reserve & authorise* checkout: each line becomes a commit (card authorised,
   never charged, until the batch pours).
 - **Discovery** — 10 ml singles and the **Build your 5** Discovery Box.
-- **Collections** — `#/shop`, `#/shop/:facet` (him / her / unisex / mood / format),
-  `#/fragrances`, `#/car`, `#/body`, with gender · mood · format filter chips.
+- **Collections** — `/shop`, `/shop/:facet` (him / her / unisex / mood / format),
+  `/fragrances`, `/car`, `/body`, with gender · mood · format filter chips.
 - **Admin product matrix** — fragrance × format grid: stock, launch status
   (live / coming soon / hidden) and price per cell, with bulk actions (enable car
   diffuser for all, mark / launch the body range, change a format's price for all).
@@ -79,8 +85,7 @@ is a *format* (SKU) of that fragrance, not a separate listing.
 A standalone campaign experience — its own chrome, no storefront navigation
 required — built for social acquisition, lead generation and personalised
 matching. Reachable at **`/discover`**, **`/scent-dna`** and, for a shared
-result, **`/scent/<code>`** (clean paths rewritten to the app in `vercel.json`;
-the hash forms `#/discover` and `#/scent/<code>` work identically).
+result, **`/scent/<code>`** (old `/discover` and `/scent/<code>` links still work).
 
 `DISCOVER → SCENTPRINT → MATCH → SCENT UNIVERSE → EXPLORE`, with a four-step
 progress rail (`01 Discover — 02 Scent DNA — 03 Matches — 04 Explore`).
@@ -203,7 +208,7 @@ Earlier foundations, still in place:
 - **Authentication** — real Supabase Auth: email/password + Google OAuth via an
   `AuthModal`; commits and VIP enrolment are tied to the signed-in user. Falls back
   to a local demo user when Supabase isn't configured.
-- **My Reservations** (`#/account`) — the signed-in user's commits from the
+- **My Reservations** (`/account`) — the signed-in user's commits from the
   `commits` table (RLS-scoped), each with size, price held, engraving and a status
   badge; falls back to local commits in the demo.
 - **Payments** — authorize-later Stripe: each commit authorizes a hold and records
@@ -214,7 +219,7 @@ Earlier foundations, still in place:
   copy (**Copywriting**), and deconstructs the scent into top / heart / base notes
   (**Olfactory Breakdown**). Attach a transparent bottle PNG (or keep the placeholder)
   and add the product in one click; everything lands in the regular editor for tweaks.
-- **Admin console** (`#/admin`, admins only) — add / edit / remove fragrances and
+- **Admin console** (`/admin`, admins only) — add / edit / remove fragrances and
   manage per-size inventory (with low-stock flags), track raw oil on hand against
   per-size commitment demand, plus a fulfillment queue that turns commits into
   shipments.
@@ -230,7 +235,7 @@ Earlier foundations, still in place:
   API key isn't set.
 - **Hero** — atmospheric landing with the four brand stats (30% · 4wk · 20 · DXB).
 - **The Method** — the four movements (Source → Macerate → Commit → Pour), now on
-  the `#/about` page with the range nomenclature and the VIP Club.
+  the `/about` page with the range nomenclature and the VIP Club.
 - **VIP Club** — email enrolment that writes to the `subscribers` table (via the
   `enroll_subscriber` RPC) and unlocks VIP-only batches.
 - **Footer** + film-grain overlay, responsive breakpoints, and reduced-motion support.
@@ -370,7 +375,7 @@ tracking number and linking to `auspost.com.au/mypost/track`. Set the `AUSPOST_*
 secrets (see `.env.example`); without them it falls back to a stub article id so the
 flow still runs. The commit engine is untouched — this is fulfillment only.
 
-The **Admin Console** (`#/admin`) surfaces all of this: a Catalogue tab (add / edit /
+The **Admin Console** (`/admin`) surfaces all of this: a Catalogue tab (add / edit /
 remove, inline per-size stock with low-stock flags, raw oil on hand, and per-size
 commitment counts with oil-coverage) and a Fulfillment tab (commits →
 create shipment). Make a user an admin with
@@ -435,7 +440,7 @@ update public.staff_access set passphrase_hash = crypt('…', gen_salt('bf'));
 It deliberately uses no serverless function — the project sits at Vercel's
 twelve-function ceiling — so the whole desk is RPCs plus a page.
 
-The page (`/staff`, or `#/staff`) shows each paid order with its lines, the
+The page (`/staff`) shows each paid order with its lines, the
 reference each scent interprets, the amount, the customer, the shipping address
 and any delivery note, a **tick box for packed**, and a field for the **Australia
 Post article id** (saved on blur, with a tracking link once set). Filters cover

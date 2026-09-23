@@ -1,5 +1,13 @@
-// Hash router for the storefront. Every page is a hash so the app stays a
-// single static bundle on Vercel and the Supabase auth redirect keeps working.
+// Path router for the storefront. Every page has a real URL
+// (/fragrance/smoky-timber, /shop/woody) so search engines can index it and a
+// shared link previews the right page; Vercel serves the app for any path
+// that isn't a file (vercel.json), and scripts/prerender.mjs writes a page per
+// fragrance with its own title and social card.
+//
+// The site used to route on the hash (#/fragrance/…). Those links still work:
+// migrateLegacyHash() rewrites them to the path form on load. A hash that
+// doesn't start with "#/" (Supabase's #access_token=… after sign-in) is left
+// alone for the auth client to read.
 
 export type Route =
   | { view: "home" }
@@ -25,8 +33,9 @@ export type Route =
   // /staff as well as the hash form, and behind its own passphrase.
   | { view: "staff" };
 
+/** The route for "#/fragrance/x?y" (legacy) or "/fragrance/x?y". */
 export function parseHash(hash: string): Route {
-  const h = hash.replace(/^#\/?/, "");
+  const h = hash.replace(/^#?\/?/, "");
   // Split the query string off first so "#/find?q=…" still routes to "find".
   const [head, ...rest] = h.split("?")[0].split("/");
   const tail = rest.join("/");
@@ -83,64 +92,93 @@ export function parseHash(hash: string): Route {
   }
 }
 
-/**
- * The route for a clean path, so a link pasted from Instagram or printed on a
- * QR code (maisonobsidian.com.au/discover) opens the right screen. Vercel
- * rewrites these paths to the app; anything else falls back to the storefront.
- */
-export function parsePath(pathname: string): Route {
-  const segments = pathname.replace(/^\/+|\/+$/g, "").split("/");
-  const [head, ...rest] = segments;
-  switch (head) {
-    case "discover":
-    case "scent-dna":
-      return { view: "scent", code: null };
-    case "scent":
-      return { view: "scent", code: rest[0] ? decodeURIComponent(rest[0]) : null };
-    case "staff":
-      return { view: "staff" };
-    default:
-      return { view: "home" };
-  }
+/** The current route, from the legacy hash if there is one, else the path. */
+export function currentRoute(): Route {
+  const { hash, pathname, search } = window.location;
+  return hash.startsWith("#/") ? parseHash(hash) : parseHash(pathname + search);
 }
 
-/**
- * The current route: the hash whenever there is one — even "#/" — so navigating
- * home from /discover lands on the storefront instead of bouncing back to the
- * campaign page. The clean path is only read on a cold open.
- */
-export function currentRoute(): Route {
-  return window.location.hash ? parseHash(window.location.hash) : parsePath(window.location.pathname);
+/** Old "#/…" links (bookmarks, QR codes, checkouts in flight) become paths. */
+export function migrateLegacyHash(): void {
+  const { hash } = window.location;
+  if (hash.startsWith("#/")) window.history.replaceState(null, "", hash.slice(1) || "/");
+}
+
+const ROUTE_EVENT = "mo:route";
+
+/** Calls `fn` whenever the route changes: a link, navigate(), back or forward. */
+export function onRouteChange(fn: () => void): () => void {
+  const onHash = () => {
+    // Someone typed or followed an old "#/…" URL within the page.
+    if (!window.location.hash.startsWith("#/")) return;
+    migrateLegacyHash();
+    fn();
+  };
+  window.addEventListener(ROUTE_EVENT, fn);
+  window.addEventListener("popstate", fn);
+  window.addEventListener("hashchange", onHash);
+  return () => {
+    window.removeEventListener(ROUTE_EVENT, fn);
+    window.removeEventListener("popstate", fn);
+    window.removeEventListener("hashchange", onHash);
+  };
 }
 
 export function navigate(to: string, scrollTop = true): void {
-  window.location.hash = to;
+  const url = to.startsWith("#") ? to.slice(1) || "/" : to;
+  if (url !== window.location.pathname + window.location.search + window.location.hash) {
+    window.history.pushState(null, "", url);
+    window.dispatchEvent(new Event(ROUTE_EVENT));
+  }
   if (scrollTop) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+/**
+ * Same-origin <a href="/…"> clicks become in-app navigation instead of full
+ * page loads. Modified clicks (new tab, download) and API or asset links are
+ * left to the browser.
+ */
+export function interceptLinks(): void {
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = (e.target as Element | null)?.closest?.("a");
+    if (!a || (a.target && a.target !== "_self") || a.hasAttribute("download")) return;
+    const url = new URL(a.href, window.location.href);
+    if (url.origin !== window.location.origin || /^\/(api|assets)\//.test(url.pathname)) return;
+    if (url.hash.startsWith("#/")) {
+      e.preventDefault();
+      navigate(url.hash);
+      return;
+    }
+    if (url.hash && url.pathname === window.location.pathname) return; // in-page anchor
+    e.preventDefault();
+    navigate(url.pathname + url.search);
+  });
+}
+
 export const paths = {
-  home: "#/",
-  shop: (facet?: string) => (facet ? `#/shop/${encodeURIComponent(facet)}` : "#/shop"),
-  fragrances: "#/fragrances",
-  discovery: "#/discovery",
-  car: "#/car",
-  body: "#/body",
-  find: (q?: string) => (q ? `#/find?q=${encodeURIComponent(q)}` : "#/find"),
-  discover: "#/discover",
-  scent: (code: string) => `#/scent/${encodeURIComponent(code)}`,
-  product: (slug: string) => `#/fragrance/${encodeURIComponent(slug)}`,
+  home: "/",
+  shop: (facet?: string) => (facet ? `/shop/${encodeURIComponent(facet)}` : "/shop"),
+  fragrances: "/fragrances",
+  discovery: "/discovery",
+  car: "/car",
+  body: "/body",
+  find: (q?: string) => (q ? `/find?q=${encodeURIComponent(q)}` : "/find"),
+  discover: "/discover",
+  scent: (code: string) => `/scent/${encodeURIComponent(code)}`,
+  product: (slug: string) => `/fragrance/${encodeURIComponent(slug)}`,
   subscribe: (slug?: string, format?: string) => {
     const q = new URLSearchParams();
     if (slug) q.set("f", slug);
     if (format) q.set("format", format);
     const qs = q.toString();
-    return qs ? `#/subscribe?${qs}` : "#/subscribe";
+    return qs ? `/subscribe?${qs}` : "/subscribe";
   },
-  checkout: "#/checkout",
-  thanks: "#/thanks",
-  about: "#/about",
-  help: "#/help",
-  account: "#/account",
-  admin: "#/admin",
-  staff: "#/staff",
+  checkout: "/checkout",
+  thanks: "/thanks",
+  about: "/about",
+  help: "/help",
+  account: "/account",
+  admin: "/admin",
+  staff: "/staff",
 };

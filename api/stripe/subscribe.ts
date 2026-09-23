@@ -91,8 +91,8 @@ export default route("subscribe", async function handler(req: any, res: any) {
     ],
     subscription_data: { metadata: meta },
     metadata: meta,
-    success_url: `${site}/#/account?subscribed=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${site}/#/subscribe`,
+    success_url: `${site}/account?subscribed=1&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${site}/subscribe`,
   });
   return json(res, 200, { url: session.url, sessionId: session.id });
 });

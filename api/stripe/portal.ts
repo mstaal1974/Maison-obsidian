@@ -13,6 +13,6 @@ export default route("portal", async function handler(req: any, res: any) {
   const user = await userFromRequest(req);
   if (!user) return json(res, 401, { error: "Sign in" });
   const customer = await customerFor(stripe, db, user);
-  const portal = await stripe.billingPortal.sessions.create({ customer, return_url: `${siteUrl(req)}/#/account` });
+  const portal = await stripe.billingPortal.sessions.create({ customer, return_url: `${siteUrl(req)}/account` });
   return json(res, 200, { url: portal.url });
 });

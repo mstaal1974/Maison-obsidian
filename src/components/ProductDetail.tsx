@@ -2,6 +2,9 @@ import { useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, experienceOf, relatedTo, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { productMeta, usePageMeta } from "../lib/seo";
+import { summarise, useReviews } from "../lib/reviews";
+import Reviews, { Stars } from "./Reviews";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import { bottleBackdrop } from "./adminStyles";
@@ -15,6 +18,9 @@ interface ProductDetailProps {
   vip: boolean;
   onAdd: (f: Fragrance, key: FormatKey, qty: number, engraving: string | null) => void;
   onQuickView: (f: Fragrance, format?: FormatKey) => void;
+  /** Signed-in customer, for the review form. */
+  userId: string | null;
+  onSignIn: () => void;
 }
 
 const ORDER: FormatGroup[] = ["wear", "drive", "live", "ritual"];
@@ -25,16 +31,40 @@ const ENGRAVE_MAX = 28;
  * experience it — Wear it / Drive with it / Live in it / Complete the ritual —
  * and reads the notes and the story underneath.
  */
-export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickView }: ProductDetailProps) {
+export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickView, userId, onSignIn }: ProductDetailProps) {
   const [key, setKey] = useState<FormatKey>("perf50");
   const [qty, setQty] = useState(1);
   const [engraveOn, setEngraveOn] = useState(false);
   const [engraving, setEngraving] = useState("");
   const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
+  const { reviews, enabled: reviewsOn } = useReviews(frag.id);
+  const rating = useMemo(() => summarise(reviews), [reviews]);
+  usePageMeta(useMemo(() => productMeta(frag, window.location.origin, frag.imageUrl, rating), [frag, rating]));
   const chosen = skuOf(frag, key);
   const locked = !!frag.vipOnly && !vip;
   const profile = profileOf(frag);
   const related = useMemo(() => relatedTo(frag, fragrances, 4), [frag, fragrances]);
+
+  // "Pair it with": the same scent in another format, and a 10ml of the
+  // closest related scent to try. Ticked add-ons go in the bag with the main
+  // item.
+  const [addOns, setAddOns] = useState<Set<string>>(new Set());
+  const pairings = useMemo(() => {
+    const out: { id: string; frag: Fragrance; key: FormatKey; title: string; note: string; price: number }[] = [];
+    for (const k of ["car", "wash", "moist"] as FormatKey[]) {
+      const s = skuOf(frag, k);
+      if (k !== key && s.buyable) out.push({ id: k, frag, key: k, title: `${frag.name} ${s.def.label}`, note: k === "car" ? "Take the scent with you" : "Layer the scent", price: s.price });
+    }
+    const other = related.find((r) => !(r.vipOnly && !vip) && skuOf(r, "perf10").buyable);
+    if (other) out.push({ id: `sample:${other.id}`, frag: other, key: "perf10", title: `${other.name} 10ml`, note: "Try the closest match to this scent", price: skuOf(other, "perf10").price });
+    return out;
+  }, [frag, key, related, vip]);
+  const pickedPairings = pairings.filter((p) => addOns.has(p.id));
+  const addWithPairings = () => {
+    onAdd(frag, key, qty, finalEngraving);
+    for (const p of pickedPairings) onAdd(p.frag, p.key, 1, null);
+    setAddOns(new Set());
+  };
 
   const canEngrave = chosen.def.group === "wear";
   const finalEngraving = canEngrave && engraveOn ? engraving.trim().slice(0, ENGRAVE_MAX) || null : null;
@@ -105,6 +135,11 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
             </nav>
             <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 54, lineHeight: 1, color: CREAM }}>{frag.name}</h1>
             <div style={{ ...micro, color: GOLD, marginTop: 10, letterSpacing: "0.34em" }}>{profile.join(" · ")}</div>
+            {rating && (
+              <a href="#reviews" onClick={(e) => { e.preventDefault(); document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth" }); }} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 8, fontFamily: MONO, fontSize: 12.5, color: CREAM, textDecoration: "none" }}>
+                <Stars value={rating.average} /> {rating.average.toFixed(1)} · {rating.count} {rating.count === 1 ? "review" : "reviews"}
+              </a>
+            )}
             <div style={{ marginTop: 14 }}><InspiredBy {...referenceOf(frag)} size="lg" /></div>
             <p style={{ margin: "10px 0 0", fontFamily: SERIF, fontSize: 17.5, lineHeight: 1.45, color: "rgba(243,236,220,0.78)", maxWidth: 620 }}>{frag.story}</p>
 
@@ -156,9 +191,9 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
                 className="mo-cta"
                 style={{ ...btnGold, height: 52, padding: "0 56px", fontSize: 12.5, letterSpacing: "0.28em", opacity: chosen.buyable && !locked ? 1 : 0.5 }}
                 disabled={!chosen.buyable || locked}
-                onClick={() => onAdd(frag, key, qty, finalEngraving)}
+                onClick={addWithPairings}
               >
-                <Icon name="bag" size={14} color="#0b0b0d" /> {locked ? "VIP members only" : chosen.buyable ? "Add to bag" : chosen.status === "coming_soon" ? "Coming soon" : "Sold out"}
+                <Icon name="bag" size={14} color="#0b0b0d" /> {locked ? "VIP members only" : !chosen.buyable ? (chosen.status === "coming_soon" ? "Coming soon" : "Sold out") : pickedPairings.length ? `Add ${pickedPairings.length + 1} to bag` : "Add to bag"}
               </button>
               <button aria-label="Save to wishlist" style={{ width: 52, height: 52, border: "1px solid rgba(201,169,97,0.5)", background: "none", cursor: "pointer", display: "grid", placeItems: "center" }}>
                 <Icon name="heart" size={16} />
@@ -174,6 +209,37 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
                 <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
               </span>
             </div>
+
+            {pairings.length > 0 && chosen.buyable && !locked && (
+              <fieldset style={{ margin: "16px 0 0", border: "1px solid #1f1f27", padding: "12px 14px 6px" }}>
+                <legend style={{ ...micro, fontSize: 8.5, padding: "0 6px", color: GOLD }}>Pair it with</legend>
+                {pairings.map((p) => (
+                  <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderTop: "1px solid #17171d", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={addOns.has(p.id)}
+                      onChange={(e) =>
+                        setAddOns((cur) => {
+                          const next = new Set(cur);
+                          if (e.target.checked) next.add(p.id);
+                          else next.delete(p.id);
+                          return next;
+                        })
+                      }
+                      style={{ accentColor: GOLD, width: 16, height: 16 }}
+                    />
+                    <span style={{ width: 34, height: 42, flexShrink: 0, display: "grid", placeItems: "center", background: bottleBackdrop(p.frag.accent, p.frag.liquid), border: "1px solid #1f1f27" }}>
+                      <FormatGlyph formatKey={p.key} liquid={p.frag.liquid} height={32} />
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "block", fontFamily: SERIF, fontSize: 17, color: CREAM }}>{p.title}</span>
+                      <span style={{ display: "block", fontSize: 12, color: "rgba(243,236,220,0.55)" }}>{p.note}</span>
+                    </span>
+                    <span style={{ fontFamily: MONO, fontSize: 13, color: CREAM }}>+{money(p.price)}</span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
 
             {canEngrave && (
               <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
@@ -270,6 +336,8 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
           </Container>
         </section>
       )}
+
+      <Reviews frag={frag} reviews={reviews} summary={rating} enabled={reviewsOn} userId={userId} onSignIn={onSignIn} />
 
       {/* ── You may also like ── */}
       <section aria-label="You may also like">

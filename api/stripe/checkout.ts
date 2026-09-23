@@ -46,6 +46,7 @@ export default route("checkout", async function handler(req: any, res: any) {
     address?: string;
     city?: string;
     region?: string;
+    remindMe?: boolean;
   };
   const alternate = delivery.method === "alternate";
   const clean = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -100,7 +101,13 @@ export default route("checkout", async function handler(req: any, res: any) {
     billing_address_collection: "auto",
     phone_number_collection: { enabled: false },
     automatic_tax: { enabled: false },
-    allow_promotion_codes: false,
+    // Codes are created in the Stripe Dashboard (Product catalogue → Coupons).
+    allow_promotion_codes: true,
+    // An unpaid checkout closes after three hours; the recovery link reopens
+    // the same bag for 30 days, and the webhook emails it to shoppers who
+    // asked for a reminder (api/_lib/recovery.ts).
+    expires_at: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
+    after_expiration: { recovery: { enabled: true, allow_promotion_codes: true } },
     submit_type: "auto",
     integration_identifier: "hosted_web_0001",
     origin_context: "web",
@@ -153,13 +160,14 @@ export default route("checkout", async function handler(req: any, res: any) {
       // past about eight lines and made it unrecordable after payment.
       ...chunkBag(compact),
       delivery_method: alternate ? "alternate" : "auspost",
+      ...(delivery.remindMe === true ? { remind: "1" } : {}),
       ...(contactEmail ? { contact_email: contactEmail } : {}),
       ...(deliveryName ? { delivery_name: deliveryName } : {}),
       ...(alternate ? { delivery_phone: deliveryPhone, delivery_notes: deliveryNotes } : {}),
       ...(haveAddress ? { ship_address: shipAddress, ship_city: shipCity, ship_region: shipRegion, ship_postcode: postcode } : {}),
     },
-    success_url: `${site}/#/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${site}/#/checkout?cancelled=1`,
+    success_url: `${site}/thanks?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${site}/checkout?cancelled=1`,
   });
   return json(res, 200, { url: session.url, sessionId: session.id });
 });

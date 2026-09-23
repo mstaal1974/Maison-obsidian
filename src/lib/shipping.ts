@@ -6,6 +6,13 @@
 
 import type { FormatKey } from "./data";
 
+/**
+ * Standard post is free at or above this bag subtotal. The server decides what
+ * is charged (FREE_SHIPPING_THRESHOLD_CENTS in api/_lib/auspost.ts); this copy
+ * only drives the bag's "you're $X away" line, so keep the two equal.
+ */
+export const FREE_SHIPPING_THRESHOLD_CENTS = 10000;
+
 export interface ShippingRate {
   code: string;
   name: string;
@@ -69,6 +76,8 @@ export interface CheckoutDelivery {
   /** Alternate: how to reach them and how to get it to them. */
   phone?: string;
   notes?: string;
+  /** Opted in to one email with a link back to this checkout if it isn't finished. */
+  remindMe?: boolean;
 }
 
 export function etaLabel(r: ShippingRate): string {

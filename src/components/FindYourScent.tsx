@@ -20,7 +20,7 @@ interface FindYourScentProps {
  * "Tell us a scent you love." Matches a fragrance or brand the customer already
  * wears against the house's inspiration library and suggests its Obsidian.
  * Renders inline on the homepage (mode="section") and as the full
- * #/find page (mode="page").
+ * /find page (mode="page").
  */
 export default function FindYourScent({ fragrances, mode = "section", initialQuery = "", onQuickView, userEmail }: FindYourScentProps) {
   const [q, setQ] = useState(initialQuery);
