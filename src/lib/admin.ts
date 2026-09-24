@@ -80,6 +80,13 @@ export async function adminUpsertFragrance(f: Fragrance): Promise<string | null>
   return error ? null : (data as string);
 }
 
+/** Sets or clears a fragrance's launch date (demo mode stores it with the row). */
+export async function adminSetLaunch(id: string, launchAt: string | null): Promise<boolean> {
+  if (!supabase) return true;
+  const { error } = await supabase.rpc("admin_set_launch", { p_id: id, p_launch_at: launchAt });
+  return !error;
+}
+
 export async function adminSetOil(id: string, oilMl: number): Promise<boolean> {
   if (!supabase) {
     demoSetOil(id, Math.max(0, oilMl));

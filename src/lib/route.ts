@@ -13,6 +13,7 @@ export type Route =
   | { view: "home" }
   | { view: "shop"; facet: string | null } // #/shop, #/shop/him, #/shop/woody, #/shop/50ml
   | { view: "fragrances" }
+  | { view: "new" }
   | { view: "discovery" }
   | { view: "car" }
   | { view: "body" }
@@ -46,6 +47,8 @@ export function parseHash(hash: string): Route {
       return { view: "shop", facet: tail ? decodeURIComponent(tail) : null };
     case "fragrances":
       return { view: "fragrances" };
+    case "new":
+      return { view: "new" };
     case "discovery":
       return { view: "discovery" };
     case "car":
@@ -160,6 +163,7 @@ export const paths = {
   home: "/",
   shop: (facet?: string) => (facet ? `/shop/${encodeURIComponent(facet)}` : "/shop"),
   fragrances: "/fragrances",
+  newArrivals: "/new",
   discovery: "/discovery",
   car: "/car",
   body: "/body",

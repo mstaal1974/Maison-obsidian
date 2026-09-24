@@ -6,6 +6,7 @@ import FormatMatrix from "./FormatMatrix";
 import { label, field, btnGold, btnGhost, bottleBackdrop } from "./adminStyles";
 import {
   adminUpsertFragrance,
+  adminSetLaunch,
   adminDeleteFragrance,
   adminSetStock,
   adminSetOil,
@@ -28,6 +29,13 @@ import ScentRequests from "./ScentRequests";
 import AdminSubscriptions from "./AdminSubscriptions";
 import AdminMarketing from "./AdminMarketing";
 import AdminReviews from "./AdminReviews";
+import { NEW_DAYS, isLaunched, isNew } from "../lib/launch";
+
+/** yyyy-mm-dd in the browser's time zone, for a date input. */
+function localDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 interface AdminConsoleProps {
   fragrances: Fragrance[];
@@ -193,6 +201,7 @@ function Catalogue({
       const id = await adminUpsertFragrance({ ...f, imageUrl });
       if (!id) throw new Error("The catalogue rejected the save — check the slug is unique.");
       await adminSetOil(id, f.oilMl ?? 0);
+      if (!(await adminSetLaunch(id, f.launchAt ?? null))) throw new Error("Saved, but the launch date could not be set — has migration 0034 been applied?");
       if (configured) onReload();
       setEditing(null);
       setEditingImage(null);
@@ -369,6 +378,7 @@ function Row({
             <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: "#f3ecdc", lineHeight: 1 }}>{f.name}</div>
             <div style={{ ...label, marginTop: 4 }}>
               {f.gender} · {money(f.price)} {f.vipOnly ? "· VIP" : ""}
+              {!isLaunched(f) ? ` · Launches ${new Date(f.launchAt!).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : isNew(f) ? " · New" : ""}
             </div>
           </div>
         </div>
@@ -586,6 +596,25 @@ function Editor({
           <input type="checkbox" checked={!!f.vipOnly} onChange={(e) => set("vipOnly", e.target.checked)} />
           VIP only
         </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={label}>Launch date</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              type="date"
+              style={{ ...field, width: 180 }}
+              value={f.launchAt ? localDate(f.launchAt) : ""}
+              onChange={(e) => set("launchAt", e.target.value ? new Date(`${e.target.value}T00:00:00`).toISOString() : undefined)}
+            />
+            <button type="button" style={{ ...btnGhost, height: 34 }} onClick={() => set("launchAt", new Date().toISOString())}>Launch today</button>
+            {f.launchAt && (
+              <button type="button" style={{ ...btnGhost, height: 34 }} onClick={() => set("launchAt", undefined)}>Clear</button>
+            )}
+          </div>
+          <span style={{ fontSize: 11.5, color: "rgba(243,236,220,0.5)", lineHeight: 1.5 }}>
+            Shown as New for {NEW_DAYS} days from this date, in New arrivals and on the home page. A future date keeps the fragrance
+            hidden and unbuyable until that day. Leave empty for an established scent.
+          </span>
+        </div>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <button style={{ ...btnGold, opacity: valid && !busy ? 1 : 0.5 }} disabled={!valid || busy} onClick={() => onSave(f, image)}>

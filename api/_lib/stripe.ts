@@ -121,6 +121,7 @@ interface FragranceRow {
   stock_moist: number | null;
   format_prices: Record<string, number> | null;
   format_status: Record<string, string> | null;
+  launch_at: string | null;
 }
 
 function rowToItem(r: FragranceRow): CatalogueItem {
@@ -140,10 +141,11 @@ function rowToItem(r: FragranceRow): CatalogueItem {
     stockMoist: r.stock_moist ?? 0,
     formatPrices: (r.format_prices ?? undefined) as CatalogueItem["formatPrices"],
     formatStatus: (r.format_status ?? undefined) as CatalogueItem["formatStatus"],
+    launchAt: r.launch_at,
   };
 }
 
-const FRAG_SELECT = "id, slug, name, price_10ml_cents, price_30ml_cents, price_50ml_cents, vip_only, stock_10ml, stock_30ml, stock_50ml, stock_car, stock_wash, stock_moist, format_prices, format_status";
+const FRAG_SELECT = "id, slug, name, price_10ml_cents, price_30ml_cents, price_50ml_cents, vip_only, stock_10ml, stock_30ml, stock_50ml, stock_car, stock_wash, stock_moist, format_prices, format_status, launch_at";
 
 /** Live catalogue (public read, anon key is enough). */
 export async function loadCatalogue(): Promise<Map<string, CatalogueItem>> {

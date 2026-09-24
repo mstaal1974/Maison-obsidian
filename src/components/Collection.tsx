@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, type Filter, GOLD, CREAM, matches } from "../lib/data";
+import { isNew } from "../lib/launch";
 import { MOODS, type Mood, moodsOf, sku as skuOf, formatStatus, matchesReference } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import FragranceCard from "./FragranceCard";
@@ -49,6 +50,8 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
   const [mood, setMood] = useState<Mood | null>(initialMood);
   const [format, setFormat] = useState<string | null>(initialFormat);
   const [inspired, setInspired] = useState("");
+  const [onlyNew, setOnlyNew] = useState(false);
+  const newCount = useMemo(() => fragrances.filter((f) => isNew(f)).length, [fragrances]);
 
   const list = useMemo(() => {
     let out = fragrances;
@@ -60,8 +63,9 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
       if (key) out = out.filter((f) => formatStatus(f, key) !== "hidden");
     }
     if (inspired.trim()) out = out.filter((f) => matchesReference(f, inspired));
+    if (onlyNew) out = out.filter((f) => isNew(f));
     return out;
-  }, [fragrances, gender, mood, format, inspired]);
+  }, [fragrances, gender, mood, format, inspired, onlyNew]);
 
   const intro = INTRO[mode];
   const defaultFormat: FormatKey | undefined = mode === "car" ? "car" : mode === "body" ? "wash" : FORMAT_FACETS.find((x) => x.id === format)?.key;
@@ -91,6 +95,11 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
       <Container style={{ padding: "18px 32px 60px" }}>
         {/* Filters: gender is a filter, not the architecture. */}
         <div className="mo-filters" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", borderBottom: "1px solid #1f1f27", paddingBottom: 14 }}>
+          {newCount > 0 && (
+            <div className="mo-filter-group" role="group" aria-label="New">
+              <Chip active={onlyNew} tone="gold" onClick={() => setOnlyNew((v) => !v)}>New · {newCount}</Chip>
+            </div>
+          )}
           <div className="mo-filter-group" role="group" aria-label="For">
             <span style={{ ...micro, marginRight: 4 }}>For</span>
             {GENDERS.map((g) => (
@@ -126,7 +135,7 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
         </div>
 
         {list.length === 0 ? (
-          <p style={{ ...body, marginTop: 30 }}>Nothing matches those filters yet. <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => { setGender("all"); setMood(null); setFormat(null); setInspired(""); }}>Clear filters</button> or <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => navigate(paths.find())}>find your scent</button>.</p>
+          <p style={{ ...body, marginTop: 30 }}>Nothing matches those filters yet. <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => { setGender("all"); setMood(null); setFormat(null); setInspired(""); setOnlyNew(false); }}>Clear filters</button> or <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => navigate(paths.find())}>find your scent</button>.</p>
         ) : (
           <div className="mo-vault-grid" style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {list.map((f) => (

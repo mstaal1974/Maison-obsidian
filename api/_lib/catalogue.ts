@@ -24,6 +24,8 @@ export interface CatalogueItem {
   stockMoist: number;
   formatPrices?: Partial<Record<FormatKey, number>>;
   formatStatus?: Partial<Record<FormatKey, FormatStatus>>;
+  /** ISO launch date; not for sale before it (src/lib/launch.ts). */
+  launchAt?: string | null;
 }
 
 export interface FormatDef {
@@ -100,7 +102,15 @@ function rawStock(f: CatalogueItem, key: FormatKey): number {
 }
 
 /** Purchasable now: live and stocked, or a made-to-order perfume / diffuser. */
+/** No launch date, or one that has arrived. Mirrors isLaunched() in src/lib/launch.ts. */
+export function launched(f: Pick<CatalogueItem, "launchAt">, now = Date.now()): boolean {
+  if (!f.launchAt) return true;
+  const t = Date.parse(f.launchAt);
+  return Number.isNaN(t) || t <= now;
+}
+
 export function buyable(f: CatalogueItem, key: FormatKey): boolean {
+  if (!launched(f)) return false;
   const def = FORMAT_BY_KEY[key];
   const perfume = def.group === "wear" || def.group === "drive";
   return formatStatus(f, key) === "live" && (rawStock(f, key) > 0 || perfume);

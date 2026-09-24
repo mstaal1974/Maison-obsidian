@@ -4,6 +4,7 @@ import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referen
 import { navigate, paths } from "../lib/route";
 import { productMeta, usePageMeta } from "../lib/seo";
 import { summarise, useReviews } from "../lib/reviews";
+import { isNew } from "../lib/launch";
 import Reviews, { Stars } from "./Reviews";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
@@ -134,7 +135,10 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
               <span style={{ color: "rgba(243,236,220,0.8)" }}>{frag.name}</span>
             </nav>
             <h1 className="mo-pdp-title" style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 54, lineHeight: 1, color: CREAM }}>{frag.name}</h1>
-            <div style={{ ...micro, color: GOLD, marginTop: 10, letterSpacing: "0.34em" }}>{profile.join(" · ")}</div>
+            <div style={{ ...micro, color: GOLD, marginTop: 10, letterSpacing: "0.34em", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              {isNew(frag) && <span style={{ color: "#0b0b0d", background: GOLD, padding: "3px 8px", letterSpacing: "0.2em", fontWeight: 600 }}>New arrival</span>}
+              <span>{profile.join(" · ")}</span>
+            </div>
             {rating && (
               <a href="#reviews" onClick={(e) => { e.preventDefault(); document.getElementById("reviews")?.scrollIntoView({ behavior: "smooth" }); }} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 8, fontFamily: MONO, fontSize: 12.5, color: CREAM, textDecoration: "none" }}>
                 <Stars value={rating.average} /> {rating.average.toFixed(1)} · {rating.count} {rating.count === 1 ? "review" : "reviews"}

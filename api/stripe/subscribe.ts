@@ -7,7 +7,7 @@
 // after the twelfth paid month it cancels it.
 
 import { customerFor, getStripe, json, loadCatalogue, memberPrice, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route, notConfigured } from "../_lib/stripe.js";
-import { type FormatKey, FORMAT_BY_KEY, SUBSCRIPTION_MONTHS } from "../_lib/catalogue.js";
+import { type FormatKey, FORMAT_BY_KEY, SUBSCRIPTION_MONTHS, launched } from "../_lib/catalogue.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -32,12 +32,12 @@ export default route("subscribe", async function handler(req: any, res: any) {
   const catalogue = await loadCatalogue();
   let fragranceId: string | null = typeof body.fragranceId === "string" ? body.fragranceId : null;
   if (pickMode === "surprise" || !fragranceId) {
-    const pool = [...catalogue.values()].filter((f) => !f.vipOnly && (f.formatStatus?.[format] ?? "live") !== "hidden");
+    const pool = [...catalogue.values()].filter((f) => !f.vipOnly && launched(f) && (f.formatStatus?.[format] ?? "live") !== "hidden");
     if (!pool.length) return json(res, 400, { error: "Nothing to pour" });
     fragranceId = pool[Math.floor(Math.random() * pool.length)].id;
   }
   const frag = catalogue.get(fragranceId);
-  if (!frag) return json(res, 400, { error: "Choose a scent" });
+  if (!frag || !launched(frag)) return json(res, 400, { error: "Choose a scent" });
   const unit = memberPrice(frag, format);
 
   const customer = await customerFor(stripe, db, user);
