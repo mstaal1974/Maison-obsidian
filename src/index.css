@@ -85,6 +85,37 @@ body {
   color: #c9a961 !important;
 }
 
+/* "New arrivals" in the header: bolder, gold, with a pulsing dot + glow. */
+.mo-navlink-new {
+  animation: moNewGlow 2.4s ease-in-out infinite;
+}
+.mo-navlink-new::before {
+  content: "";
+  display: inline-block;
+  vertical-align: middle;
+  margin: -2px 8px 0 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c9a961;
+  box-shadow: 0 0 0 0 rgba(201, 169, 97, 0.7);
+  animation: moNewPing 2.4s ease-out infinite;
+}
+@keyframes moNewGlow {
+  0%, 100% { text-shadow: 0 0 0 rgba(201, 169, 97, 0); }
+  50% { text-shadow: 0 0 12px rgba(201, 169, 97, 0.75); }
+}
+@keyframes moNewPing {
+  0% { box-shadow: 0 0 0 0 rgba(201, 169, 97, 0.7); }
+  70%, 100% { box-shadow: 0 0 0 8px rgba(201, 169, 97, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mo-navlink-new,
+  .mo-navlink-new::before {
+    animation: none;
+  }
+}
+
 .mo-cta {
   transition: background 0.18s ease;
 }
