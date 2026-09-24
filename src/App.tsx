@@ -22,6 +22,7 @@ import RangeBanners from "./components/RangeBanners";
 import Collection from "./components/Collection";
 import Discovery from "./components/Discovery";
 import NewArrivals, { JustPoured } from "./components/NewArrivals";
+import HouseBrowser from "./components/HouseBrowser";
 import ComingSoon from "./components/ComingSoon";
 import { isLaunched, isUpcoming } from "./lib/launch";
 import Help from "./components/Help";
@@ -405,6 +406,7 @@ export default function App() {
       {route.view === "home" && (
         <main data-screen-label="Home">
           <Hero />
+          <HouseBrowser variant="home" fragrances={fragrances} vip={vip} onQuickView={openQuick} />
           <ChooseObsidian />
           <JustPoured fragrances={fragrances} vip={vip} discoveryIds={boxIds} onQuickView={openQuick} onToggleDiscovery={onToggleDiscovery} />
           <FindYourScent fragrances={fragrances} onQuickView={openQuick} userEmail={auth.user?.email} />
