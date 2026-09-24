@@ -167,14 +167,6 @@ body {
 /* ─── Responsive: the design is a desktop comp; degrade gracefully ────────── */
 
 @media (max-width: 1180px) {
-  /* Eight primary links: tighten the nav until it hides at 1000px. */
-  .mo-nav {
-    gap: 16px !important;
-  }
-  .mo-nav > button {
-    font-size: 9.5px !important;
-    letter-spacing: 0.14em !important;
-  }
   .mo-choose-grid,
   .mo-mood-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -204,9 +196,10 @@ body {
   }
 }
 
-@media (max-width: 1000px) {
-  /* The primary nav gives way to the drawer (.mo-burger opens it), and the
-     header sheds anything that would push the row past the viewport. */
+@media (max-width: 1280px) {
+  /* The primary nav (eight links) gives way to the drawer (.mo-burger opens
+     it) below the width it needs, and the header sheds anything that would
+     push the row past the viewport. */
   .mo-nav {
     display: none !important;
   }
@@ -219,6 +212,9 @@ body {
   .mo-bag-label {
     display: none !important;
   }
+}
+
+@media (max-width: 1000px) {
   /* The wordmark has to hold one line, or the header row grows past 72px and
      the drawer starts in the wrong place. */
   .mo-wordmark {

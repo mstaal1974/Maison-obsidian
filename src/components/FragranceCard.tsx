@@ -1,6 +1,7 @@
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { profileOf, fromPrice, sku, availableIn, referenceOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { isNew } from "../lib/launch";
 import BottleImage from "./BottleImage";
 import { Arrow, Chip, Icon, InspiredBy } from "./ui";
 import { MONO, SERIF, btnLink, micro } from "./styles";
@@ -29,6 +30,9 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
     <article className="mo-card" style={{ border: "1px solid #1f1f27", background: "#101015", display: "flex", flexDirection: "column" }}>
       <button className="mo-card-photo" onClick={() => navigate(paths.product(frag.slug))} aria-label={`Open ${frag.name}`} style={{ padding: 0, border: 0, background: "none", cursor: "pointer", position: "relative", display: "block" }}>
         <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-portrait.webp" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={300} />
+        {isNew(frag) && (
+          <span style={{ position: "absolute", top: 12, right: 12, ...micro, color: "#0b0b0d", background: GOLD, padding: "4px 8px", fontWeight: 600 }}>New</span>
+        )}
         {frag.vipOnly && (
           <span style={{ position: "absolute", top: 12, left: 12, ...micro, color: GOLD, border: "1px solid rgba(201,169,97,0.5)", background: "rgba(11,11,13,0.8)", padding: "4px 8px" }}>VIP</span>
         )}

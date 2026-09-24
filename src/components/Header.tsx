@@ -150,12 +150,12 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                 </div>
               )}
             </div>
+            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.newArrivals)}>New arrivals</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.fragrances)}>Fragrances</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.discovery)}>Discovery</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.car)}>Car</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.body)}>Body &amp; Sets</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.subscribe())}>Subscribe</button>
-            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.find())}>Find your scent</button>
             <button className="mo-navlink" style={{ ...navLink, color: GOLD }} onClick={() => navigate(paths.discover)}>Scent DNA</button>
           </nav>
 
@@ -293,6 +293,7 @@ function MobileMenu({
       <nav style={{ padding: "22px 24px 40px", display: "grid", gap: 26 }} aria-label="Mobile">
         <div>
           {[
+            { label: "New arrivals", to: paths.newArrivals },
             { label: "Fragrances", to: paths.fragrances },
             { label: "Discovery", to: paths.discovery },
             { label: "Car", to: paths.car },

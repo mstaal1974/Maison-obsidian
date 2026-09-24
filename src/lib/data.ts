@@ -47,6 +47,8 @@ export interface Fragrance {
   // descriptor set by the AI conception, e.g. ["Dark", "Resinous", "Woody"].
   imageUrl?: string;
   profile?: string[];
+  /** ISO launch date: "New" for 30 days after it, hidden before it (lib/launch.ts). */
+  launchAt?: string;
   // Multi-format commerce. Per-fragrance price overrides (cents) and launch
   // status per format key; anything unset falls back to the house defaults in
   // formats.ts. Stock for the non-perfume formats lives alongside stock10/30/50.

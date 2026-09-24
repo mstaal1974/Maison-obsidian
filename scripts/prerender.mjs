@@ -38,7 +38,7 @@ const origin = (
 const bundle = join(root, "node_modules", ".cache", `mo-prerender-${process.pid}.mjs`);
 await build({
   stdin: {
-    contents: `export { FRAGS, withBottleImage } from "./src/lib/data";\nexport { productMeta, headTags } from "./src/lib/seo";`,
+    contents: `export { FRAGS, withBottleImage } from "./src/lib/data";\nexport { productMeta, headTags } from "./src/lib/seo";\nexport { isLaunched } from "./src/lib/launch";`,
     resolveDir: root,
     loader: "ts",
   },
@@ -49,7 +49,7 @@ await build({
   outfile: bundle,
   logLevel: "error",
 });
-const { FRAGS, withBottleImage, productMeta, headTags } = await import(pathToFileURL(bundle).href);
+const { FRAGS, withBottleImage, productMeta, headTags, isLaunched } = await import(pathToFileURL(bundle).href);
 await rm(bundle, { force: true });
 
 /** Mirrors rowToFragrance() in src/lib/store.ts. */
@@ -83,6 +83,7 @@ function rowToFragrance(r) {
     stockCar: r.stock_car,
     stockWash: r.stock_wash,
     stockMoist: r.stock_moist,
+    launchAt: r.launch_at ?? undefined,
   });
 }
 
@@ -146,6 +147,8 @@ const [{ source, frags }, rated] = await Promise.all([catalogue(), ratings()]);
 const pages = [];
 for (const f of frags) {
   if (!f.slug || !/^[a-z0-9-]+$/.test(f.slug)) continue;
+  // Not launched yet: no page, no sitemap entry (the app shows it from launch day).
+  if (!isLaunched(f)) continue;
   const meta = productMeta(f, origin, cardImage(f), rated.get(f.id) ?? null);
   const html = shell.replace(/\s*<\/head>/, `\n    ${headTags(meta, origin)}\n  </head>`);
   const dir = join(dist, "fragrance", f.slug);
@@ -156,7 +159,7 @@ for (const f of frags) {
 
 // Storefront pages worth indexing; the account, checkout, admin and staff
 // screens are not.
-const statics = ["/", "/fragrances", "/shop", "/discovery", "/car", "/body", "/subscribe", "/discover", "/about", "/help"];
+const statics = ["/", "/new", "/fragrances", "/shop", "/discovery", "/car", "/body", "/subscribe", "/discover", "/about", "/help"];
 const today = new Date().toISOString().slice(0, 10);
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

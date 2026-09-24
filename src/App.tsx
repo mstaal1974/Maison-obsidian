@@ -21,6 +21,8 @@ import MoodShop from "./components/MoodShop";
 import RangeBanners from "./components/RangeBanners";
 import Collection from "./components/Collection";
 import Discovery from "./components/Discovery";
+import NewArrivals, { JustPoured } from "./components/NewArrivals";
+import { isLaunched } from "./lib/launch";
 import Help from "./components/Help";
 import About from "./components/About";
 import ProductDetail from "./components/ProductDetail";
@@ -62,7 +64,10 @@ export default function App() {
   const [subStarted, setSubStarted] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
 
-  const { fragrances, reload } = useFragrances();
+  // The whole catalogue (admin, past orders, subscriptions) and what the
+  // storefront shows: nothing before its launch date (lib/launch.ts).
+  const { fragrances: catalogue, reload } = useFragrances();
+  const fragrances = useMemo(() => catalogue.filter((f) => isLaunched(f)), [catalogue]);
   const auth = useAuth();
   const isAdmin = useIsAdmin(auth.user);
   const lines = useSyncExternalStore(subscribeBag, bagLines);
@@ -297,7 +302,7 @@ export default function App() {
     if (usingRemote) {
       return (remoteCommits ?? [])
         .map((row): AccountOrder | null => {
-          const frag = fragrances.find((f) => f.id === row.fragrance_id);
+          const frag = catalogue.find((f) => f.id === row.fragrance_id);
           return frag
             ? { frag, sizeMl: row.size_ml, formatLabel: formatLabel(row.format, row.size_ml), chargeCents: row.charge_cents ?? undefined, engraving: row.engraving, status: row.status, placedAt: row.created_at, ...shipmentFor(frag.id) }
             : null;
@@ -306,13 +311,13 @@ export default function App() {
     }
     return orders
       .map((o): AccountOrder | null => {
-        const frag = fragrances.find((f) => f.id === o.fragranceId);
+        const frag = catalogue.find((f) => f.id === o.fragranceId);
         return frag
           ? { frag, sizeMl: o.sizeMl, formatLabel: formatLabel(o.format, o.sizeMl), qty: o.qty, chargeCents: o.chargeCents * o.qty, engraving: o.engraving, status: "captured", placedAt: new Date(o.createdAt).toISOString(), ...shipmentFor(frag.id) }
           : null;
       })
       .filter((r): r is AccountOrder => r !== null);
-  }, [usingRemote, remoteCommits, orders, fragrances, shipmentFor]);
+  }, [usingRemote, remoteCommits, orders, catalogue, shipmentFor]);
 
   const demoAdminCommits: AdminCommitRow[] = useMemo(
     () => orders.map((o) => ({ id: o.id, fragrance_id: o.fragranceId, format: o.format, size_ml: o.sizeMl, charge_cents: o.chargeCents * o.qty, engraving: o.engraving, status: "authorized", created_at: "" })),
@@ -398,6 +403,7 @@ export default function App() {
         <main data-screen-label="Home">
           <Hero />
           <ChooseObsidian />
+          <JustPoured fragrances={fragrances} vip={vip} discoveryIds={boxIds} onQuickView={openQuick} onToggleDiscovery={onToggleDiscovery} />
           <FindYourScent fragrances={fragrances} onQuickView={openQuick} userEmail={auth.user?.email} />
           <MoodShop fragrances={fragrances} onQuickView={openQuick} />
           <SubscribeBand />
@@ -416,6 +422,10 @@ export default function App() {
           onQuickView={openQuick}
           onToggleDiscovery={onToggleDiscovery}
         />
+      )}
+
+      {route.view === "new" && (
+        <NewArrivals fragrances={fragrances} vip={vip} discoveryIds={boxIds} onQuickView={openQuick} onToggleDiscovery={onToggleDiscovery} />
       )}
 
       {route.view === "discovery" && (
@@ -489,7 +499,7 @@ export default function App() {
           loading={usingRemote && remoteCommits === null}
           onOpen={(slug) => navigate(paths.product(slug))}
           onBackToVault={() => navigate(paths.fragrances)}
-          subscriptionSlot={<SubscriptionPanel subscriptions={subscriptions} fragrances={fragrances} loading={subsLoading} onChanged={reloadSubs} />}
+          subscriptionSlot={<SubscriptionPanel subscriptions={subscriptions} fragrances={catalogue} loading={subsLoading} onChanged={reloadSubs} />}
           preferencesSlot={<PreferencesPanel consents={consents} taste={taste} onChange={(c) => saveConsents(c)} />}
           notice={
             stripeNotice ? (
@@ -505,7 +515,7 @@ export default function App() {
       {route.view === "admin" &&
         (isAdmin ? (
           <Suspense fallback={null}>
-            <AdminConsole fragrances={fragrances} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} />
+            <AdminConsole fragrances={catalogue} configured={auth.configured} onReload={reload} demoCommits={demoAdminCommits} />
           </Suspense>
         ) : (
           <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>

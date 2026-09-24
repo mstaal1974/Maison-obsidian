@@ -43,4 +43,5 @@ export interface FragranceRow {
   stock_car?: number;
   stock_wash?: number;
   stock_moist?: number;
+  launch_at?: string | null;
 }
