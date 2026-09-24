@@ -4,6 +4,7 @@ import { isNew } from "../lib/launch";
 import { MOODS, type Mood, moodsOf, sku as skuOf, formatStatus, matchesReference } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import FragranceCard from "./FragranceCard";
+import HouseBrowser from "./HouseBrowser";
 import { Art, Chip, Container } from "./ui";
 import { MONO, SERIF, micro, body } from "./styles";
 
@@ -51,6 +52,9 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
   const [format, setFormat] = useState<string | null>(initialFormat);
   const [inspired, setInspired] = useState("");
   const [onlyNew, setOnlyNew] = useState(false);
+  // Most shoppers know the original they love, so the full range opens on
+  // house → scent; facets, car and body open on the grid.
+  const [view, setView] = useState<"house" | "grid">(mode === "fragrances" || (mode === "shop" && !facet) ? "house" : "grid");
   const newCount = useMemo(() => fragrances.filter((f) => isNew(f)).length, [fragrances]);
 
   const list = useMemo(() => {
@@ -62,10 +66,10 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
       const key = FORMAT_FACETS.find((x) => x.id === format)?.key;
       if (key) out = out.filter((f) => formatStatus(f, key) !== "hidden");
     }
-    if (inspired.trim()) out = out.filter((f) => matchesReference(f, inspired));
+    if (view === "grid" && inspired.trim()) out = out.filter((f) => matchesReference(f, inspired));
     if (onlyNew) out = out.filter((f) => isNew(f));
     return out;
-  }, [fragrances, gender, mood, format, inspired, onlyNew]);
+  }, [fragrances, gender, mood, format, inspired, onlyNew, view]);
 
   const intro = INTRO[mode];
   const defaultFormat: FormatKey | undefined = mode === "car" ? "car" : mode === "body" ? "wash" : FORMAT_FACETS.find((x) => x.id === format)?.key;
@@ -93,6 +97,36 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
       )}
 
       <Container style={{ padding: "18px 32px 60px" }}>
+        {mode !== "car" && mode !== "body" && (
+          <div role="tablist" aria-label="Browse" style={{ display: "flex", gap: 0, marginBottom: 14 }}>
+            {([
+              ["house", "By house"],
+              ["grid", "All scents"],
+            ] as const).map(([id, text]) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={view === id}
+                onClick={() => setView(id)}
+                style={{
+                  background: view === id ? GOLD : "none",
+                  color: view === id ? "#0b0b0d" : CREAM,
+                  border: `1px solid ${view === id ? GOLD : "rgba(201,169,97,0.45)"}`,
+                  height: 38,
+                  padding: "0 20px",
+                  cursor: "pointer",
+                  fontFamily: MONO,
+                  fontSize: 10,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  fontWeight: view === id ? 700 : 400,
+                }}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Filters: gender is a filter, not the architecture. */}
         <div className="mo-filters" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", borderBottom: "1px solid #1f1f27", paddingBottom: 14 }}>
           {newCount > 0 && (
@@ -120,6 +154,7 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
               ))}
             </div>
           )}
+          {view === "grid" && (
           <div className="mo-filter-group mo-filter-search">
             <span style={{ ...micro, marginLeft: 16, marginRight: 4 }}>Inspired by</span>
             <input
@@ -131,11 +166,16 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
               style={{ background: "none", border: "1px solid rgba(201,169,97,0.45)", outline: "none", color: CREAM, fontFamily: MONO, fontSize: 10.5, letterSpacing: "0.02em", padding: "7px 10px", width: 190 }}
             />
           </div>
+          )}
           <span style={{ marginLeft: "auto", fontFamily: MONO, fontSize: 10, color: "rgba(243,236,220,0.5)" }}>{list.length} of {fragrances.length}</span>
         </div>
 
         {list.length === 0 ? (
           <p style={{ ...body, marginTop: 30 }}>Nothing matches those filters yet. <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => { setGender("all"); setMood(null); setFormat(null); setInspired(""); setOnlyNew(false); }}>Clear filters</button> or <button style={{ background: "none", border: 0, color: GOLD, cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => navigate(paths.find())}>find your scent</button>.</p>
+        ) : view === "house" ? (
+          <div style={{ marginTop: 18 }}>
+            <HouseBrowser fragrances={list} vip={vip} onQuickView={onQuickView} />
+          </div>
         ) : (
           <div className="mo-vault-grid" style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {list.map((f) => (
