@@ -1,25 +1,24 @@
-// POST /api/waitlist/notify — admin only. Emails everyone on a waitlist that
+// POST /api/marketing { action: "waitlist-notify", … } — admin only. (Served
+// by the marketing function rather than its own: the Hobby plan allows 12.) Emails everyone on a waitlist that
 // what they asked about has arrived: a fragrance on its launch day (format
 // null) or a format that has gone from Coming soon to live. One email each;
 // every row is stamped notified_at so a second press sends nothing new.
 //
-// Body: { fragranceId: string, format: FormatKey | null }
+// Body: { action: "waitlist-notify", fragranceId: string, format: FormatKey | null }
 // Env: RESEND_API_KEY, RECOVERY_EMAIL_FROM (the same sender as the checkout
 // reminders), RECOVERY_REPLY_TO optional, SITE_URL for the link,
 // SUPABASE_SERVICE_ROLE_KEY to read and stamp the list.
 
 import { createHash } from "node:crypto";
-import { isAdminRequest, json, loadCatalogue, readBody, serviceClient, siteUrl } from "../_lib/stripe.js";
-import { type FormatKey, FORMAT_BY_KEY, formatStatus, launched } from "../_lib/catalogue.js";
-
-export const config = { runtime: "nodejs", maxDuration: 60 };
+import { isAdminRequest, json, loadCatalogue, readBody, serviceClient, siteUrl } from "./stripe.js";
+import { type FormatKey, FORMAT_BY_KEY, formatStatus, launched } from "./catalogue.js";
 
 // Resend's batch endpoint takes up to 100 emails a call.
 const BATCH = 100;
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export default async function handler(req: any, res: any) {
+export async function waitlistNotify(req: any, res: any) {
   if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
   if (!(await isAdminRequest(req))) return json(res, 403, { error: "Admins only" });
   try {

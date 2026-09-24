@@ -155,7 +155,7 @@ export async function notifyWaitlist(fragranceId: string, format: FormatKey | nu
     const { data } = await supabase.auth.getSession();
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
-    const res = await fetch("/api/waitlist/notify", { method: "POST", headers, body: JSON.stringify({ fragranceId, format }) });
+    const res = await fetch("/api/marketing", { method: "POST", headers, body: JSON.stringify({ action: "waitlist-notify", fragranceId, format }) });
     const type = res.headers.get("content-type") ?? "";
     if (!type.includes("application/json")) return { ok: false, error: `The email route isn't deployed (${res.status})` };
     const body = (await res.json()) as { sent?: number; failed?: number; error?: string; detail?: string };

@@ -8,8 +8,9 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { waitlistNotify } from "./_lib/waitlist.js";
 
-export const config = { runtime: "nodejs" };
+export const config = { runtime: "nodejs", maxDuration: 60 };
 
 const SYSTEM = `You write customer emails for Maison Obsidian, a boutique batch-atelier fragrance house.
 Voice: warm, precise, quietly luxurious — an in-the-know concierge writing to a regular, never a marketer shouting. British/Australian spelling. No exclamation marks, no emoji, no "limited time" pressure.
@@ -65,6 +66,11 @@ export default async function handler(req: any, res: any) {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
+  // The launch-day waitlist email lives here too (api/_lib/waitlist.ts):
+  // the Hobby plan allows 12 functions a deployment.
+  const raw = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body ?? {};
+  if (raw.action === "waitlist-notify") return waitlistNotify(req, res);
+
   // Either name works: Vercel projects have been set up with both
   // ANTHROPIC_API_KEY and the shorter ANTHROPIC_KEY, and a mismatch here
   // fails silently — the route 501s and the fallback hides it.
