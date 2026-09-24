@@ -10,6 +10,7 @@ import {
   inspectImage,
   slugify,
 } from "../lib/conceive";
+import { NEW_DAYS } from "../lib/launch";
 import { label, field, btnGold, btnGhost, chip, bottleBackdrop } from "./adminStyles";
 
 interface ConceiveFragranceProps {
@@ -54,6 +55,8 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
   const [image, setImage] = useState<File | null>(null);
   const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
   const [dragging, setDragging] = useState(false);
+  // Launch today so the scent shows as New (badge, /new, Just poured).
+  const [markNew, setMarkNew] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -104,10 +107,11 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
     if (!conception) return null;
     const name = chosenName.trim() || conception.name;
     const rename = (t: string) => (name === conception.name ? t : t.split(conception.name).join(name));
-    return conceptionToFragrance(
+    const f = conceptionToFragrance(
       { ...conception, name, slug: slugify(name), story: rename(conception.story), copy: rename(conception.copy) },
       fragrances,
     );
+    return markNew ? { ...f, launchAt: new Date().toISOString() } : f;
   };
 
   const canAdd = !!conception && !!chosenName.trim() && !nameTaken && !busy;
@@ -356,6 +360,13 @@ export default function ConceiveFragrance({ fragrances, busy, onAdd, onRefine, o
           </div>
 
           {/* ── Actions ── */}
+          <label style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer", fontSize: 12.5, color: "rgba(243,236,220,0.8)" }}>
+            <input type="checkbox" checked={markNew} onChange={(e) => setMarkNew(e.target.checked)} style={{ accentColor: GOLD, width: 16, height: 16 }} />
+            <span>
+              Show as a <strong style={{ color: GOLD, fontWeight: 500 }}>New arrival</strong> — launches today and appears in New arrivals
+              for {NEW_DAYS} days
+            </span>
+          </label>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button
               type="button"

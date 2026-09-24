@@ -150,7 +150,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                 </div>
               )}
             </div>
-            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.newArrivals)}>New arrivals</button>
+            <button className="mo-navlink mo-navlink-new" style={{ ...navLink, color: GOLD, fontWeight: 700 }} onClick={() => navigate(paths.newArrivals)}>New arrivals</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.fragrances)}>Fragrances</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.discovery)}>Discovery</button>
             <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.car)}>Car</button>
@@ -300,7 +300,12 @@ function MobileMenu({
             { label: "Body & Sets", to: paths.body },
             { label: "Subscribe", to: paths.subscribe() },
           ].map((x) => (
-            <button key={x.label} onClick={() => go(x.to)} style={item}>
+            <button
+              key={x.label}
+              className={x.to === paths.newArrivals ? "mo-navlink-new" : undefined}
+              onClick={() => go(x.to)}
+              style={x.to === paths.newArrivals ? { ...item, color: GOLD, fontWeight: 700 } : item}
+            >
               {x.label}
             </button>
           ))}
