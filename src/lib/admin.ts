@@ -69,22 +69,27 @@ function toPayload(f: Fragrance): Record<string, unknown> {
   };
 }
 
-/** Upserts a fragrance and returns its id (needed to then set oil on new rows). */
-export async function adminUpsertFragrance(f: Fragrance): Promise<string | null> {
+/**
+ * Upserts a fragrance and returns its id (needed to then set oil on new rows).
+ * Throws with the database's own message so the editor can say what went wrong.
+ */
+export async function adminUpsertFragrance(f: Fragrance): Promise<string> {
   if (!supabase) {
     const id = f.id || `f_${Math.random().toString(36).slice(2, 8)}`;
     demoUpsertFragrance({ ...f, id });
     return id;
   }
   const { data, error } = await supabase.rpc("admin_upsert_fragrance", { p_data: toPayload(f) });
-  return error ? null : (data as string);
+  if (error) throw new Error(`The catalogue rejected the save: ${error.message}`);
+  if (!data) throw new Error("The catalogue rejected the save — check the slug is unique.");
+  return data as string;
 }
 
 /** Sets or clears a fragrance's launch date (demo mode stores it with the row). */
-export async function adminSetLaunch(id: string, launchAt: string | null): Promise<boolean> {
-  if (!supabase) return true;
+export async function adminSetLaunch(id: string, launchAt: string | null): Promise<string | null> {
+  if (!supabase) return null;
   const { error } = await supabase.rpc("admin_set_launch", { p_id: id, p_launch_at: launchAt });
-  return !error;
+  return error ? error.message : null;
 }
 
 export async function adminSetOil(id: string, oilMl: number): Promise<boolean> {

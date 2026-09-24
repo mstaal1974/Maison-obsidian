@@ -31,6 +31,7 @@ import AdminMarketing from "./AdminMarketing";
 import AdminReviews from "./AdminReviews";
 import AdminWaitlist from "./AdminWaitlist";
 import { NEW_DAYS, isLaunched, isNew } from "../lib/launch";
+import { composeInspiration, referenceOf } from "../lib/formats";
 
 /** yyyy-mm-dd in the browser's time zone, for a date input. */
 function localDate(iso: string): string {
@@ -193,6 +194,11 @@ function Catalogue({
   }, [configured, fragrances]);
 
   const counts = configured ? remoteCounts ?? {} : demoCounts;
+  // Existing houses, offered as suggestions so "YSL" stays "YSL" everywhere.
+  const houses = useMemo(
+    () => [...new Set(fragrances.map((f) => referenceOf(f).brand).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [fragrances],
+  );
 
   // Saves a fragrance, uploading a freshly chosen bottle image first so the row
   // is written with its final image URL.
@@ -202,9 +208,14 @@ function Catalogue({
     try {
       const imageUrl = image ? await uploadFragranceImage(image, f.slug) : f.imageUrl;
       const id = await adminUpsertFragrance({ ...f, imageUrl });
-      if (!id) throw new Error("The catalogue rejected the save — check the slug is unique.");
       await adminSetOil(id, f.oilMl ?? 0);
-      if (!(await adminSetLaunch(id, f.launchAt ?? null))) throw new Error("Saved, but the launch date could not be set — has migration 0034 been applied?");
+      const launchError = await adminSetLaunch(id, f.launchAt ?? null);
+      if (launchError) {
+        // Everything else is saved; only the date is missing. Don't trap the
+        // editor open over it.
+        if (configured) onReload();
+        throw new Error(`Saved, but the launch date could not be set (${launchError}). Has migration 0034_launch_dates.sql been applied?`);
+      }
       if (configured) onReload();
       setEditing(null);
       setEditingImage(null);
@@ -215,6 +226,23 @@ function Catalogue({
       setBusy(false);
     }
   };
+
+  const editor = editing && (
+    <Editor
+      key={editing.id || "new"}
+      initial={editing}
+      initialImage={editingImage}
+      busy={busy}
+      error={saveError}
+      houses={houses}
+      onSave={save}
+      onCancel={() => {
+        setEditing(null);
+        setEditingImage(null);
+        setSaveError(null);
+      }}
+    />
+  );
 
   const remove = async (id: string, name: string) => {
     if (!confirm(`Remove “${name}” from the catalogue?`)) return;
@@ -251,7 +279,7 @@ function Catalogue({
         </div>
       </div>
 
-      {saveError && (
+      {saveError && !editing && (
         <p role="alert" style={{ margin: "0 0 14px", fontSize: 12.5, color: "#d98a6a" }}>
           {saveError}
         </p>
@@ -270,30 +298,28 @@ function Catalogue({
         />
       )}
 
-      {editing && (
-        <Editor
-          initial={editing}
-          initialImage={editingImage}
-          busy={busy}
-          onSave={save}
-          onCancel={() => {
-            setEditing(null);
-            setEditingImage(null);
-          }}
-        />
-      )}
+      {/* A new fragrance is edited at the top; an existing one right under its row. */}
+      {editing && !editing.id && editor}
 
-      <div style={{ display: "grid", gap: 10, marginTop: editing || conceiving ? 24 : 0 }}>
+      <div style={{ display: "grid", gap: 10, marginTop: (editing && !editing.id) || conceiving ? 24 : 0 }}>
         {fragrances.map((f) => (
-          <Row
-            key={f.id}
-            f={f}
-            counts={counts[f.id] ?? emptyCounts()}
-            configured={configured}
-            onEdit={() => setEditing({ ...f })}
-            onDelete={() => remove(f.id, f.name)}
-            onReload={onReload}
-          />
+          <div key={f.id} style={{ display: "grid", gap: 10 }}>
+            <Row
+              f={f}
+              counts={counts[f.id] ?? emptyCounts()}
+              configured={configured}
+              editing={editing?.id === f.id}
+              onEdit={() => {
+                setSaveError(null);
+                setEditingImage(null);
+                setConceiving(false);
+                setEditing({ ...f });
+              }}
+              onDelete={() => remove(f.id, f.name)}
+              onReload={onReload}
+            />
+            {editing?.id === f.id && editor}
+          </div>
         ))}
       </div>
     </div>
@@ -304,6 +330,7 @@ function Row({
   f,
   counts,
   configured,
+  editing,
   onEdit,
   onDelete,
   onReload,
@@ -311,6 +338,7 @@ function Row({
   f: Fragrance;
   counts: { 10: number; 30: number; 50: number };
   configured: boolean;
+  editing: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onReload: () => void;
@@ -361,7 +389,7 @@ function Row({
         justifyContent: "space-between",
         gap: 18,
         flexWrap: "wrap",
-        border: "1px solid #1f1f27",
+        border: `1px solid ${editing ? "rgba(201,169,97,0.6)" : "#1f1f27"}`,
         background: "#101015",
         padding: "16px 18px",
       }}
@@ -383,6 +411,7 @@ function Row({
               {f.gender} · {money(f.price)} {f.vipOnly ? "· VIP" : ""}
               {!isLaunched(f) ? ` · Launches ${new Date(f.launchAt!).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : isNew(f) ? " · New" : ""}
             </div>
+            <HouseLine f={f} />
           </div>
         </div>
       </div>
@@ -418,8 +447,8 @@ function Row({
         </button>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={onEdit} style={{ ...btnGhost, height: 34 }}>
-          Edit
+        <button onClick={onEdit} disabled={editing} style={{ ...btnGhost, height: 34, opacity: editing ? 0.5 : 1 }}>
+          {editing ? "Editing…" : "Edit"}
         </button>
         <button onClick={onDelete} style={{ ...btnGhost, height: 34, color: "#d98a6a" }}>
           Delete
@@ -429,16 +458,32 @@ function Row({
   );
 }
 
+/** "Tom Ford — Black Lacquer" under the name; flags a reference with no scent split out. */
+function HouseLine({ f }: { f: Fragrance }) {
+  const { brand, fragrance } = referenceOf(f);
+  if (!brand) return <div style={{ marginTop: 4, fontSize: 11, color: "#d98a6a" }}>No house set</div>;
+  return (
+    <div style={{ marginTop: 4, fontSize: 12, color: "rgba(243,236,220,0.6)" }}>
+      {brand}
+      {fragrance ? <> — <em>{fragrance}</em></> : <span style={{ color: "#d98a6a" }}> · no scent split out — edit to set House / Scent</span>}
+    </div>
+  );
+}
+
 function Editor({
   initial,
   initialImage = null,
   busy,
+  error,
+  houses,
   onSave,
   onCancel,
 }: {
   initial: Fragrance;
   initialImage?: File | null;
   busy: boolean;
+  error: string | null;
+  houses: string[];
   onSave: (f: Fragrance, image: File | null) => void;
   onCancel: () => void;
 }) {
@@ -447,6 +492,20 @@ function Editor({
   const [imageError, setImageError] = useState<string | null>(null);
   const [imageNote, setImageNote] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const [house, setHouse] = useState(() => referenceOf(initial).brand);
+  const [scent, setScent] = useState(() => referenceOf(initial).fragrance);
+  const setReference = (h: string, s: string) => {
+    setHouse(h);
+    setScent(s);
+    setF((p) => ({ ...p, inspiration: composeInspiration(h, s) }));
+  };
+
+  // Bring the editor into view when it opens — rows further down the list
+  // would otherwise open it off-screen.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   // Object URL for the preview; revoked when the file changes or we unmount.
   const preview = useMemo(() => (image ? URL.createObjectURL(image) : null), [image]);
@@ -489,9 +548,9 @@ function Editor({
   );
 
   return (
-    <div style={{ border: "1px solid rgba(201,169,97,0.35)", background: "rgba(20,20,26,0.5)", padding: 24 }}>
+    <div ref={box} style={{ border: "1px solid rgba(201,169,97,0.35)", background: "rgba(20,20,26,0.5)", padding: 24, scrollMarginTop: 90 }}>
       <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#f3ecdc", marginBottom: 18 }}>
-        {initial.id ? "Edit fragrance" : "New fragrance"}
+        {initial.id ? `Edit ${initial.name}` : "New fragrance"}
       </div>
       <div style={{ display: "grid", gap: 14 }}>
         <div style={grid}>
@@ -510,7 +569,23 @@ function Editor({
             </select>,
           )}
         </div>
-        {cell("Inspiration", <input style={field} value={f.inspiration} onChange={(e) => set("inspiration", e.target.value)} />)}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {cell(
+            "Inspired by · House",
+            <>
+              <input style={field} list="mo-admin-houses" placeholder="e.g. Marc Jacobs" value={house} onChange={(e) => setReference(e.target.value, scent)} />
+              <datalist id="mo-admin-houses">
+                {houses.map((h) => (
+                  <option key={h} value={h} />
+                ))}
+              </datalist>
+            </>,
+          )}
+          {cell("Inspired by · Scent", <input style={field} placeholder="e.g. Daisy" value={scent} onChange={(e) => setReference(house, e.target.value)} />)}
+        </div>
+        <div style={{ marginTop: -6, fontSize: 11.5, color: "rgba(243,236,220,0.5)" }}>
+          Shown as <span style={{ color: GOLD }}>{f.inspiration || "—"}</span> · the house groups it under Shop by house
+        </div>
         {cell("Tagline", <input style={field} value={f.tagline} onChange={(e) => set("tagline", e.target.value)} />)}
         {cell(
           "Story",
@@ -619,6 +694,11 @@ function Editor({
           </span>
         </div>
       </div>
+      {error && (
+        <p role="alert" style={{ margin: "18px 0 0", fontSize: 12.5, lineHeight: 1.6, color: "#d98a6a" }}>
+          {error}
+        </p>
+      )}
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <button style={{ ...btnGold, opacity: valid && !busy ? 1 : 0.5 }} disabled={!valid || busy} onClick={() => onSave(f, image)}>
           {busy ? "Saving…" : "Save"}

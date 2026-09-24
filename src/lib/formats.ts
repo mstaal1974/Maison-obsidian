@@ -240,6 +240,14 @@ export function matchesReference(f: Fragrance, query: string): boolean {
   return parts.every((p) => hay.includes(p));
 }
 
+/** { house, scent } → "Inspired by House - Scent", the form referenceOf reads. */
+export function composeInspiration(house: string, scent: string): string {
+  const h = house.trim();
+  const s = scent.trim();
+  if (h && s) return `Inspired by ${h} - ${s}`;
+  return h || s ? `Inspired by ${h || s}` : "";
+}
+
 export function referenceLine(f: Fragrance): string {
   const r = referenceOf(f);
   return r.fragrance ? `Inspired by the scent profile of ${r.brand} ${r.fragrance}` : `Inspired by the scent profile of ${r.brand}`;
