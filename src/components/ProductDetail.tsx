@@ -8,6 +8,7 @@ import { isNew } from "../lib/launch";
 import Reviews, { Stars } from "./Reviews";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
+import NotifyMe from "./NotifyMe";
 import { bottleBackdrop } from "./adminStyles";
 import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow, Container, Icon, IconBadge, SideCaption, Chip, InspiredBy } from "./ui";
@@ -21,6 +22,8 @@ interface ProductDetailProps {
   onQuickView: (f: Fragrance, format?: FormatKey) => void;
   /** Signed-in customer, for the review form. */
   userId: string | null;
+  /** Prefills the Notify me form. */
+  userEmail?: string | null;
   onSignIn: () => void;
 }
 
@@ -32,11 +35,14 @@ const ENGRAVE_MAX = 28;
  * experience it — Wear it / Drive with it / Live in it / Complete the ritual —
  * and reads the notes and the story underneath.
  */
-export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickView, userId, onSignIn }: ProductDetailProps) {
+export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickView, userId, userEmail, onSignIn }: ProductDetailProps) {
   const [key, setKey] = useState<FormatKey>("perf50");
   const [qty, setQty] = useState(1);
   const [engraveOn, setEngraveOn] = useState(false);
   const [engraving, setEngraving] = useState("");
+  // Coming-soon formats: which one's Notify me form is open, and which this
+  // visitor has joined the waitlist for.
+  const [notifyKey, setNotifyKey] = useState<FormatKey | null>(null);
   const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
   const { reviews, enabled: reviewsOn } = useReviews(frag.id);
   const rating = useMemo(() => summarise(reviews), [reviews]);
@@ -77,12 +83,13 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
     return (
       <button
         key={s.key}
-        onClick={() => (soon ? setNotified((n) => new Set(n).add(s.key)) : setKey(s.key))}
-        aria-pressed={active}
+        onClick={() => (soon ? setNotifyKey((k) => (k === s.key ? null : s.key)) : setKey(s.key))}
+        aria-pressed={soon ? notifyKey === s.key : active}
+        aria-expanded={soon ? notifyKey === s.key : undefined}
         title={s.availability}
         style={{
           background: "none",
-          border: `1px solid ${active ? GOLD : "transparent"}`,
+          border: `1px solid ${active || (soon && notifyKey === s.key) ? GOLD : "transparent"}`,
           padding: wide ? "8px 10px 6px" : "8px 4px 6px",
           cursor: "pointer",
           display: "flex",
@@ -101,7 +108,7 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
           {s.key === "perf10" ? <>10ml<br />Discovery</> : s.key === "ritual" ? <>The Complete Ritual<br />(4 Pieces)</> : s.def.label}
         </span>
         <span style={{ fontFamily: MONO, fontSize: 10.5, color: soon ? GOLD : "rgba(243,236,220,0.9)", letterSpacing: "0.02em" }}>
-          {soon ? (notified.has(s.key) ? "Notified ✓" : "Notify me") : (
+          {soon ? (notified.has(s.key) ? "On the list ✓" : "Notify me") : (
             <>
               {money(s.price)}
               {s.compareAt && <s style={{ marginLeft: 8, color: "rgba(243,236,220,0.4)" }}>{money(s.compareAt)}</s>}
@@ -173,6 +180,27 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
                 );
               })}
             </div>
+
+            {notifyKey && (
+              <div style={{ marginTop: 12, border: "1px solid #2a2a33", background: "#0c0c10", padding: "14px 16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+                  <div style={{ fontFamily: SERIF, fontSize: 19, color: CREAM }}>
+                    {frag.name} {skuOf(frag, notifyKey).def.name} is coming soon
+                  </div>
+                  <button aria-label="Close" onClick={() => setNotifyKey(null)} style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 16 }}>×</button>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <NotifyMe
+                    key={notifyKey}
+                    fragranceId={frag.id}
+                    format={notifyKey}
+                    defaultEmail={userEmail}
+                    note="One email when it's ready, nothing else."
+                    onDone={() => setNotified((n) => new Set(n).add(notifyKey))}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Summary + add */}
             <div style={{ marginTop: 18, borderTop: "1px solid #1f1f27", paddingTop: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -311,7 +339,7 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
               {alsoAvailable.map((s) => (
                 <button
                   key={s.key}
-                  onClick={() => { setKey(s.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  onClick={() => { if (s.status === "coming_soon") setNotifyKey(s.key); else setKey(s.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                   style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 14, alignItems: "center", border: "1px solid #1f1f27", background: "#101015", padding: 0, textAlign: "left", cursor: "pointer", color: CREAM, minHeight: 116 }}
                 >
                   <span style={{ height: "100%", background: bottleBackdrop(frag.accent, frag.liquid), display: "grid", placeItems: "center", borderRight: "1px solid #1f1f27", padding: 8 }}>

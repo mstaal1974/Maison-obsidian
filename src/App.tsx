@@ -22,7 +22,8 @@ import RangeBanners from "./components/RangeBanners";
 import Collection from "./components/Collection";
 import Discovery from "./components/Discovery";
 import NewArrivals, { JustPoured } from "./components/NewArrivals";
-import { isLaunched } from "./lib/launch";
+import ComingSoon from "./components/ComingSoon";
+import { isLaunched, isUpcoming } from "./lib/launch";
 import Help from "./components/Help";
 import About from "./components/About";
 import ProductDetail from "./components/ProductDetail";
@@ -334,6 +335,8 @@ export default function App() {
   };
 
   const selected = route.view === "product" ? fragrances.find((f) => f.slug === route.slug) ?? null : null;
+  // Not launched yet: its page is a teaser with a waitlist sign-up.
+  const teaser = route.view === "product" && !selected ? catalogue.find((f) => f.slug === route.slug && isUpcoming(f)) ?? null : null;
 
   const bagDrawer = bagOpen ? (
     <BagDrawer
@@ -425,7 +428,7 @@ export default function App() {
       )}
 
       {route.view === "new" && (
-        <NewArrivals fragrances={fragrances} vip={vip} discoveryIds={boxIds} onQuickView={openQuick} onToggleDiscovery={onToggleDiscovery} />
+        <NewArrivals fragrances={fragrances} upcoming={catalogue} vip={vip} discoveryIds={boxIds} onQuickView={openQuick} onToggleDiscovery={onToggleDiscovery} />
       )}
 
       {route.view === "discovery" && (
@@ -479,9 +482,12 @@ export default function App() {
       {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
 
       {route.view === "product" && selected && (
-        <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} onAdd={add} onQuickView={openQuick} userId={auth.user?.id ?? null} onSignIn={() => setAuthOpen(true)} />
+        <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} onAdd={add} onQuickView={openQuick} userId={auth.user?.id ?? null} userEmail={auth.user?.email ?? null} onSignIn={() => setAuthOpen(true)} />
       )}
-      {route.view === "product" && !selected && (
+      {route.view === "product" && teaser && (
+        <ComingSoon key={teaser.slug} frag={teaser} fragrances={fragrances} vip={vip} userEmail={auth.user?.email ?? null} onQuickView={openQuick} />
+      )}
+      {route.view === "product" && !selected && !teaser && (
         <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 48, color: "#f3ecdc" }}>Fragrance not found.</h1>
           <button className="mo-cta" onClick={() => navigate(paths.fragrances)} style={{ marginTop: 28, background: "#c9a961", color: "#0b0b0d", border: 0, cursor: "pointer", height: 48, padding: "0 26px", fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", fontWeight: 600 }}>
