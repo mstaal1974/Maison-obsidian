@@ -47,6 +47,9 @@ export default function HouseBrowser({ fragrances, vip, onQuickView, variant = "
     else if (top < list.scrollTop || top + el.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = top - 6;
   }, [house?.key]);
 
+  // Home: the browser is folded away until asked for.
+  const [open, setOpen] = useState(false);
+
   const pickHouse = (key: string) => {
     setHouseKey(key);
     setActiveId(null);
@@ -199,7 +202,7 @@ export default function HouseBrowser({ fragrances, vip, onQuickView, variant = "
   return (
     <section aria-label="Shop by house" style={{ borderBottom: "1px solid #1f1f27" }}>
       <Container style={{ padding: "34px 32px 34px" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 18, flexWrap: "wrap", marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 18, flexWrap: "wrap" }}>
           <div>
             <div style={{ ...micro, color: GOLD }}>Shop by house</div>
             <h2 style={{ margin: "8px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 34, color: CREAM, lineHeight: 1.05 }}>
@@ -207,11 +210,27 @@ export default function HouseBrowser({ fragrances, vip, onQuickView, variant = "
             </h2>
             <p style={{ ...body, margin: "8px 0 0", maxWidth: 560 }}>Choose the house, then the scent you love — we'll show you its Obsidian.</p>
           </div>
-          <button style={{ ...btnLink, marginLeft: "auto", fontFamily: MONO }} onClick={() => navigate(paths.fragrances)}>
-            All {all.length} houses <Arrow size={10} />
-          </button>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+            <button style={{ ...btnLink, fontFamily: MONO }} onClick={() => navigate(paths.fragrances)}>
+              All {all.length} houses <Arrow size={10} />
+            </button>
+            <button
+              style={{ ...btnGhost, height: 42 }}
+              aria-expanded={open}
+              aria-controls="mo-house-panel"
+              onClick={() => setOpen((o) => !o)}
+            >
+              {open ? "Hide houses" : "Browse by house"}
+              <span aria-hidden className="mo-house-chevron" style={{ display: "inline-block", transform: open ? "rotate(180deg)" : "none" }}>
+                ▾
+              </span>
+            </button>
+          </div>
         </div>
-        {content}
+        {/* Collapsed on arrival; grid rows 0fr → 1fr animates to the content's height. */}
+        <div id="mo-house-panel" className="mo-house-fold" data-open={open} inert={!open}>
+          <div style={{ overflow: "hidden", minHeight: 0 }}>{content}</div>
+        </div>
       </Container>
     </section>
   );
