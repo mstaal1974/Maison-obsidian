@@ -58,8 +58,13 @@ export default route("checkout", async function handler(req: any, res: any) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return json(res, 400, { error: "Enter an email address so we can send your receipt." });
   }
-  if (alternate && (!deliveryName || !deliveryPhone || !deliveryNotes)) {
-    return json(res, 400, { error: "Tell us your name, a mobile number, and how we should get this to you." });
+  // Every order carries a mobile: delivery updates, and a way to reach the
+  // customer when a parcel or a hand delivery needs sorting out.
+  if (!/^\+?\d{8,15}$/.test(deliveryPhone.replace(/[\s().-]/g, ""))) {
+    return json(res, 400, { error: "Enter a mobile number so we can reach you about your delivery." });
+  }
+  if (alternate && (!deliveryName || !deliveryNotes)) {
+    return json(res, 400, { error: "Tell us your name and how we should get this to you." });
   }
 
   // Postage is re-quoted here rather than trusted from the browser, so the
@@ -148,7 +153,7 @@ export default route("checkout", async function handler(req: any, res: any) {
     payment_intent_data: {
       metadata: { user_id: user?.id ?? "", kind: "order" },
       ...(haveAddress
-        ? { shipping: { name: deliveryName, address: { line1: shipAddress, city: shipCity, state: shipRegion || undefined, postal_code: postcode, country: "AU" } } }
+        ? { shipping: { name: deliveryName, phone: deliveryPhone, address: { line1: shipAddress, city: shipCity, state: shipRegion || undefined, postal_code: postcode, country: "AU" } } }
         : {}),
     },
     metadata: {
@@ -163,7 +168,8 @@ export default route("checkout", async function handler(req: any, res: any) {
       ...(delivery.remindMe === true ? { remind: "1" } : {}),
       ...(contactEmail ? { contact_email: contactEmail } : {}),
       ...(deliveryName ? { delivery_name: deliveryName } : {}),
-      ...(alternate ? { delivery_phone: deliveryPhone, delivery_notes: deliveryNotes } : {}),
+      delivery_phone: deliveryPhone,
+      ...(alternate ? { delivery_notes: deliveryNotes } : {}),
       ...(haveAddress ? { ship_address: shipAddress, ship_city: shipCity, ship_region: shipRegion, ship_postcode: postcode } : {}),
     },
     success_url: `${site}/thanks?session_id={CHECKOUT_SESSION_ID}`,

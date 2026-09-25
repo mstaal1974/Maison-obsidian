@@ -893,3 +893,18 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
     border-color: #c9a961 !important;
   }
 }
+
+/* Admin: the fragrance editor drops down from its row. */
+.mo-admin-editor {
+  animation: moAdminDrop 0.22s ease-out;
+  transform-origin: top;
+}
+@keyframes moAdminDrop {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mo-admin-editor {
+    animation: none;
+  }
+}

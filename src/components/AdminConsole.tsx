@@ -303,7 +303,7 @@ function Catalogue({
 
       <div style={{ display: "grid", gap: 10, marginTop: (editing && !editing.id) || conceiving ? 24 : 0 }}>
         {fragrances.map((f) => (
-          <div key={f.id} style={{ display: "grid", gap: 10 }}>
+          <div key={f.id} style={{ display: "grid" }}>
             <Row
               f={f}
               counts={counts[f.id] ?? emptyCounts()}
@@ -313,7 +313,8 @@ function Catalogue({
                 setSaveError(null);
                 setEditingImage(null);
                 setConceiving(false);
-                setEditing({ ...f });
+                // Edit on the open row folds it away again.
+                setEditing(editing?.id === f.id ? null : { ...f });
               }}
               onDelete={() => remove(f.id, f.name)}
               onReload={onReload}
@@ -390,6 +391,7 @@ function Row({
         gap: 18,
         flexWrap: "wrap",
         border: `1px solid ${editing ? "rgba(201,169,97,0.6)" : "#1f1f27"}`,
+        borderBottomColor: editing ? "rgba(201,169,97,0.18)" : "#1f1f27",
         background: "#101015",
         padding: "16px 18px",
       }}
@@ -447,8 +449,8 @@ function Row({
         </button>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={onEdit} disabled={editing} style={{ ...btnGhost, height: 34, opacity: editing ? 0.5 : 1 }}>
-          {editing ? "Editing…" : "Edit"}
+        <button onClick={onEdit} aria-expanded={editing} style={{ ...btnGhost, height: 34, ...(editing ? { background: GOLD, color: "#0b0b0d", borderColor: GOLD } : null) }}>
+          {editing ? "Close ▴" : "Edit ▾"}
         </button>
         <button onClick={onDelete} style={{ ...btnGhost, height: 34, color: "#d98a6a" }}>
           Delete
@@ -500,11 +502,14 @@ function Editor({
     setF((p) => ({ ...p, inspiration: composeInspiration(h, s) }));
   };
 
-  // Bring the editor into view when it opens — rows further down the list
-  // would otherwise open it off-screen.
+  // Keep the row being edited where it is: scroll only if it has left the
+  // screen. A new fragrance's editor (top of the list) is brought into view.
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    box.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const row = initial.id ? box.current?.previousElementSibling : box.current;
+    row?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    // Mount-only: the editor is keyed by fragrance id.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Object URL for the preview; revoked when the file changes or we unmount.
@@ -548,7 +553,17 @@ function Editor({
   );
 
   return (
-    <div ref={box} style={{ border: "1px solid rgba(201,169,97,0.35)", background: "rgba(20,20,26,0.5)", padding: 24, scrollMarginTop: 90 }}>
+    <div
+      ref={box}
+      className="mo-admin-editor"
+      style={{
+        border: `1px solid ${initial.id ? "rgba(201,169,97,0.6)" : "rgba(201,169,97,0.35)"}`,
+        borderTop: initial.id ? 0 : undefined,
+        background: initial.id ? "#101015" : "rgba(20,20,26,0.5)",
+        padding: 24,
+        scrollMarginTop: 90,
+      }}
+    >
       <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: "#f3ecdc", marginBottom: 18 }}>
         {initial.id ? `Edit ${initial.name}` : "New fragrance"}
       </div>
