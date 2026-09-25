@@ -8,7 +8,8 @@ import { confirmStripeSession, stripeCheckout, stripeSubscribe } from "./lib/str
 import type { CheckoutDelivery } from "./lib/shipping";
 import { currentRoute, navigate, onRouteChange, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
-import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE } from "./lib/formats";
+import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE, sku } from "./lib/formats";
+import { trackAddToCart, trackBeginCheckout, trackPurchase } from "./lib/analytics";
 import AuthModal from "./components/AuthModal";
 import PasswordReset from "./components/PasswordReset";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
@@ -109,6 +110,7 @@ export default function App() {
       return;
     }
     addToBag(frag.id, key, qty, engraving);
+    trackAddToCart({ id: frag.id, name: frag.name, format: key, priceCents: sku(frag, key).price, qty });
     setQuick(null);
     setPlaced(null);
     setBagOpen(true);
@@ -117,7 +119,10 @@ export default function App() {
   const addBox = useCallback((frags: Fragrance[]) => {
     if (frags.length !== DISCOVERY_BOX_SIZE) return;
     const each = Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE);
-    frags.forEach((f) => addToBag(f.id, "perf10", 1, null, { unitPrice: each, label: "Discovery Box" }));
+    frags.forEach((f) => {
+      addToBag(f.id, "perf10", 1, null, { unitPrice: each, label: "Discovery Box" });
+      trackAddToCart({ id: f.id, name: f.name, format: "perf10", priceCents: each });
+    });
     clearDiscovery();
     setPlaced(null);
     setBagOpen(true);
@@ -138,6 +143,12 @@ export default function App() {
       // A real deployment always pays through Stripe. If that can't start we
       // stop without recording an unpaid order.
       if (auth.configured) {
+        trackBeginCheckout(
+          lines.map((l) => {
+            const f = fragrances.find((x) => x.id === l.fragranceId);
+            return { id: l.fragranceId, name: f?.name, format: l.format, priceCents: l.unitPrice ?? (f ? sku(f, l.format).price : undefined), qty: l.qty };
+          }),
+        );
         const r = await stripeCheckout(
           lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })),
           delivery,
@@ -160,7 +171,7 @@ export default function App() {
     } finally {
       setCheckingOut(false);
     }
-  }, [lines, auth.configured, isAdmin]);
+  }, [lines, fragrances, auth.configured, isAdmin]);
 
   // ── Monthly Pour ───────────────────────────────────────────────────────────
   const { subscriptions, loading: subsLoading, reload: reloadSubs } = useSubscriptions(!!auth.user);
@@ -262,6 +273,11 @@ export default function App() {
       if (r?.ok && r.data.kind === "order") {
         clearBag();
         const itemCount = (r.data.lines ?? []).reduce((n, l) => n + l.q, 0);
+        trackPurchase(
+          sessionId,
+          r.data.amountTotal ?? 0,
+          (r.data.lines ?? []).map((l) => ({ id: l.f, format: l.k, priceCents: l.u, qty: l.q })),
+        );
         setStripeNotice({ kind: "order", detail: `${itemCount} item(s) · ${money(r.data.amountTotal ?? 0)} paid` });
         setThanks({ status: "paid", itemCount, amountTotal: r.data.amountTotal });
         setCommitsVersion((v) => v + 1);
@@ -349,7 +365,10 @@ export default function App() {
         setBagOpen(false);
         navigate(paths.checkout);
       }}
-      onAddCar={(f) => addToBag(f.id, "car", 1)}
+      onAddCar={(f) => {
+        addToBag(f.id, "car", 1);
+        trackAddToCart({ id: f.id, name: f.name, format: "car", priceCents: sku(f, "car").price });
+      }}
     />
   ) : null;
 
@@ -375,6 +394,7 @@ export default function App() {
             onOpenProduct={(slug) => navigate(paths.product(slug))}
             onAddSample={(f) => {
               addToBag(f.id, "perf10", 1);
+              trackAddToCart({ id: f.id, name: f.name, format: "perf10", priceCents: sku(f, "perf10").price });
               setPlaced(null);
               setBagOpen(true);
             }}
