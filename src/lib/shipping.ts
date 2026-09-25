@@ -73,8 +73,9 @@ export interface CheckoutDelivery {
   region?: string;
   postcode?: string;
   code?: string;
-  /** Alternate: how to reach them and how to get it to them. */
+  /** Mobile number, collected from everyone (delivery updates, questions). */
   phone?: string;
+  /** Alternate: how to get it to them. */
   notes?: string;
   /** Opted in to one email with a link back to this checkout if it isn't finished. */
   remindMe?: boolean;

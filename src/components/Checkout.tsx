@@ -5,6 +5,11 @@ import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import { type CheckoutDelivery, type ShippingRate, etaLabel, quoteShipping } from "../lib/shipping";
 import { Arrow, Icon } from "./ui";
+
+/** A mobile in any common shape: 0412 345 678, +61 412 345 678, (04) 1234-5678. */
+function validMobile(v: string): boolean {
+  return /^\+?\d{8,15}$/.test(v.replace(/[\s().-]/g, ""));
+}
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
 interface CheckoutProps {
@@ -112,6 +117,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
     : {
         method: "auspost",
         email: contact.trim(),
+        phone: phone.trim(),
         remindMe,
         name: fullName.trim(),
         address: address.trim(),
@@ -122,17 +128,20 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
       };
 
   const missing = alternate
-    ? [contact, fullName, phone, notes].some((v) => !v.trim())
-    : [contact, fullName, address, city, region].some((v) => !v.trim()) || !/^\d{4}$/.test(postcode.trim());
+    ? [contact, phone, fullName, notes].some((v) => !v.trim())
+    : [contact, phone, fullName, address, city, region].some((v) => !v.trim()) || !/^\d{4}$/.test(postcode.trim());
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.trim());
+  const validPhone = validMobile(phone);
   const formError = !rows.length
     ? "Your bag is empty."
     : missing
       ? alternate
-        ? "Please fill in your email, name, mobile and delivery details."
-        : "Please fill in your email and shipping address."
+        ? "Please fill in your email, mobile, name and delivery details."
+        : "Please fill in your email, mobile and shipping address."
       : !validEmail
         ? "That email address doesn't look right."
+        : !validPhone
+          ? "That mobile number doesn't look right — e.g. 0412 345 678."
         : !alternate && (!rate || postageOff || ship?.status !== "ready")
           ? "Please wait for a valid postage quote before continuing."
           : null;
@@ -187,13 +196,16 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         <div style={{ display: "grid", gap: 26 }}>
           <div>
             <span style={blockLabel}>Contact</span>
-            <input type="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} />
+            <div style={{ display: "grid", gap: 10 }}>
+              <input type="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} />
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile number" autoComplete="tel" inputMode="tel" aria-label="Mobile number" required style={field} />
+            </div>
             <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.6, color: "rgba(243,236,220,0.5)" }}>
               {signedIn ? (
-                "Your receipt and any delivery questions go here."
+                "Your receipt goes to your email; we'll only use your mobile for delivery updates and questions about this order."
               ) : (
                 <>
-                  No account needed — checking out as a guest is fine.{" "}
+                  We'll only use your mobile for delivery updates and questions about this order. No account needed — checking out as a guest is fine.{" "}
                   <button onClick={onSignIn} style={{ ...btnLink, fontSize: 14, letterSpacing: 0, textTransform: "none", fontFamily: "inherit", padding: 0 }}>
                     Sign in
                   </button>{" "}
@@ -233,7 +245,6 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" autoComplete="name" aria-label="Full name" style={field} />
               {alternate ? (
                 <>
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile number" autoComplete="tel" inputMode="tel" aria-label="Mobile number" style={field} />
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
