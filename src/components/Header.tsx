@@ -15,6 +15,8 @@ interface HeaderProps {
 }
 
 const navLink: CSSProperties = {
+  display: "inline-block",
+  textDecoration: "none",
   background: "none",
   border: 0,
   cursor: "pointer",
@@ -102,13 +104,13 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
         }}
       >
         <div className="mo-header-row" style={{ maxWidth: 1400, margin: "0 auto", padding: "0 32px", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
-          <button onClick={() => navigate(paths.home)} style={{ display: "flex", alignItems: "center", gap: 12, background: "none", border: 0, cursor: "pointer", padding: 0 }} aria-label="Maison Obsidian home">
+          <a href={paths.home} style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }} aria-label="Maison Obsidian home">
             <Logo width={22} height={26} />
             <span style={{ textAlign: "left" }}>
               <span className="mo-wordmark" style={{ display: "block", fontFamily: SERIF, fontSize: 18, letterSpacing: "0.16em", fontWeight: 600, lineHeight: 1, color: CREAM }}>MAISON OBSIDIAN</span>
               <span className="mo-wordmark-sub" style={{ display: "block", fontFamily: MONO, fontSize: 8, letterSpacing: "0.32em", color: GOLD, marginTop: 5, textTransform: "uppercase" }}>Scents for a bolder you</span>
             </span>
-          </button>
+          </a>
 
           <nav className="mo-nav" style={{ display: "flex", alignItems: "center", gap: 26, position: "relative" }} aria-label="Primary">
             <div onMouseEnter={openShop} onMouseLeave={closeShopSoon} style={{ position: "relative" }}>
@@ -134,29 +136,29 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                   <div>
                     <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>Shop by fragrance</div>
                     {BY_FRAGRANCE.map((x) => (
-                      <button key={x.facet} role="menuitem" className="mo-navlink" onClick={() => navigate(paths.shop(x.facet))} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
+                      <a key={x.facet} role="menuitem" className="mo-navlink" href={paths.shop(x.facet)} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
                         {x.label}
-                      </button>
+                      </a>
                     ))}
                   </div>
                   <div>
                     <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>Shop by format</div>
                     {BY_FORMAT.map((x) => (
-                      <button key={x.label} role="menuitem" className="mo-navlink" onClick={() => navigate(x.to)} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
+                      <a key={x.label} role="menuitem" className="mo-navlink" href={x.to} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
                         {x.label}
-                      </button>
+                      </a>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-            <button className="mo-navlink mo-navlink-new" style={{ ...navLink, color: GOLD, fontWeight: 700 }} onClick={() => navigate(paths.newArrivals)}>New arrivals</button>
-            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.fragrances)}>Fragrances</button>
-            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.discovery)}>Discovery</button>
-            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.car)}>Car</button>
-            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.body)}>Body &amp; Sets</button>
-            <button className="mo-navlink" style={navLink} onClick={() => navigate(paths.subscribe())}>Subscribe</button>
-            <button className="mo-navlink" style={{ ...navLink, color: GOLD }} onClick={() => navigate(paths.discover)}>Scent DNA</button>
+            <a className="mo-navlink mo-navlink-new" style={{ ...navLink, color: GOLD, fontWeight: 700 }} href={paths.newArrivals}>New arrivals</a>
+            <a className="mo-navlink" style={navLink} href={paths.fragrances}>Fragrances</a>
+            <a className="mo-navlink" style={navLink} href={paths.discovery}>Discovery</a>
+            <a className="mo-navlink" style={navLink} href={paths.car}>Car</a>
+            <a className="mo-navlink" style={navLink} href={paths.body}>Body &amp; Sets</a>
+            <a className="mo-navlink" style={navLink} href={paths.subscribe()}>Subscribe</a>
+            <a className="mo-navlink" style={{ ...navLink, color: GOLD }} href={paths.discover}>Scent DNA</a>
           </nav>
 
           <div className="mo-header-actions" style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -259,6 +261,7 @@ function MobileMenu({
   const heading: CSSProperties = { fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, margin: "0 0 10px" };
   const item: CSSProperties = {
     display: "block",
+    textDecoration: "none",
     width: "100%",
     textAlign: "left",
     background: "none",
@@ -300,30 +303,31 @@ function MobileMenu({
             { label: "Body & Sets", to: paths.body },
             { label: "Subscribe", to: paths.subscribe() },
           ].map((x) => (
-            <button
+            <a
               key={x.label}
               className={x.to === paths.newArrivals ? "mo-navlink-new" : undefined}
-              onClick={() => go(x.to)}
+              href={x.to}
+              onClick={onClose}
               style={x.to === paths.newArrivals ? { ...item, color: GOLD, fontWeight: 700 } : item}
             >
               {x.label}
-            </button>
+            </a>
           ))}
-          <button onClick={() => go(paths.find())} style={{ ...item, color: GOLD }}>
+          <a href={paths.find()} onClick={onClose} style={{ ...item, color: GOLD }}>
             Find your scent
-          </button>
-          <button onClick={() => go(paths.discover)} style={{ ...item, color: GOLD }}>
+          </a>
+          <a href={paths.discover} onClick={onClose} style={{ ...item, color: GOLD }}>
             Scent DNA
-          </button>
+          </a>
         </div>
 
         <div>
           <div style={heading}>Shop by fragrance</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
             {BY_FRAGRANCE.map((x) => (
-              <button key={x.facet} onClick={() => go(paths.shop(x.facet))} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
+              <a key={x.facet} href={paths.shop(x.facet)} onClick={onClose} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
                 {x.label}
-              </button>
+              </a>
             ))}
           </div>
         </div>
@@ -331,9 +335,9 @@ function MobileMenu({
         <div>
           <div style={heading}>Shop by format</div>
           {BY_FORMAT.map((x) => (
-            <button key={x.label} onClick={() => go(x.to)} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
+            <a key={x.label} href={x.to} onClick={onClose} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
               {x.label}
-            </button>
+            </a>
           ))}
         </div>
 

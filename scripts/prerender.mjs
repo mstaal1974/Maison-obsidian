@@ -1,4 +1,5 @@
-// After `vite build`: a static page per fragrance, a sitemap and robots.txt.
+// After `vite build`: a static page per fragrance and per storefront page, a
+// sitemap, robots.txt and the Merchant Center product feed.
 //
 // The storefront is a single-page app, so without this every URL serves the
 // same index.html: one title, one description, one social card. Crawlers and
@@ -12,8 +13,17 @@
 // The catalogue is the live one (Supabase, anon key — the same public read the
 // storefront does), else the seed in src/lib/data.ts.
 //
-// Env: SITE_URL (canonical origin, e.g. https://maisonobsidian.com.au); on
-// Vercel it falls back to the production domain. VITE_SUPABASE_URL and
+// The storefront's own pages (/discovery, /car, /fragrances …) get the same
+// treatment from staticPageMeta(), so each has its own title, description and
+// canonical URL before any script runs.
+//
+// dist/merchant-feed.xml lists every purchasable SKU for Google Merchant
+// Center (src/lib/feed.ts); add it there as a scheduled fetch.
+//
+// Env: VITE_SITE_URL, the canonical origin (e.g. https://www.maisonobsidian.com.au,
+// the host the other of www / bare domain redirects to), read here and by the
+// app. Without it, SITE_URL, then Vercel's production domain — which is the
+// *shortest* custom domain, and so may be the one that redirects away. VITE_SUPABASE_URL and
 // VITE_SUPABASE_ANON_KEY as for the app.
 
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -28,9 +38,10 @@ const dist = join(root, "dist");
 const env = { ...loadEnv("production", root, ""), ...process.env };
 
 const origin = (
+  env.VITE_SITE_URL ||
   env.SITE_URL ||
   (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
-  "https://maisonobsidian.com.au"
+  "https://www.maisonobsidian.com.au"
 ).replace(/\/+$/, "");
 
 // The app's own catalogue and SEO code, so the tags match what the page shows.
@@ -38,7 +49,13 @@ const origin = (
 const bundle = join(root, "node_modules", ".cache", `mo-prerender-${process.pid}.mjs`);
 await build({
   stdin: {
-    contents: `export { FRAGS, withBottleImage } from "./src/lib/data";\nexport { productMeta, headTags } from "./src/lib/seo";\nexport { isLaunched } from "./src/lib/launch";`,
+    contents: [
+      `export { FRAGS, withBottleImage } from "./src/lib/data";`,
+      `export { productMeta, staticPageMeta, headTags } from "./src/lib/seo";`,
+      `export { merchantFeed } from "./src/lib/feed";`,
+      `export { socialProfiles } from "./src/lib/social";`,
+      `export { isLaunched } from "./src/lib/launch";`,
+    ].join("\n"),
     resolveDir: root,
     loader: "ts",
   },
@@ -49,7 +66,7 @@ await build({
   outfile: bundle,
   logLevel: "error",
 });
-const { FRAGS, withBottleImage, productMeta, headTags, isLaunched } = await import(pathToFileURL(bundle).href);
+const { FRAGS, withBottleImage, productMeta, staticPageMeta, headTags, merchantFeed, socialProfiles, isLaunched } = await import(pathToFileURL(bundle).href);
 await rm(bundle, { force: true });
 
 /** Mirrors rowToFragrance() in src/lib/store.ts. */
@@ -144,11 +161,11 @@ const shell = template
   .replace(/\s*<!-- Social cards\.[\s\S]*?-->/, "");
 
 const [{ source, frags }, rated] = await Promise.all([catalogue(), ratings()]);
+// Not launched yet: no page, no sitemap entry, no feed item (the app shows it
+// from launch day).
+const launched = frags.filter((f) => f.slug && /^[a-z0-9-]+$/.test(f.slug) && isLaunched(f));
 const pages = [];
-for (const f of frags) {
-  if (!f.slug || !/^[a-z0-9-]+$/.test(f.slug)) continue;
-  // Not launched yet: no page, no sitemap entry (the app shows it from launch day).
-  if (!isLaunched(f)) continue;
+for (const f of launched) {
   const meta = productMeta(f, origin, cardImage(f), rated.get(f.id) ?? null);
   const html = shell.replace(/\s*<\/head>/, `\n    ${headTags(meta, origin)}\n  </head>`);
   const dir = join(dist, "fragrance", f.slug);
@@ -158,8 +175,21 @@ for (const f of frags) {
 }
 
 // Storefront pages worth indexing; the account, checkout, admin and staff
-// screens are not.
+// screens are not. Each but the home page gets its own head, as above; the
+// home page's index.html is also the app shell every other path falls back to,
+// so it keeps the generic tags and the app adds the rest.
 const statics = ["/", "/new", "/fragrances", "/shop", "/discovery", "/car", "/body", "/subscribe", "/discover", "/about", "/help"];
+const sameAs = socialProfiles(env).map((p) => p.url);
+let staticCount = 0;
+for (const p of statics) {
+  if (p === "/") continue;
+  const meta = staticPageMeta(p, origin, sameAs);
+  if (!meta) continue;
+  const dir = join(dist, p.slice(1));
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, "index.html"), shell.replace(/\s*<\/head>/, `\n    ${headTags({ image: "/assets/bottle-pair.png", ...meta }, origin)}\n  </head>`));
+  staticCount++;
+}
 const today = new Date().toISOString().slice(0, 10);
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -177,10 +207,17 @@ Disallow: /staff
 Disallow: /account
 Disallow: /checkout
 Disallow: /thanks
+Disallow: /reset
+Disallow: /find
 Disallow: /api/
 
 Sitemap: ${origin}/sitemap.xml
 `,
 );
 
-console.log(`prerender: ${pages.length} fragrance pages from the ${source} catalogue, sitemap.xml and robots.txt for ${origin}`);
+const feed = merchantFeed(launched, { origin, imageFor: cardImage });
+await writeFile(join(dist, "merchant-feed.xml"), feed.xml);
+
+console.log(
+  `prerender: ${pages.length} fragrance pages from the ${source} catalogue, ${staticCount} storefront pages, sitemap.xml, robots.txt and merchant-feed.xml (${feed.count} items) for ${origin}`,
+);

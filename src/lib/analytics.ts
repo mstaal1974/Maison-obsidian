@@ -4,11 +4,15 @@
 // The storefront is a single-page app: GA's automatic page view would only
 // fire once, so page views are sent here on every route change instead. The
 // admin, staff and account screens are not tracked, and query strings are
-// dropped (the thank-you page's Stripe session id never leaves the browser).
+// dropped (the thank-you page's Stripe session id never leaves the browser)
+// except campaign tags — utm_* and ad click ids — which GA reads from the page
+// location to attribute the visit to the post, creative or ad that sent it.
 //
 // Ecommerce events use GA4's recommended names so the Monetisation reports
-// fill in: view_item, add_to_cart, begin_checkout, purchase. Money is sent in
-// dollars (the app works in cents).
+// fill in: view_item, select_item, add_to_cart, begin_checkout, purchase.
+// Money is sent in dollars (the app works in cents). Three events of the
+// house's own: discovery_box_completed, scent_match_completed and
+// car_diffuser_attach — none carries quiz answers or anything personal.
 
 import type { FormatKey } from "./data";
 import { onRouteChange } from "./route";
@@ -29,15 +33,28 @@ function gtag(...args: unknown[]): void {
   if (enabled) window.gtag?.(...args);
 }
 
+const CAMPAIGN = /^(utm_(source|medium|campaign|content|term|id)|gclid|gbraid|wbraid|fbclid|ttclid)$/;
+
+/** The query string cut down to campaign tags, e.g. "?utm_source=instagram". */
+function campaignQuery(): string {
+  const kept = new URLSearchParams();
+  new URLSearchParams(window.location.search).forEach((v, k) => {
+    if (CAMPAIGN.test(k)) kept.append(k, v);
+  });
+  const q = kept.toString();
+  return q ? `?${q}` : "";
+}
+
 let lastPath = "";
 function pageView(): void {
   const path = window.location.pathname;
   if (PRIVATE.test(path) || path === lastPath) return;
   lastPath = path;
+  const query = campaignQuery();
   // After the new screen has rendered and set its own title (usePageMeta).
   setTimeout(() => {
     gtag("event", "page_view", {
-      page_location: window.location.origin + path,
+      page_location: window.location.origin + path + query,
       page_path: path,
       page_title: document.title,
     });
@@ -84,6 +101,26 @@ const value = (list: AnalyticsItem[]) => list.reduce((n, i) => n + (i.priceCents
 
 export function trackViewItem(item: AnalyticsItem): void {
   gtag("event", "view_item", { currency: CURRENCY, value: value([item]), items: items([item]) });
+}
+
+/** A product opened from a listing (a card in a collection, related scents …). */
+export function trackSelectItem(item: AnalyticsItem, list?: string): void {
+  gtag("event", "select_item", { ...(list ? { item_list_name: list } : {}), items: items([item]) });
+}
+
+/** A full Discovery Box went into the bag. */
+export function trackDiscoveryBoxCompleted(list: AnalyticsItem[]): void {
+  gtag("event", "discovery_box_completed", { currency: CURRENCY, value: value(list), items: items(list) });
+}
+
+/** A Scent DNA result was revealed. Only how they got there, never the answers. */
+export function trackScentMatchCompleted(method: string): void {
+  gtag("event", "scent_match_completed", { method });
+}
+
+/** A car diffuser went into a bag that already holds a perfume. */
+export function trackCarDiffuserAttach(item: AnalyticsItem): void {
+  gtag("event", "car_diffuser_attach", { currency: CURRENCY, value: value([item]), items: items([item]) });
 }
 
 export function trackAddToCart(item: AnalyticsItem): void {

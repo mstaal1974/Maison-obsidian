@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { type Fragrance, type FormatKey, CREAM, GOLD } from "../lib/data";
 import { NEW_DAYS, launchLabel, newArrivals, upcoming } from "../lib/launch";
 import { navigate, paths } from "../lib/route";
-import { usePageMeta } from "../lib/seo";
+import { siteOrigin, staticPageMeta, usePageMeta } from "../lib/seo";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import { bottleBackdrop } from "./adminStyles";
@@ -25,11 +25,7 @@ const body = { fontSize: 15, lineHeight: 1.6, color: "rgba(243,236,220,0.65)" } 
 export default function NewArrivals({ fragrances, vip, discoveryIds, onQuickView, onToggleDiscovery, upcoming: all = [] }: Props) {
   const list = useMemo(() => newArrivals(fragrances), [fragrances]);
   const soon = useMemo(() => upcoming(all), [all]);
-  usePageMeta({
-    title: "New arrivals | Maison Obsidian",
-    description: "The latest fragrances from Maison Obsidian, freshly poured in small batches. Meet them in 10 ml or go straight to the 50 ml.",
-    path: paths.newArrivals,
-  });
+  usePageMeta(staticPageMeta(paths.newArrivals, siteOrigin()));
 
   return (
     <main data-screen-label="New arrivals">
