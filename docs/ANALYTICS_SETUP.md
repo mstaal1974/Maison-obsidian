@@ -25,11 +25,19 @@ page views on every screen change, and leaving this on would count each one twic
 
 | Event | When |
 | --- | --- |
-| `page_view` | Every storefront screen (admin, staff and account screens are not tracked; query strings are dropped) |
+| `page_view` | Every storefront screen (admin, staff and account screens are not tracked; query strings are dropped except `utm_*` tags and ad click ids, so tagged social and ad links are attributed) |
 | `view_item` | A fragrance page is opened |
+| `select_item` | A fragrance is opened from a product card |
 | `add_to_cart` | Anything goes in the bag (product page, quick view, Discovery Box, car diffuser, Scent DNA sample) |
 | `begin_checkout` | The customer continues to payment |
 | `purchase` | A paid order is confirmed on the thank-you page, with its total and items |
+| `discovery_box_completed` | A full Discovery Box goes into the bag |
+| `scent_match_completed` | A Scent DNA result is revealed (`method`: quiz, conversation or memory — never the answers) |
+| `car_diffuser_attach` | A car diffuser goes into a bag that already holds a perfume |
+
+Tag every social post and ad link, e.g.
+`/discovery?utm_source=instagram&utm_medium=social&utm_campaign=discovery-box&utm_content=reel-01`,
+so sessions and purchases can be compared per post and creative.
 
 In GA → **Admin → Events** (after the first purchase has come through), mark `purchase` as a **key event**.
 Revenue then shows under **Reports → Monetisation**.
@@ -64,10 +72,30 @@ understand how it is used, with a link to <https://policies.google.com/privacy>.
 ### After verifying
 
 1. **Sitemaps** → submit `sitemap.xml`. It is rebuilt on every deploy with the home
-   page, the shop pages and one page per launched fragrance.
+   page, the shop pages and one page per launched fragrance. Set `VITE_SITE_URL`
+   to the canonical host (`https://www.…` if the bare domain redirects to www)
+   so the sitemap, canonical tags and structured data all name it.
 2. **URL inspection** → paste a fragrance URL → **Request indexing** for the
    handful of pages that matter most.
 3. Link it to Analytics: GA → **Admin → Product links → Search Console links**.
    Search queries then show up inside GA too.
 
 Expect data to start showing in Search Console after 2–3 days.
+
+## 3. Google Merchant Center
+
+Every deploy writes `/merchant-feed.xml`: one item per purchasable SKU (each
+eau de parfum size and the car diffuser) with its price, availability and a
+link that opens the product page on that SKU (`?format=10ml`, `?format=car`).
+The product pages carry matching `ProductGroup` / `Offer` structured data.
+
+1. Merchant Center → **Products → Add products → Add from a file** → **Scheduled
+   fetch**, URL `https://<your host>/merchant-feed.xml`, daily. Prices come from
+   the catalogue at build time, so redeploy (or let the daily fetch pick up the
+   next deploy) after changing prices.
+2. **Shipping and returns**: set postage as a shipping service (Australia Post,
+   free standard post over $100) and the returns policy in Merchant Center; the
+   feed leaves both out rather than guess a flat rate.
+3. Check **Diagnostics** before any paid Shopping test. Titles and descriptions
+   deliberately leave out the "inspired by" designer names — review that
+   wording against Google's counterfeit-goods policy before adding it.

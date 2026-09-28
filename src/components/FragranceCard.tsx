@@ -1,6 +1,7 @@
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { profileOf, fromPrice, sku, availableIn, referenceOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { trackSelectItem } from "../lib/analytics";
 import { isNew } from "../lib/launch";
 import BottleImage from "./BottleImage";
 import { Arrow, Chip, Icon, InspiredBy } from "./ui";
@@ -26,9 +27,13 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
   const locked = !!frag.vipOnly && !vip;
   const notes = [frag.top[0], frag.heart[0], frag.base[0]].filter(Boolean).join(" · ");
   const chips: FormatKey[] = ["perf10", "perf30", "perf50"];
+  // Real links, so crawlers can follow the collection to every product page;
+  // interceptLinks() (lib/route) keeps the click in the app.
+  const href = paths.product(frag.slug);
+  const select = () => trackSelectItem({ id: frag.id, name: frag.name });
   return (
     <article className="mo-card" style={{ border: "1px solid #1f1f27", background: "#101015", display: "flex", flexDirection: "column" }}>
-      <button className="mo-card-photo" onClick={() => navigate(paths.product(frag.slug))} aria-label={`Open ${frag.name}`} style={{ padding: 0, border: 0, background: "none", cursor: "pointer", position: "relative", display: "block" }}>
+      <a className="mo-card-photo" href={href} onClick={select} tabIndex={-1} aria-hidden="true" style={{ position: "relative", display: "block" }}>
         <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-portrait.webp" alt={`${frag.name} bottle`} accent={frag.accent} liquid={frag.liquid} height={300} />
         {isNew(frag) && (
           <span style={{ position: "absolute", top: 12, right: 12, ...micro, color: "#0b0b0d", background: GOLD, padding: "4px 8px", fontWeight: 600 }}>New</span>
@@ -36,11 +41,11 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
         {frag.vipOnly && (
           <span style={{ position: "absolute", top: 12, left: 12, ...micro, color: GOLD, border: "1px solid rgba(201,169,97,0.5)", background: "rgba(11,11,13,0.8)", padding: "4px 8px" }}>VIP</span>
         )}
-      </button>
+      </a>
       <div className="mo-card-body" style={{ padding: "16px 18px 18px", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
-        <button className="mo-card-name" onClick={() => navigate(paths.product(frag.slug))} style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left", fontFamily: SERIF, fontSize: 22, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1.05 }}>
+        <a className="mo-card-name" href={href} onClick={select} style={{ display: "block", textDecoration: "none", fontFamily: SERIF, fontSize: 22, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1.05 }}>
           {frag.name}
-        </button>
+        </a>
         <InspiredBy {...referenceOf(frag)} size="sm" />
         <div style={{ ...micro, color: "rgba(243,236,220,0.75)", fontSize: 8.5 }}>{profileOf(frag).join(" · ")}</div>
         <div className="mo-card-notes" style={{ fontSize: 12.5, color: "rgba(243,236,220,0.55)" }}>{notes}</div>

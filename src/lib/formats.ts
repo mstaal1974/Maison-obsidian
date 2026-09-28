@@ -114,6 +114,32 @@ export function sku(f: Fragrance, key: FormatKey): Sku {
   return { key, def, code: `${f.slug.toUpperCase()}-${def.sku}`, price, compareAt, status, stock, buyable, availability };
 }
 
+/**
+ * The ?format= value that opens a product page on one SKU ("10ml", "car").
+ * Search results, Shopping listings and ads land on the price they showed, not
+ * on the page's default size.
+ */
+export function formatParam(key: FormatKey): string {
+  return FORMAT_BY_KEY[key].short.toLowerCase();
+}
+
+export function formatFromParam(value: string | null | undefined): FormatKey | null {
+  const v = (value ?? "").trim().toLowerCase();
+  return FORMATS.find((d) => d.short.toLowerCase() === v || d.key === v)?.key ?? null;
+}
+
+/**
+ * One reading of availability for the product page's structured data and the
+ * Merchant Center feed, so the two never disagree. Made to order is orderable
+ * now and ships later: the feed says in stock with a longer handling time.
+ */
+export function availabilityOf(s: Sku): { schema: string; feed: "in_stock" | "out_of_stock" | "preorder"; handlingDays: [number, number] | null } {
+  if (s.status === "coming_soon") return { schema: "https://schema.org/PreOrder", feed: "preorder", handlingDays: null };
+  if (!s.buyable) return { schema: "https://schema.org/OutOfStock", feed: "out_of_stock", handlingDays: null };
+  if (s.stock > 0) return { schema: "https://schema.org/InStock", feed: "in_stock", handlingDays: [1, 2] };
+  return { schema: "https://schema.org/MadeToOrder", feed: "in_stock", handlingDays: [5, 7] };
+}
+
 /** Every visible SKU of a fragrance, in display order. */
 export function skus(f: Fragrance): Sku[] {
   return FORMATS.map((d) => sku(f, d.key)).filter((s) => s.status !== "hidden");

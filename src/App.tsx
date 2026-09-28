@@ -9,7 +9,9 @@ import type { CheckoutDelivery } from "./lib/shipping";
 import { currentRoute, navigate, onRouteChange, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE, sku } from "./lib/formats";
-import { trackAddToCart, trackBeginCheckout, trackPurchase } from "./lib/analytics";
+import { trackAddToCart, trackBeginCheckout, trackCarDiffuserAttach, trackDiscoveryBoxCompleted, trackPurchase } from "./lib/analytics";
+import { DEFAULT_META, siteOrigin, staticPageMeta, usePageMeta } from "./lib/seo";
+import { socialProfiles } from "./lib/social";
 import AuthModal from "./components/AuthModal";
 import PasswordReset from "./components/PasswordReset";
 import MyOrders, { type Order as AccountOrder } from "./components/MyOrders";
@@ -69,7 +71,7 @@ export default function App() {
 
   // The whole catalogue (admin, past orders, subscriptions) and what the
   // storefront shows: nothing before its launch date (lib/launch.ts).
-  const { fragrances: catalogue, reload } = useFragrances();
+  const { fragrances: catalogue, loaded: catalogueLoaded, reload } = useFragrances();
   const fragrances = useMemo(() => catalogue.filter((f) => isLaunched(f)), [catalogue]);
   const auth = useAuth();
   const isAdmin = useIsAdmin(auth.user);
@@ -109,8 +111,11 @@ export default function App() {
       navigate(paths.about);
       return;
     }
+    const hadPerfume = bagLines().some((l) => FORMAT_BY_KEY[l.format]?.group === "wear");
     addToBag(frag.id, key, qty, engraving);
-    trackAddToCart({ id: frag.id, name: frag.name, format: key, priceCents: sku(frag, key).price, qty });
+    const item = { id: frag.id, name: frag.name, format: key, priceCents: sku(frag, key).price, qty };
+    trackAddToCart(item);
+    if (key === "car" && hadPerfume) trackCarDiffuserAttach(item);
     setQuick(null);
     setPlaced(null);
     setBagOpen(true);
@@ -119,10 +124,10 @@ export default function App() {
   const addBox = useCallback((frags: Fragrance[]) => {
     if (frags.length !== DISCOVERY_BOX_SIZE) return;
     const each = Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE);
-    frags.forEach((f) => {
-      addToBag(f.id, "perf10", 1, null, { unitPrice: each, label: "Discovery Box" });
-      trackAddToCart({ id: f.id, name: f.name, format: "perf10", priceCents: each });
-    });
+    const box = frags.map((f) => ({ id: f.id, name: f.name, format: "perf10" as const, priceCents: each }));
+    frags.forEach((f) => addToBag(f.id, "perf10", 1, null, { unitPrice: each, label: "Discovery Box" }));
+    box.forEach(trackAddToCart);
+    trackDiscoveryBoxCompleted(box);
     clearDiscovery();
     setPlaced(null);
     setBagOpen(true);
@@ -354,6 +359,31 @@ export default function App() {
   const selected = route.view === "product" ? fragrances.find((f) => f.slug === route.slug) ?? null : null;
   // Not launched yet: its page is a teaser with a waitlist sign-up.
   const teaser = route.view === "product" && !selected ? catalogue.find((f) => f.slug === route.slug && isUpcoming(f)) ?? null : null;
+  const notFound = route.view === "product" && !selected && !teaser;
+
+  // Title, description and canonical URL for the storefront's own pages (the
+  // product, coming-soon, new-arrivals and Scent DNA screens set their own). A
+  // missing fragrance is kept out of search, but only once the live catalogue
+  // has answered: until then the seed stands in and may simply not have it.
+  const staticPath: Partial<Record<Route["view"], string>> = {
+    home: paths.home,
+    shop: paths.shop(),
+    fragrances: paths.fragrances,
+    discovery: paths.discovery,
+    car: paths.car,
+    body: paths.body,
+    subscribe: paths.subscribe(),
+    about: paths.about,
+    help: paths.help,
+  };
+  const pagePath = staticPath[route.view];
+  usePageMeta(
+    notFound && catalogueLoaded
+      ? { ...DEFAULT_META, title: "Fragrance not found | Maison Obsidian", robots: "noindex" }
+      : pagePath
+        ? staticPageMeta(pagePath, siteOrigin(), socialProfiles(import.meta.env).map((p) => p.url))
+        : null,
+  );
 
   const bagDrawer = bagOpen ? (
     <BagDrawer
@@ -509,7 +539,8 @@ export default function App() {
       {route.view === "product" && teaser && (
         <ComingSoon key={teaser.slug} frag={teaser} fragrances={fragrances} vip={vip} userEmail={auth.user?.email ?? null} onQuickView={openQuick} />
       )}
-      {route.view === "product" && !selected && !teaser && (
+      {notFound && !catalogueLoaded && <main aria-busy="true" style={{ minHeight: "70vh" }} />}
+      {notFound && catalogueLoaded && (
         <main style={{ maxWidth: 1340, margin: "0 auto", padding: "120px 32px", textAlign: "center" }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontWeight: 300, fontSize: 48, color: "#f3ecdc" }}>Fragrance not found.</h1>
           <button className="mo-cta" onClick={() => navigate(paths.fragrances)} style={{ marginTop: 28, background: "#c9a961", color: "#0b0b0d", border: 0, cursor: "pointer", height: 48, padding: "0 26px", fontSize: 11, letterSpacing: "0.24em", textTransform: "uppercase", fontWeight: 600 }}>

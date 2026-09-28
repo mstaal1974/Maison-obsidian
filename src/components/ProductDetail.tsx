@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
-import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, experienceOf, relatedTo, type Sku } from "../lib/formats";
+import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, experienceOf, relatedTo, formatFromParam, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
-import { productMeta, usePageMeta } from "../lib/seo";
+import { productMeta, siteOrigin, usePageMeta } from "../lib/seo";
 import { summarise, useReviews } from "../lib/reviews";
 import { isNew } from "../lib/launch";
 import Reviews, { Stars } from "./Reviews";
@@ -37,7 +37,12 @@ const ENGRAVE_MAX = 28;
  * and reads the notes and the story underneath.
  */
 export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickView, userId, userEmail, onSignIn }: ProductDetailProps) {
-  const [key, setKey] = useState<FormatKey>("perf50");
+  // ?format=10ml (or car …) opens the page on that SKU: Shopping listings and
+  // the structured data link each price to the page showing it.
+  const [key, setKey] = useState<FormatKey>(() => {
+    const asked = formatFromParam(new URLSearchParams(window.location.search).get("format"));
+    return asked && skuOf(frag, asked).status === "live" ? asked : "perf50";
+  });
   const [qty, setQty] = useState(1);
   const [engraveOn, setEngraveOn] = useState(false);
   const [engraving, setEngraving] = useState("");
@@ -47,10 +52,10 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
   const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
   const { reviews, enabled: reviewsOn } = useReviews(frag.id);
   const rating = useMemo(() => summarise(reviews), [reviews]);
-  usePageMeta(useMemo(() => productMeta(frag, window.location.origin, frag.imageUrl, rating), [frag, rating]));
+  usePageMeta(useMemo(() => productMeta(frag, siteOrigin(), frag.imageUrl, rating), [frag, rating]));
   // Once per fragrance opened (not on every re-render or rating load).
   useEffect(() => {
-    trackViewItem({ id: frag.id, name: frag.name, format: "perf50", priceCents: skuOf(frag, "perf50").price });
+    trackViewItem({ id: frag.id, name: frag.name, format: key, priceCents: skuOf(frag, key).price });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frag.id]);
   const chosen = skuOf(frag, key);
@@ -143,8 +148,8 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
         <div className="mo-pdp-details" style={{ padding: "18px 32px 26px 30px", display: "grid", gridTemplateColumns: "1fr auto", gap: 18 }}>
           <div style={{ minWidth: 0 }}>
             <nav aria-label="Breadcrumb" style={{ ...micro, fontSize: 8.5, display: "flex", gap: 6 }}>
-              <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5 }} onClick={() => navigate(paths.home)}>Home</button> /
-              <button style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5 }} onClick={() => navigate(paths.fragrances)}>Fragrances</button> /
+              <a href={paths.home} style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5, textDecoration: "none" }}>Home</a> /
+              <a href={paths.fragrances} style={{ ...btnLink, color: "rgba(243,236,220,0.5)", fontSize: 8.5, textDecoration: "none" }}>Fragrances</a> /
               <span style={{ color: "rgba(243,236,220,0.8)" }}>{frag.name}</span>
             </nav>
             <h1 className="mo-pdp-title" style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 54, lineHeight: 1, color: CREAM }}>{frag.name}</h1>
@@ -243,10 +248,17 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
 
               </span>
               <span style={{ display: "flex", gap: 18 }}>
-                <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free shipping over $100</span>
+                <span><Icon name="truck" size={12} color="rgba(243,236,220,0.6)" /> Free standard post over $100</span>
                 <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
               </span>
             </div>
+
+            {chosen.buyable && !locked && (
+              <p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.5, color: "rgba(243,236,220,0.6)" }}>
+                Paid in full at checkout, securely through Stripe. Postage is quoted by Australia Post before you pay; this {chosen.def.group === "drive" ? "diffuser" : "bottle"} {chosen.stock > 0 ? "ships within 1–2 business days" : "is filled to order and ships within 5–7 business days"}.{" "}
+                <a href={paths.help} style={{ color: GOLD }}>Delivery, payment &amp; returns</a>
+              </p>
+            )}
 
             {pairings.length > 0 && chosen.buyable && !locked && (
               <fieldset style={{ margin: "16px 0 0", border: "1px solid #1f1f27", padding: "12px 14px 6px" }}>
@@ -382,7 +394,7 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
         <Container style={{ padding: "22px 32px 60px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 28, color: CREAM }}>You may also like</h2>
-            <button style={btnLink} onClick={() => navigate(paths.fragrances)}>Explore more fragrances <Arrow size={10} /></button>
+            <a href={paths.fragrances} style={{ ...btnLink, textDecoration: "none" }}>Explore more fragrances <Arrow size={10} /></a>
           </div>
           <div className="mo-vault-grid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {related.map((r) => (

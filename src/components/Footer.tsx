@@ -1,16 +1,30 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import Logo from "./Logo";
 import { Arrow } from "./ui";
 import { MONO, SERIF } from "./styles";
-import { navigate, paths } from "../lib/route";
+import { paths } from "../lib/route";
+import { socialProfiles, type SocialProfile } from "../lib/social";
 import { joinInnerCircle } from "../lib/profile";
 import { GOLD, CREAM } from "../lib/data";
 
 const LINKS: { label: string; to: string }[] = [
+  { label: "Discovery Box", to: paths.discovery },
+  { label: "Car Diffusers", to: paths.car },
   { label: "Scent DNA", to: paths.discover },
   { label: "About", to: paths.about },
   { label: "Shopping help", to: paths.help },
 ];
+
+const ICONS: Record<SocialProfile["network"], ReactElement> = {
+  Instagram: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" /></svg>,
+  TikTok: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M14 3c.4 2.5 2 4 4.5 4.3v3c-1.7 0-3.2-.5-4.5-1.4V15a5.5 5.5 0 1 1-5.5-5.5h1v3.2a2.4 2.4 0 1 0 1.5 2.3V3z" /></svg>,
+  YouTube: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden><rect x="3" y="6" width="18" height="12" rx="3" /><path d="m10 9 5 3-5 3z" fill="currentColor" /></svg>,
+  Facebook: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8z" /></svg>,
+};
+
+// The official accounts (VITE_INSTAGRAM_URL …). Until they are configured the
+// icons stay as they were — decoration, not links to nowhere.
+const SOCIAL = socialProfiles(import.meta.env);
 
 export default function Footer() {
   const [email, setEmail] = useState("");
@@ -18,18 +32,18 @@ export default function Footer() {
   return (
     <footer style={{ borderTop: "1px solid #1f1f27", background: "#0b0b0d" }}>
       <div className="mo-footer-grid" style={{ maxWidth: 1400, margin: "0 auto", padding: "22px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 28, flexWrap: "wrap" }}>
-        <button onClick={() => navigate(paths.home)} style={{ display: "flex", alignItems: "center", gap: 11, background: "none", border: 0, cursor: "pointer", padding: 0 }}>
+        <a href={paths.home} style={{ display: "flex", alignItems: "center", gap: 11, textDecoration: "none" }}>
           <Logo width={18} height={22} />
           <span style={{ textAlign: "left" }}>
             <span style={{ display: "block", fontFamily: SERIF, fontSize: 15, letterSpacing: "0.16em", fontWeight: 600, color: CREAM, lineHeight: 1 }}>MAISON OBSIDIAN</span>
             <span style={{ display: "block", fontFamily: MONO, fontSize: 7.5, letterSpacing: "0.3em", color: GOLD, marginTop: 4, textTransform: "uppercase" }}>Scents for a bolder you</span>
           </span>
-        </button>
+        </a>
         <nav style={{ display: "flex", gap: 30, flexWrap: "wrap" }} aria-label="Footer">
           {LINKS.map((l) => (
-            <button key={l.label} className="mo-navlink" onClick={() => navigate(l.to)} style={{ background: "none", border: 0, cursor: "pointer", color: "rgba(243,236,220,0.7)", fontFamily: MONO, fontSize: 14, letterSpacing: "0.22em", textTransform: "uppercase" }}>
+            <a key={l.label} className="mo-navlink" href={l.to} style={{ textDecoration: "none", color: "rgba(243,236,220,0.7)", fontFamily: MONO, fontSize: 14, letterSpacing: "0.22em", textTransform: "uppercase" }}>
               {l.label}
-            </button>
+            </a>
           ))}
         </nav>
         <form
@@ -52,9 +66,13 @@ export default function Footer() {
             </label>
           )}
           <span style={{ display: "flex", gap: 14, marginLeft: 8, color: "rgba(243,236,220,0.7)" }} aria-label="Social">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-label="Instagram"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" /></svg>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-label="TikTok"><path d="M14 3c.4 2.5 2 4 4.5 4.3v3c-1.7 0-3.2-.5-4.5-1.4V15a5.5 5.5 0 1 1-5.5-5.5h1v3.2a2.4 2.4 0 1 0 1.5 2.3V3z" /></svg>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" aria-label="YouTube"><rect x="3" y="6" width="18" height="12" rx="3" /><path d="m10 9 5 3-5 3z" fill="currentColor" /></svg>
+            {SOCIAL.length
+              ? SOCIAL.map((p) => (
+                  <a key={p.network} href={p.url} target="_blank" rel="noopener me" aria-label={`Maison Obsidian on ${p.network}`} className="mo-navlink" style={{ color: "inherit", display: "grid", placeItems: "center" }}>
+                    {ICONS[p.network]}
+                  </a>
+                ))
+              : (["Instagram", "TikTok", "YouTube"] as const).map((n) => <span key={n} aria-hidden>{ICONS[n]}</span>)}
           </span>
         </form>
       </div>

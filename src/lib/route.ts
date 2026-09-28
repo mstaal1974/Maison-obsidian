@@ -170,7 +170,8 @@ export const paths = {
   find: (q?: string) => (q ? `/find?q=${encodeURIComponent(q)}` : "/find"),
   discover: "/discover",
   scent: (code: string) => `/scent/${encodeURIComponent(code)}`,
-  product: (slug: string) => `/fragrance/${encodeURIComponent(slug)}`,
+  /** A fragrance's page; `format` (a formatParam() value) opens it on that SKU. */
+  product: (slug: string, format?: string) => `/fragrance/${encodeURIComponent(slug)}${format ? `?format=${encodeURIComponent(format)}` : ""}`,
   subscribe: (slug?: string, format?: string) => {
     const q = new URLSearchParams();
     if (slug) q.set("f", slug);

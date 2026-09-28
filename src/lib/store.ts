@@ -49,6 +49,8 @@ function rowToFragrance(r: FragranceRow): Fragrance {
 export function useFragrances() {
   const [remote, setRemote] = useState<Fragrance[] | null>(null);
   const [source, setSource] = useState<Source>(supabase ? "supabase" : "seed");
+  // The live catalogue has answered, with rows or without (then the seed stands).
+  const [settled, setSettled] = useState(!supabase);
   // In demo mode the catalogue is a mutable in-memory store (admin edits it).
   const demo = useSyncExternalStore(subscribeCatalogue, demoFragrances);
 
@@ -59,6 +61,7 @@ export function useFragrances() {
       .select("*")
       .order("sort_order", { ascending: true })
       .then(({ data, error }) => {
+        setSettled(true);
         if (error || !data || data.length === 0) return;
         setRemote((data as FragranceRow[]).map(rowToFragrance));
         setSource("supabase");
@@ -70,7 +73,10 @@ export function useFragrances() {
   }, [reload]);
 
   const fragrances = supabase ? remote ?? FRAGS : demo;
-  return { fragrances, source, reload };
+  // False while the seed stands in for a live catalogue still loading, so a
+  // slug missing from it may yet exist.
+  const loaded = settled;
+  return { fragrances, source, loaded, reload };
 }
 
 /**
