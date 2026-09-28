@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, experienceOf, relatedTo, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
@@ -12,6 +12,7 @@ import NotifyMe from "./NotifyMe";
 import { bottleBackdrop } from "./adminStyles";
 import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow, Container, Icon, IconBadge, SideCaption, Chip, InspiredBy } from "./ui";
+import { trackViewItem } from "../lib/analytics";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
 interface ProductDetailProps {
@@ -47,6 +48,11 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
   const { reviews, enabled: reviewsOn } = useReviews(frag.id);
   const rating = useMemo(() => summarise(reviews), [reviews]);
   usePageMeta(useMemo(() => productMeta(frag, window.location.origin, frag.imageUrl, rating), [frag, rating]));
+  // Once per fragrance opened (not on every re-render or rating load).
+  useEffect(() => {
+    trackViewItem({ id: frag.id, name: frag.name, format: "perf50", priceCents: skuOf(frag, "perf50").price });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frag.id]);
   const chosen = skuOf(frag, key);
   const locked = !!frag.vipOnly && !vip;
   const profile = profileOf(frag);
