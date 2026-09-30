@@ -1,13 +1,13 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
-import { DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE, fromPrice, profileOf } from "../lib/formats";
+import { DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE, fromPrice, profileOf, referenceOf } from "../lib/formats";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "../lib/shipping";
 import { navigate, paths } from "../lib/route";
 import { trackSelectItem } from "../lib/analytics";
 import { isNew } from "../lib/launch";
 import BottleImage from "./BottleImage";
 import ChooseObsidian from "./ChooseObsidian";
-import { Art, Arrow, Container, Icon, type IconName } from "./ui";
+import { Art, Arrow, Container, Icon, InspiredBy, type IconName } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, h2, micro } from "./styles";
 
 interface SimpleHomeProps {
@@ -185,6 +185,7 @@ function SimpleCard({ frag, onQuickView }: { frag: Fragrance; onQuickView: Simpl
         <a className="mo-card-name" href={href} onClick={select} style={{ textDecoration: "none", fontFamily: SERIF, fontSize: 22, letterSpacing: "0.06em", textTransform: "uppercase", color: CREAM, lineHeight: 1.05 }}>
           {frag.name}
         </a>
+        <InspiredBy {...referenceOf(frag)} size="md" />
         <div style={{ ...micro, color: "rgba(243,236,220,0.75)", fontSize: 8.5 }}>{profileOf(frag).join(" · ")}</div>
         <div className="mo-card-actions" style={{ marginTop: "auto", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM }}>From {money(fromPrice(frag))}</span>
