@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { type Fragrance, type FormatKey, CREAM, GOLD } from "../lib/data";
 import { NEW_DAYS, launchLabel, newArrivals, upcoming } from "../lib/launch";
+import { fromPrice } from "../lib/formats";
+import { trackViewItemList } from "../lib/analytics";
 import { navigate, paths } from "../lib/route";
 import { siteOrigin, staticPageMeta, usePageMeta } from "../lib/seo";
 import BottleImage from "./BottleImage";
@@ -19,12 +21,22 @@ interface Props {
   upcoming?: Fragrance[];
 }
 
+/** view_item_list once per distinct set of scents shown, not on every render. */
+function useViewItemList(name: string, list: Fragrance[]) {
+  const ids = list.map((f) => f.id).join(",");
+  useEffect(() => {
+    if (ids) trackViewItemList(name, list.map((f) => ({ id: f.id, name: f.name, priceCents: fromPrice(f) })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, ids]);
+}
+
 const body = { fontSize: 15, lineHeight: 1.6, color: "rgba(243,236,220,0.65)" } as const;
 
 /** /new: everything launched in the last NEW_DAYS days, newest first. */
 export default function NewArrivals({ fragrances, vip, discoveryIds, onQuickView, onToggleDiscovery, upcoming: all = [] }: Props) {
   const list = useMemo(() => newArrivals(fragrances), [fragrances]);
   const soon = useMemo(() => upcoming(all), [all]);
+  useViewItemList("new_arrivals", list);
   usePageMeta(staticPageMeta(paths.newArrivals, siteOrigin()));
 
   return (
@@ -47,7 +59,7 @@ export default function NewArrivals({ fragrances, vip, discoveryIds, onQuickView
         ) : (
           <div className="mo-vault-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {list.map((f) => (
-              <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
+              <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} listName="new_arrivals" />
             ))}
           </div>
         )}
@@ -73,6 +85,7 @@ export default function NewArrivals({ fragrances, vip, discoveryIds, onQuickView
 /** Home page row: up to four of the newest, only when there are any. */
 export function JustPoured({ fragrances, vip, discoveryIds, onQuickView, onToggleDiscovery }: Props) {
   const list = useMemo(() => newArrivals(fragrances).slice(0, 4), [fragrances]);
+  useViewItemList("home_just_poured", list);
   if (!list.length) return null;
   return (
     <section aria-label="New arrivals" style={{ borderBottom: "1px solid #1f1f27" }}>
@@ -88,7 +101,7 @@ export function JustPoured({ fragrances, vip, discoveryIds, onQuickView, onToggl
         </div>
         <div className="mo-vault-grid" style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {list.map((f) => (
-            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
+            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} listName="home_just_poured" />
           ))}
         </div>
       </Container>

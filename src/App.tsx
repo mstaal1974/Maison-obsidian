@@ -420,7 +420,7 @@ export default function App() {
   // pass through the storefront first. The bag still follows them.
   if (route.view === "scent") {
     return (
-      <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
+      <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "clip" }}>
         <Suspense fallback={null}>
           <ScentDna
             fragrances={fragrances}
@@ -442,7 +442,7 @@ export default function App() {
   }
 
   return (
-    <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
+    <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "clip" }}>
       <Header
         bagCount={bagCount}
         userEmail={auth.user?.email ?? null}

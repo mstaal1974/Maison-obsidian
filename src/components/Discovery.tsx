@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE, profileOf, sku as skuOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { trackViewItemList } from "../lib/analytics";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import { Arrow, Container } from "./ui";
@@ -23,6 +24,12 @@ interface DiscoveryProps {
 export default function Discovery({ fragrances, vip, discoveryIds, onToggleDiscovery, onAddBox, onQuickView }: DiscoveryProps) {
   const picked = useMemo(() => discoveryIds.map((id) => fragrances.find((f) => f.id === id)).filter((f): f is Fragrance => !!f), [discoveryIds, fragrances]);
   const full = picked.length === DISCOVERY_BOX_SIZE;
+  // view_item_list for the 10 ml singles, once per distinct set shown.
+  const listIds = fragrances.map((f) => f.id).join(",");
+  useEffect(() => {
+    if (listIds) trackViewItemList("discovery_singles", fragrances.map((f) => ({ id: f.id, name: f.name, format: "perf10", priceCents: skuOf(f, "perf10").price })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listIds]);
   const singles = useMemo(() => Math.round(fragrances.reduce((s, f) => s + skuOf(f, "perf10").price, 0) / Math.max(1, fragrances.length)), [fragrances]);
 
   return (
@@ -80,11 +87,11 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
       <Container style={{ padding: "26px 32px 60px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 28, color: CREAM }}>10ml singles</h2>
-          <span style={{ ...micro }}>Tap ♡ to add to your box · “Choose options” for a single</span>
+          <span style={{ ...micro }}>Tap ♡ to add to your box · “Choose size” for a single</span>
         </div>
         <div className="mo-vault-grid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {fragrances.map((f) => (
-            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} defaultFormat="perf10" inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
+            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} defaultFormat="perf10" listName="discovery_singles" inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
           ))}
         </div>
       </Container>
