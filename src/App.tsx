@@ -381,8 +381,8 @@ export default function App() {
   usePageMeta(
     notFound && catalogueLoaded
       ? { ...DEFAULT_META, title: "Fragrance not found | Maison Obsidian", robots: "noindex" }
-      : route.view === "simple"
-        ? // An alternate homepage under evaluation: kept out of search, pointing at the real one.
+      : route.view === "classic"
+        ? // The previous homepage, kept for comparison: out of search, pointing at the real one.
           { ...DEFAULT_META, path: paths.home, robots: "noindex" }
       : pagePath
         ? staticPageMeta(pagePath, siteOrigin(), socialProfiles(import.meta.env).map((p) => p.url))
@@ -455,11 +455,13 @@ export default function App() {
           setVip(false);
           void auth.signOut();
         }}
-        simplified={route.view === "simple"}
+        simplified={route.view !== "classic"}
       />
 
-      {route.view === "home" && (
-        <main data-screen-label="Home">
+      {route.view === "home" && <SimpleHome fragrances={fragrances} vip={vip} onQuickView={openQuick} />}
+
+      {route.view === "classic" && (
+        <main data-screen-label="Home (classic)">
           <Hero />
           <HouseBrowser variant="home" fragrances={fragrances} vip={vip} onQuickView={openQuick} />
           <ChooseObsidian />
@@ -470,8 +472,6 @@ export default function App() {
           <RangeBanners />
         </main>
       )}
-
-      {route.view === "simple" && <SimpleHome fragrances={fragrances} vip={vip} onQuickView={openQuick} />}
 
       {(route.view === "shop" || route.view === "fragrances" || route.view === "car" || route.view === "body") && (
         <Collection

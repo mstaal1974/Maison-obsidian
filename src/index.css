@@ -909,7 +909,7 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
   }
 }
 
-/* ─── Simplified homepage (/simple) ──────────────────────────────────────── */
+/* ─── Simplified homepage and header ──────────────────────────────────────── */
 
 /* Five links fit where the full nav's eight don't, so the simplified header
    keeps its bar down to 1100px before handing over to the drawer. */

@@ -12,7 +12,7 @@ interface HeaderProps {
   onOpenBag: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
-  /** The simplified five-item navigation (UX simplification plan, /simple). */
+  /** The simplified five-item navigation (UX simplification plan); off only on /classic. */
   simplified?: boolean;
 }
 
