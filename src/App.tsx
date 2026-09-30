@@ -457,6 +457,7 @@ export default function App() {
           void auth.signOut();
         }}
         simplified={route.view !== "classic"}
+        fragrances={route.view !== "classic" ? fragrances : undefined}
       />
 
       {route.view === "home" && <SimpleHome fragrances={fragrances} vip={vip} onQuickView={openQuick} />}

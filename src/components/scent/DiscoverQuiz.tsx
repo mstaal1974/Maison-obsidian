@@ -15,6 +15,7 @@ import {
 } from "../../lib/scentQuiz";
 import type { OccasionKey, Wearer } from "../../lib/scentdna";
 import Glyph from "./Glyph";
+import { trackQuizStart, trackQuizStep } from "../../lib/analytics";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, glass, goldA, ink, micro } from "./theme";
 
 interface QuizProps {
@@ -39,6 +40,17 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
   useEffect(() => () => {
     if (advancing.current) window.clearTimeout(advancing.current);
   }, []);
+
+  // Funnel: the quiz began, then each step as it is first reached (going
+  // back and forward again isn't a new step). Step numbers only.
+  const reached = useRef(0);
+  useEffect(() => {
+    if (reached.current === 0) trackQuizStart("scent_dna");
+    if (index + 1 > reached.current) {
+      reached.current = index + 1;
+      trackQuizStep("scent_dna", index + 1);
+    }
+  }, [index]);
 
   const go = useCallback(
     (next: number) => {

@@ -1,9 +1,10 @@
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
+import SearchOverlay from "./SearchOverlay";
 import { Icon } from "./ui";
 import { MONO, SERIF } from "./styles";
 import { navigate, onRouteChange, paths } from "../lib/route";
-import { GOLD, CREAM } from "../lib/data";
+import { type Fragrance, GOLD, CREAM } from "../lib/data";
 
 interface HeaderProps {
   bagCount: number;
@@ -14,6 +15,9 @@ interface HeaderProps {
   onSignOut: () => void;
   /** The simplified five-item navigation (UX simplification plan); off only on /classic. */
   simplified?: boolean;
+  /** The catalogue. When given, the search icon opens the search overlay;
+      without it the icon falls back to the /find matcher. */
+  fragrances?: Fragrance[];
 }
 
 const navLink: CSSProperties = {
@@ -71,13 +75,17 @@ const SIMPLE_SHOP: { label: string; to: string }[] = [
   { label: "Subscribe & save", to: paths.subscribe() },
 ];
 
-export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSignIn, onSignOut, simplified = false }: HeaderProps) {
+export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSignIn, onSignOut, simplified = false, fragrances }: HeaderProps) {
   const [shopOpen, setShopOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Below 1000px the primary nav is hidden; this drawer is the only way through
   // the site on a phone.
   const [drawerOpen, setDrawerOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchButton = useRef<HTMLButtonElement>(null);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  const canSearch = !!fragrances;
 
   useEffect(() => {
     const close = () => {
@@ -201,9 +209,15 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
           </nav>
 
           <div className="mo-header-actions" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <button aria-label="Find your scent" onClick={() => navigate(paths.find())} style={{ background: "none", border: 0, cursor: "pointer", padding: 6, display: "grid", placeItems: "center" }}>
-              <Icon name="search" size={19} color={CREAM} />
-            </button>
+            {canSearch ? (
+              <button ref={searchButton} aria-label="Search" aria-haspopup="dialog" aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} style={{ background: "none", border: 0, cursor: "pointer", padding: 6, display: "grid", placeItems: "center" }}>
+                <Icon name="search" size={19} color={CREAM} />
+              </button>
+            ) : (
+              <button aria-label="Find your scent" onClick={() => navigate(paths.find())} style={{ background: "none", border: 0, cursor: "pointer", padding: 6, display: "grid", placeItems: "center" }}>
+                <Icon name="search" size={19} color={CREAM} />
+              </button>
+            )}
             <span className="mo-header-divider" aria-hidden style={{ width: 1, height: 22, background: "#2a2a33" }} />
             <button
               className="mo-pill mo-bag-btn"
@@ -268,8 +282,19 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
 
       {/* Outside <header> on purpose: its backdrop-filter makes it the
           containing block for position:fixed, which would trap the drawer
-          inside a 72px-tall box. */}
-      {drawerOpen && <MobileMenu simplified={simplified} userEmail={userEmail} isAdmin={isAdmin} onSignIn={onSignIn} onSignOut={onSignOut} onClose={() => setDrawerOpen(false)} />}
+          (and the search overlay) inside a 72px-tall box. */}
+      {drawerOpen && (
+        <MobileMenu
+          simplified={simplified}
+          userEmail={userEmail}
+          isAdmin={isAdmin}
+          onSignIn={onSignIn}
+          onSignOut={onSignOut}
+          onClose={() => setDrawerOpen(false)}
+          onSearch={canSearch ? () => setSearchOpen(true) : undefined}
+        />
+      )}
+      {searchOpen && fragrances && <SearchOverlay fragrances={fragrances} onClose={closeSearch} returnFocus={searchButton} />}
     </>
   );
 }
@@ -285,6 +310,7 @@ function MobileMenu({
   onSignIn,
   onSignOut,
   onClose,
+  onSearch,
 }: {
   simplified: boolean;
   userEmail: string | null;
@@ -292,6 +318,8 @@ function MobileMenu({
   onSignIn: () => void;
   onSignOut: () => void;
   onClose: () => void;
+  /** Opens the search overlay; absent when the header has no catalogue. */
+  onSearch?: () => void;
 }) {
   // navigate() fires a route change, which closes the drawer; go() covers the
   // case where the link is to the page we are already on.
@@ -335,6 +363,19 @@ function MobileMenu({
       }}
     >
       <nav style={{ padding: "22px 24px 40px", display: "grid", gap: 26 }} aria-label="Mobile">
+        {onSearch && (
+          <button
+            aria-haspopup="dialog"
+            onClick={() => {
+              onClose();
+              onSearch();
+            }}
+            style={{ ...item, display: "flex", alignItems: "center", gap: 12, border: "1px solid rgba(201,169,97,0.45)", padding: "12px 14px", fontFamily: MONO, fontSize: 12, letterSpacing: "0.04em", color: "rgba(243,236,220,0.7)" }}
+          >
+            <Icon name="search" size={17} color={CREAM} />
+            Search
+          </button>
+        )}
         {simplified ? (
           <SimpleMobileLinks item={item} heading={heading} onClose={onClose} />
         ) : (
