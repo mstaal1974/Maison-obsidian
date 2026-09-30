@@ -9,7 +9,7 @@ import type { CheckoutDelivery } from "./lib/shipping";
 import { currentRoute, navigate, onRouteChange, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE, sku } from "./lib/formats";
-import { trackAddToCart, trackBeginCheckout, trackCarDiffuserAttach, trackDiscoveryBoxCompleted, trackPurchase } from "./lib/analytics";
+import { trackAddToCart, trackBeginCheckout, trackCarDiffuserAttach, trackDiscoveryBoxCompleted, trackPurchase, trackSubscriptionStarted } from "./lib/analytics";
 import { DEFAULT_META, siteOrigin, staticPageMeta, usePageMeta } from "./lib/seo";
 import { socialProfiles } from "./lib/social";
 import AuthModal from "./components/AuthModal";
@@ -288,6 +288,7 @@ export default function App() {
         setThanks({ status: "paid", itemCount, amountTotal: r.data.amountTotal });
         setCommitsVersion((v) => v + 1);
       } else if (r?.ok && r.data.kind === "subscription") {
+        trackSubscriptionStarted(sessionId);
         setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });
         setThanks({ status: "paid" });
         reloadSubs();

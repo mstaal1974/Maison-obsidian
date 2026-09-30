@@ -191,6 +191,7 @@ export function trackSubscriptionOfferViewed(where: string): void {
   gtag("event", "subscription_offer_viewed", { where });
 }
 
-export function trackSubscriptionStarted(format: FormatKey): void {
-  gtag("event", "subscription_started", { format });
+/** A Monthly Pour confirmed as paid on return from Stripe. */
+export function trackSubscriptionStarted(sessionId: string): void {
+  gtag("event", "subscription_started", { transaction_id: sessionId });
 }

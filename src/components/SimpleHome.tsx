@@ -1,9 +1,9 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE, fromPrice, profileOf, referenceOf } from "../lib/formats";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "../lib/shipping";
 import { navigate, paths } from "../lib/route";
-import { trackSelectItem } from "../lib/analytics";
+import { trackSelectItem, trackViewItemList } from "../lib/analytics";
 import { isNew } from "../lib/launch";
 import BottleImage from "./BottleImage";
 import ChooseObsidian from "./ChooseObsidian";
@@ -152,6 +152,12 @@ function StartHere({ fragrances, vip, onQuickView }: SimpleHomeProps) {
         .map((x) => x.f),
     [fragrances, vip],
   );
+  const pickIds = picks.map((f) => f.id).join(",");
+  useEffect(() => {
+    if (pickIds) trackViewItemList("simple_home_start_here", picks.map((f) => ({ id: f.id, name: f.name, priceCents: fromPrice(f) })));
+    // Once per distinct set of picks, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickIds]);
   if (!picks.length) return null;
   return (
     <section aria-label="Start here" style={{ padding: "40px 0", borderBottom: "1px solid #1f1f27" }}>
