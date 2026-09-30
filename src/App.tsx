@@ -26,6 +26,7 @@ import Collection from "./components/Collection";
 import Discovery from "./components/Discovery";
 import NewArrivals, { JustPoured } from "./components/NewArrivals";
 import HouseBrowser from "./components/HouseBrowser";
+import SimpleHome from "./components/SimpleHome";
 import ComingSoon from "./components/ComingSoon";
 import { isLaunched, isUpcoming } from "./lib/launch";
 import Help from "./components/Help";
@@ -380,6 +381,9 @@ export default function App() {
   usePageMeta(
     notFound && catalogueLoaded
       ? { ...DEFAULT_META, title: "Fragrance not found | Maison Obsidian", robots: "noindex" }
+      : route.view === "simple"
+        ? // An alternate homepage under evaluation: kept out of search, pointing at the real one.
+          { ...DEFAULT_META, path: paths.home, robots: "noindex" }
       : pagePath
         ? staticPageMeta(pagePath, siteOrigin(), socialProfiles(import.meta.env).map((p) => p.url))
         : null,
@@ -451,6 +455,7 @@ export default function App() {
           setVip(false);
           void auth.signOut();
         }}
+        simplified={route.view === "simple"}
       />
 
       {route.view === "home" && (
@@ -465,6 +470,8 @@ export default function App() {
           <RangeBanners />
         </main>
       )}
+
+      {route.view === "simple" && <SimpleHome fragrances={fragrances} vip={vip} onQuickView={openQuick} />}
 
       {(route.view === "shop" || route.view === "fragrances" || route.view === "car" || route.view === "body") && (
         <Collection

@@ -12,13 +12,13 @@ const TILES = [
 ];
 
 /** Section 2 — the four Maison Obsidian ranges. Explains the business at a glance. */
-export default function ChooseObsidian() {
+export default function ChooseObsidian({ title = "Choose your Obsidian", sub = "Different worlds. A bolder you." }: { title?: string; sub?: string }) {
   return (
-    <section aria-label="Choose your Obsidian" style={{ padding: "34px 0 22px", borderBottom: "1px solid #1f1f27" }}>
+    <section aria-label={title} style={{ padding: "34px 0 22px", borderBottom: "1px solid #1f1f27" }}>
       <Container>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 20, flexWrap: "wrap" }}>
-          <h2 style={h2}>Choose your Obsidian</h2>
-          <span style={{ ...micro, color: "rgba(243,236,220,0.6)" }}>Different worlds. A bolder you.</span>
+          <h2 style={h2}>{title}</h2>
+          <span style={{ ...micro, color: "rgba(243,236,220,0.6)" }}>{sub}</span>
         </div>
         <div className="mo-choose-grid" style={{ marginTop: 22, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
           {TILES.map((t) => (

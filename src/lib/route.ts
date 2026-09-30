@@ -11,6 +11,9 @@
 
 export type Route =
   | { view: "home" }
+  // The simplified homepage from the UX simplification plan, served beside the
+  // live one so the two can be compared before either replaces the other.
+  | { view: "simple" }
   | { view: "shop"; facet: string | null } // #/shop, #/shop/him, #/shop/woody, #/shop/50ml
   | { view: "fragrances" }
   | { view: "new" }
@@ -45,6 +48,8 @@ export function parseHash(hash: string): Route {
       return { view: "home" };
     case "shop":
       return { view: "shop", facet: tail ? decodeURIComponent(tail) : null };
+    case "simple":
+      return { view: "simple" };
     case "fragrances":
       return { view: "fragrances" };
     case "new":
@@ -161,6 +166,7 @@ export function interceptLinks(): void {
 
 export const paths = {
   home: "/",
+  simple: "/simple",
   shop: (facet?: string) => (facet ? `/shop/${encodeURIComponent(facet)}` : "/shop"),
   fragrances: "/fragrances",
   newArrivals: "/new",

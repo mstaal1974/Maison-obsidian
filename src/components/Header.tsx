@@ -12,6 +12,8 @@ interface HeaderProps {
   onOpenBag: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
+  /** The simplified five-item navigation (UX simplification plan, /simple). */
+  simplified?: boolean;
 }
 
 const navLink: CSSProperties = {
@@ -51,7 +53,25 @@ const BY_FORMAT: { label: string; to: string }[] = [
   { label: "Gift & Fragrance Sets", to: paths.shop("sets") },
 ];
 
-export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSignIn, onSignOut }: HeaderProps) {
+// Simplified navigation: five customer intentions at the top level. The
+// catalogue taxonomy (formats, new arrivals, subscriptions) moves under Shop.
+const SIMPLE_PRIMARY: { label: string; to: string }[] = [
+  { label: "Find My Scent", to: paths.find() },
+  { label: "Discovery Sets", to: paths.discovery },
+  { label: "Gifts", to: paths.shop("sets") },
+  { label: "Our House", to: paths.about },
+];
+const SIMPLE_SHOP: { label: string; to: string }[] = [
+  { label: "All fragrances", to: paths.shop() },
+  { label: "New arrivals", to: paths.newArrivals },
+  { label: "Eau de Parfum", to: paths.fragrances },
+  { label: "Car diffusers", to: paths.car },
+  { label: "Body & bath", to: paths.body },
+  { label: "Sets", to: paths.shop("sets") },
+  { label: "Subscribe & save", to: paths.subscribe() },
+];
+
+export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSignIn, onSignOut, simplified = false }: HeaderProps) {
   const [shopOpen, setShopOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Below 1000px the primary nav is hidden; this drawer is the only way through
@@ -93,6 +113,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
   return (
     <>
         <header
+        className={simplified ? "mo-simple-header" : undefined}
         style={{
           position: "sticky",
           top: 0,
@@ -128,11 +149,21 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                     border: "1px solid #1f1f27",
                     padding: "26px 30px 28px",
                     display: "grid",
-                    gridTemplateColumns: "180px 220px",
+                    gridTemplateColumns: simplified ? "200px 180px 220px" : "180px 220px",
                     gap: 40,
                     boxShadow: "0 30px 60px rgba(0,0,0,0.6)",
                   }}
                 >
+                  {simplified && (
+                    <div>
+                      <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>Shop</div>
+                      {SIMPLE_SHOP.map((x) => (
+                        <a key={x.label} role="menuitem" className="mo-navlink" href={x.to} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
+                          {x.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <div>
                     <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>Shop by fragrance</div>
                     {BY_FRAGRANCE.map((x) => (
@@ -152,13 +183,21 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                 </div>
               )}
             </div>
-            <a className="mo-navlink mo-navlink-new" style={{ ...navLink, color: GOLD, fontWeight: 700 }} href={paths.newArrivals}>New arrivals</a>
-            <a className="mo-navlink" style={navLink} href={paths.fragrances}>Fragrances</a>
-            <a className="mo-navlink" style={navLink} href={paths.discovery}>Discovery</a>
-            <a className="mo-navlink" style={navLink} href={paths.car}>Car</a>
-            <a className="mo-navlink" style={navLink} href={paths.body}>Body &amp; Sets</a>
-            <a className="mo-navlink" style={navLink} href={paths.subscribe()}>Subscribe</a>
-            <a className="mo-navlink" style={{ ...navLink, color: GOLD }} href={paths.discover}>Scent DNA</a>
+            {simplified ? (
+              SIMPLE_PRIMARY.map((x) => (
+                <a key={x.label} className="mo-navlink" style={navLink} href={x.to}>{x.label}</a>
+              ))
+            ) : (
+              <>
+                <a className="mo-navlink mo-navlink-new" style={{ ...navLink, color: GOLD, fontWeight: 700 }} href={paths.newArrivals}>New arrivals</a>
+                <a className="mo-navlink" style={navLink} href={paths.fragrances}>Fragrances</a>
+                <a className="mo-navlink" style={navLink} href={paths.discovery}>Discovery</a>
+                <a className="mo-navlink" style={navLink} href={paths.car}>Car</a>
+                <a className="mo-navlink" style={navLink} href={paths.body}>Body &amp; Sets</a>
+                <a className="mo-navlink" style={navLink} href={paths.subscribe()}>Subscribe</a>
+                <a className="mo-navlink" style={{ ...navLink, color: GOLD }} href={paths.discover}>Scent DNA</a>
+              </>
+            )}
           </nav>
 
           <div className="mo-header-actions" style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -230,7 +269,7 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
       {/* Outside <header> on purpose: its backdrop-filter makes it the
           containing block for position:fixed, which would trap the drawer
           inside a 72px-tall box. */}
-      {drawerOpen && <MobileMenu userEmail={userEmail} isAdmin={isAdmin} onSignIn={onSignIn} onSignOut={onSignOut} onClose={() => setDrawerOpen(false)} />}
+      {drawerOpen && <MobileMenu simplified={simplified} userEmail={userEmail} isAdmin={isAdmin} onSignIn={onSignIn} onSignOut={onSignOut} onClose={() => setDrawerOpen(false)} />}
     </>
   );
 }
@@ -240,12 +279,14 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
  * the primary links and the account actions — in one scrollable sheet.
  */
 function MobileMenu({
+  simplified,
   userEmail,
   isAdmin,
   onSignIn,
   onSignOut,
   onClose,
 }: {
+  simplified: boolean;
   userEmail: string | null;
   isAdmin: boolean;
   onSignIn: () => void;
@@ -294,6 +335,10 @@ function MobileMenu({
       }}
     >
       <nav style={{ padding: "22px 24px 40px", display: "grid", gap: 26 }} aria-label="Mobile">
+        {simplified ? (
+          <SimpleMobileLinks item={item} heading={heading} onClose={onClose} />
+        ) : (
+        <>
         <div>
           {[
             { label: "New arrivals", to: paths.newArrivals },
@@ -340,6 +385,8 @@ function MobileMenu({
             </a>
           ))}
         </div>
+        </>
+        )}
 
         <div>
           <div style={heading}>Account</div>
@@ -377,6 +424,44 @@ function MobileMenu({
           )}
         </div>
       </nav>
+    </div>
+  );
+}
+
+/**
+ * The simplified phone menu: the same five choices as the desktop bar, with
+ * Shop opening its categories in place rather than listing every one up front.
+ */
+function SimpleMobileLinks({ item, heading, onClose }: { item: CSSProperties; heading: CSSProperties; onClose: () => void }) {
+  const [shopOpen, setShopOpen] = useState(false);
+  return (
+    <div>
+      <button onClick={() => setShopOpen((o) => !o)} aria-expanded={shopOpen} aria-controls="mo-simple-shop" style={{ ...item, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        Shop <span aria-hidden style={{ color: GOLD, fontFamily: MONO, fontSize: 16 }}>{shopOpen ? "−" : "+"}</span>
+      </button>
+      {shopOpen && (
+        <div id="mo-simple-shop" style={{ padding: "8px 0 8px 16px" }}>
+          <div style={heading}>Shop</div>
+          {SIMPLE_SHOP.map((x) => (
+            <a key={x.label} href={x.to} onClick={onClose} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
+              {x.label}
+            </a>
+          ))}
+          <div style={{ ...heading, marginTop: 18 }}>By fragrance</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
+            {BY_FRAGRANCE.map((x) => (
+              <a key={x.facet} href={paths.shop(x.facet)} onClick={onClose} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
+                {x.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      {SIMPLE_PRIMARY.map((x) => (
+        <a key={x.label} href={x.to} onClick={onClose} style={item}>
+          {x.label}
+        </a>
+      ))}
     </div>
   );
 }
