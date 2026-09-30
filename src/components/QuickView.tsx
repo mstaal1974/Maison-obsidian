@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, type Sku } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { trackFormatSelected } from "../lib/analytics";
 import BottleImage from "./BottleImage";
 import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow, InspiredBy } from "./ui";
@@ -14,15 +15,23 @@ interface QuickViewProps {
   onAdd: (f: Fragrance, key: FormatKey, qty: number) => void;
 }
 
+// Perfume sizes first, as on the product page.
 const ORDER: FormatGroup[] = ["wear", "drive", "live", "ritual"];
+// With no format asked for, open on the everyday size when it can be bought.
+const DEFAULT_ORDER: FormatKey[] = ["perf30", "perf10", "perf50"];
 
 /**
  * The format selector — "How would you like it?" — as a slide-in drawer so a
  * customer never walks through five product pages to compare ways in.
  */
 export default function QuickView({ frag, initialFormat, onClose, onAdd }: QuickViewProps) {
-  const first = initialFormat && skuOf(frag, initialFormat).status !== "hidden" ? initialFormat : "perf50";
+  const first = initialFormat && skuOf(frag, initialFormat).status !== "hidden" ? initialFormat : DEFAULT_ORDER.find((k) => skuOf(frag, k).buyable) ?? "perf50";
   const [key, setKey] = useState<FormatKey>(first);
+  const select = (k: FormatKey) => {
+    if (k === key) return;
+    setKey(k);
+    trackFormatSelected({ id: frag.id, name: frag.name, format: k, priceCents: skuOf(frag, k).price }, "quick_view");
+  };
   const [notified, setNotified] = useState<Set<FormatKey>>(new Set());
   const chosen = skuOf(frag, key);
 
@@ -38,7 +47,7 @@ export default function QuickView({ frag, initialFormat, onClose, onAdd }: Quick
     return (
       <button
         key={s.key}
-        onClick={() => (soon ? setNotified((n) => new Set(n).add(s.key)) : setKey(s.key))}
+        onClick={() => (soon ? setNotified((n) => new Set(n).add(s.key)) : select(s.key))}
         aria-pressed={active}
         style={{
           display: "flex",

@@ -1,0 +1,77 @@
+/* ─── Product page (ProductDetail.tsx) ────────────────────────────────────────
+   Layout lives inline in the component; this file holds what inline styles
+   can't: focus rings, the disclosure chevron, and the phone-only sticky bar. */
+
+/* Keyboard focus: visible on every control on the page, including the
+   engraving field that draws its own underline instead of an outline. */
+.mo-pdp button:focus-visible,
+.mo-pdp a:focus-visible,
+.mo-pdp input:focus-visible {
+  outline: 2px solid #c9a961 !important;
+  outline-offset: 3px;
+}
+
+.mo-pdp-toggle:hover {
+  color: #f3ecdc !important;
+}
+.mo-pdp-chevron {
+  display: inline-block;
+  transition: transform 0.18s ease;
+}
+.mo-pdp-toggle[aria-expanded="true"] .mo-pdp-chevron {
+  transform: rotate(180deg);
+}
+
+.mo-pdp-size,
+.mo-pdp-row {
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.mo-pdp-size:hover,
+.mo-pdp-row:hover {
+  border-color: rgba(201, 169, 97, 0.7) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-pdp-chevron,
+  .mo-pdp-size,
+  .mo-pdp-row {
+    transition: none;
+  }
+}
+
+/* Notes: three columns, stacking as the screen narrows. */
+@media (max-width: 1000px) {
+  .mo-pdp-notes {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* The sticky add bar only ever shows on phones. */
+.mo-pdp-sticky {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .mo-pdp-notes {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Add to bag takes the row's spare width. */
+  .mo-pdp-buy .mo-cta {
+    flex: 1 1 160px;
+    padding: 0 18px !important;
+    letter-spacing: 0.2em !important;
+  }
+
+  .mo-pdp-sticky[data-show="true"] {
+    display: flex;
+  }
+  /* While the bar is up: room under the page for it, and the concierge
+     button lifted clear of it. */
+  body:has(.mo-pdp-sticky[data-show="true"]) {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+  body:has(.mo-pdp-sticky[data-show="true"]) .mo-chat-launch {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}

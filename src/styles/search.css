@@ -79,3 +79,9 @@
     animation: none;
   }
 }
+
+/* The dialog has its own close button; drop the browser's clear control. */
+.mo-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
