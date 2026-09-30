@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { type Fragrance, GOLD, CREAM, money } from "../lib/data";
 import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
-import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
+import { type Sku, sku as skuOf, availabilityOf, FORMAT_BY_KEY } from "../lib/formats";
+import { type AnalyticsItem, trackRemoveFromCart, trackViewCart } from "../lib/analytics";
 import { navigate, paths } from "../lib/route";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "../lib/shipping";
 import BottleImage from "./BottleImage";
@@ -35,6 +36,33 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
   const rows = lines.map((l) => ({ line: l, frag: byId.get(l.fragranceId) })).filter((r): r is { line: BagLine; frag: Fragrance } => !!r.frag);
   const unit = (r: { line: BagLine; frag: Fragrance }) => r.line.unitPrice ?? skuOf(r.frag, r.line.format).price;
   const subtotal = rows.reduce((s, r) => s + unit(r) * r.line.qty, 0);
+  const item = (r: { line: BagLine; frag: Fragrance }): AnalyticsItem => ({ id: r.frag.id, name: r.frag.name, format: r.line.format, priceCents: unit(r), qty: r.line.qty });
+
+  // One view_cart per open: the drawer mounts when opened, and the ref keeps
+  // later bag edits (and StrictMode's double effect) from counting again.
+  const viewed = useRef(false);
+  const viewItems = useMemo<AnalyticsItem[]>(
+    () =>
+      placed
+        ? []
+        : lines.flatMap((l) => {
+            const f = byId.get(l.fragranceId);
+            return f ? [{ id: f.id, name: f.name, format: l.format, priceCents: l.unitPrice ?? skuOf(f, l.format).price, qty: l.qty }] : [];
+          }),
+    [placed, lines, byId],
+  );
+  useEffect(() => {
+    if (viewed.current || !viewItems.length) return;
+    viewed.current = true;
+    trackViewCart(viewItems);
+  }, [viewItems]);
+
+  /** A line leaving the bag, by Remove or by stepping its quantity to zero. */
+  const remove = (r: { line: BagLine; frag: Fragrance }) => {
+    trackRemoveFromCart(item(r));
+    removeLine(r.line.id);
+  };
+
   const crossSell = rows.find((r) => FORMAT_BY_KEY[r.line.format].group === "wear" && !lines.some((l) => l.fragranceId === r.frag.id && l.format === "car") && skuOf(r.frag, "car").buyable)?.frag;
 
   return (
@@ -78,17 +106,19 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
             <div style={{ display: "grid", gap: 12 }}>
               {rows.map(({ line, frag }) => {
                 const s = skuOf(frag, line.format);
+                const note = availabilityNote(s, line.qty);
                 return (
                   <div key={line.id} style={{ display: "grid", gridTemplateColumns: "64px 1fr auto", gap: 14, alignItems: "center", borderBottom: "1px solid #1f1f27", paddingBottom: 12 }}>
                     <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={76} />
                     <div>
                       <div style={{ fontFamily: SERIF, fontSize: 18, color: CREAM, lineHeight: 1.05 }}>{frag.name}</div>
                       <div style={{ ...micro, marginTop: 4 }}>{line.label ? `${line.label} · ${s.def.label}` : s.def.name}{line.engraving ? ` · “${line.engraving}”` : ""}</div>
+                      {note && <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.45, color: "rgba(243,236,220,0.55)" }}>{note}</div>}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                        <button aria-label="Decrease" onClick={() => setQty(line.id, line.qty - 1)} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>−</button>
+                        <button aria-label="Decrease" onClick={() => (line.qty <= 1 ? remove({ line, frag }) : setQty(line.id, line.qty - 1))} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>−</button>
                         <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM, minWidth: 14, textAlign: "center" }}>{line.qty}</span>
                         <button aria-label="Increase" onClick={() => setQty(line.id, line.qty + 1)} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>+</button>
-                        <button onClick={() => removeLine(line.id)} style={{ ...btnLink, color: "rgba(243,236,220,0.5)", marginLeft: 8, fontSize: 8.5 }}>Remove</button>
+                        <button onClick={() => remove({ line, frag })} style={{ ...btnLink, color: "rgba(243,236,220,0.5)", marginLeft: 8, fontSize: 8.5 }}>Remove</button>
                       </div>
                     </div>
                     <span style={{ fontFamily: MONO, fontSize: 13, color: CREAM }}>{money((line.unitPrice ?? s.price) * line.qty)}</span>
@@ -112,7 +142,11 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
                 <span style={micro}>Subtotal</span>
                 <span>{money(subtotal)}</span>
               </div>
-              <div style={{ ...micro, fontSize: 8 }}>Delivery and postage are chosen at checkout</div>
+              <div style={{ fontSize: 12.5, lineHeight: 1.5, color: "rgba(243,236,220,0.7)" }}>
+                {subtotal >= FREE_SHIPPING_THRESHOLD_CENTS
+                  ? "Delivery: free (standard post)"
+                  : `Delivery: free over ${money(FREE_SHIPPING_THRESHOLD_CENTS)} · otherwise calculated from your postcode at checkout`}
+              </div>
 
               <FreeShippingProgress subtotal={subtotal} />
               <div style={{ ...micro, fontSize: 8, display: "flex", gap: 14 }}>
@@ -124,12 +158,27 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
               <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: "rgba(243,236,220,0.5)" }}>
                 Secure card checkout by Stripe. Free shipping over $100 and 30-day returns.
               </p>
+              {/* Stripe Checkout takes promotion codes (allow_promotion_codes in api/stripe/checkout.ts). */}
+              <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: "rgba(243,236,220,0.5)" }}>Have a code? Enter it on the payment page.</p>
             </div>
           </>
         )}
       </aside>
     </div>
   );
+}
+
+/**
+ * What the stock says about when a line leaves: on the shelf, or filled to
+ * order with its handling time. Nothing when the data doesn't say — never an
+ * invented "only 2 left".
+ */
+function availabilityNote(s: Sku, qty: number): string | null {
+  if (!s.buyable) return null;
+  if (s.stock >= qty) return "Ready to ship";
+  if (s.stock > 0) return null; // partly on the shelf — no single honest answer
+  const days = availabilityOf(s).handlingDays;
+  return days ? `Filled to order — dispatches in ${days[0]}–${days[1]} business days` : null;
 }
 
 /** How far the bag is from free standard post, as a line and a bar. */
