@@ -369,7 +369,7 @@ export default function App() {
   // has answered: until then the seed stands in and may simply not have it.
   const staticPath: Partial<Record<Route["view"], string>> = {
     home: paths.home,
-    shop: paths.shop(),
+    shop: paths.shop(route.view === "shop" ? route.facet ?? undefined : undefined),
     fragrances: paths.fragrances,
     discovery: paths.discovery,
     car: paths.car,

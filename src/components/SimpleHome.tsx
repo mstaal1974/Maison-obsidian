@@ -5,6 +5,7 @@ import { FREE_SHIPPING_THRESHOLD_CENTS } from "../lib/shipping";
 import { navigate, paths } from "../lib/route";
 import { trackSelectItem, trackViewItemList } from "../lib/analytics";
 import { isNew } from "../lib/launch";
+import { LANDINGS } from "../lib/landings";
 import BottleImage from "./BottleImage";
 import ChooseObsidian from "./ChooseObsidian";
 import { Art, Arrow, Container, Icon, InspiredBy, type IconName } from "./ui";
@@ -51,13 +52,16 @@ function FocusedHero() {
       >
         <div style={{ position: "relative", maxWidth: 1400, margin: "0 auto", padding: "64px 32px 56px", minHeight: 480, display: "flex", alignItems: "flex-end" }}>
           <div className="mo-rise" style={{ maxWidth: 560 }}>
-            <h1 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(44px, 5.4vw, 76px)", lineHeight: 1.02, color: CREAM, letterSpacing: "-0.01em" }}>
+            {/* The page's heading names what it sells, for search; the display
+                line keeps the house's voice. */}
+            <h1 style={{ margin: "0 0 18px", ...micro, color: GOLD, fontWeight: 400 }}>Arabian perfume · Hand-poured in Brisbane</h1>
+            <p style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(44px, 5.4vw, 76px)", lineHeight: 1.02, color: CREAM, letterSpacing: "-0.01em" }}>
               Wear it. Live it.
               <br />
               Take it with you.
-            </h1>
+            </p>
             <p style={{ margin: "24px 0 0", fontFamily: SERIF, fontSize: 21, color: "rgba(243,236,220,0.9)", lineHeight: 1.35 }}>
-              Maison Obsidian fragrances, poured across perfume, car and body.
+              Arabian and designer-inspired perfume at extrait strength, long lasting and hand-poured in Brisbane — for perfume, car and body.
             </p>
             <div style={{ display: "flex", gap: 26, marginTop: 32, alignItems: "center", flexWrap: "wrap" }}>
               <a className="mo-cta" style={{ ...btnGold, textDecoration: "none" }} href={paths.shop()}>
@@ -168,6 +172,12 @@ function StartHere({ fragrances, vip, onQuickView }: SimpleHomeProps) {
             Shop all fragrances <Arrow size={10} />
           </a>
         </div>
+        <nav aria-label="Shop by note" style={{ marginTop: 12, display: "flex", gap: "6px 18px", flexWrap: "wrap", ...micro }}>
+          <span>Shop by note:</span>
+          {LANDINGS.filter((l) => !l.slug.startsWith("gifts")).map((l) => (
+            <a key={l.slug} href={paths.shop(l.slug)} style={{ color: GOLD, textDecoration: "none" }}>{l.chip}</a>
+          ))}
+        </nav>
         <div className="mo-start-grid" style={{ marginTop: 22, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 14 }}>
           {picks.map((f) => (
             <SimpleCard key={f.id} frag={f} onQuickView={onQuickView} />

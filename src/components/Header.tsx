@@ -46,6 +46,10 @@ const BY_FRAGRANCE: { label: string; facet: string }[] = [
   { label: "Gourmand", facet: "gourmand" },
   { label: "Floral", facet: "floral" },
   { label: "Spicy", facet: "spicy" },
+  { label: "Oud", facet: "oud" },
+  { label: "Amber", facet: "amber" },
+  { label: "Vanilla", facet: "vanilla" },
+  { label: "Leather", facet: "leather" },
 ];
 const BY_FORMAT: { label: string; to: string }[] = [
   { label: "Eau de Parfum", to: paths.fragrances },
@@ -62,7 +66,7 @@ const BY_FORMAT: { label: string; to: string }[] = [
 const SIMPLE_PRIMARY: { label: string; to: string }[] = [
   { label: "Find My Scent", to: paths.find() },
   { label: "Discovery Sets", to: paths.discovery },
-  { label: "Gifts", to: paths.shop("sets") },
+  { label: "Gifts", to: paths.shop("gifts") },
   { label: "Our House", to: paths.about },
 ];
 const SIMPLE_SHOP: { label: string; to: string }[] = [

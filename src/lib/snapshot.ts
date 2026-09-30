@@ -26,12 +26,14 @@ import {
 } from "./formats";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "./shipping";
 import { paths } from "./route";
+import { LANDINGS, LANDING_BY_SLUG } from "./landings";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const SHIPPING = `Free standard post within Australia on orders over ${money(FREE_SHIPPING_THRESHOLD_CENTS)}; otherwise Australia Post postage is quoted from your postcode before payment.`;
 const PAYMENT = "Secure card payment on Stripe. No account needed — checking out as a guest is fine.";
 const DISPATCH = "In-stock items ship within 1–2 business days; perfume and car diffusers poured to order ship within 5–7 business days.";
+const HOUSE = "Maison Obsidian is a boutique perfume house in Brisbane, Queensland, hand-pouring long-lasting, extrait-strength fragrance (30% perfume oil) from oils sourced from Dubai perfumers.";
 const INDEPENDENT = "Maison Obsidian is an independent fragrance house. Designer names are used only to describe a scent profile; they belong to their owners, who are not affiliated with Maison Obsidian.";
 
 const NAV: [string, string][] = [
@@ -39,6 +41,7 @@ const NAV: [string, string][] = [
   ["All fragrances", paths.fragrances],
   ["Discovery sets", paths.discovery],
   ["Car diffusers", paths.car],
+  ["Gifts", paths.shop("gifts")],
   ["Scent DNA", paths.discover],
   ["About", paths.about],
   ["Shopping help", paths.help],
@@ -49,7 +52,7 @@ function frame(body: string): string {
   return `<div class="mo-snapshot" style="max-width:880px;margin:0 auto;padding:32px 20px 48px;color:#f3ecdc;font-family:'Hanken Grotesk',system-ui,sans-serif;line-height:1.6">
 <header><a href="/" style="color:#f3ecdc;text-decoration:none;font-family:'Cormorant Garamond',serif;font-size:24px;letter-spacing:.14em">MAISON OBSIDIAN</a><nav aria-label="Primary" style="margin-top:10px;font-size:14px">${nav}</nav></header>
 <main>${body}</main>
-<footer style="margin-top:40px;font-size:13px;color:rgba(243,236,220,.6)"><p>${esc(SHIPPING)} ${esc(PAYMENT)}</p><p>${esc(INDEPENDENT)}</p></footer>
+<footer style="margin-top:40px;font-size:13px;color:rgba(243,236,220,.6)"><p>Shop by note: ${LANDINGS.filter((l) => !l.slug.startsWith("gifts")).map((l) => `<a href="${paths.shop(l.slug)}" style="color:#c9a961">${esc(l.chip)}</a>`).join(" · ")}</p><p>${esc(HOUSE)}</p><p>${esc(SHIPPING)} ${esc(PAYMENT)}</p><p>${esc(INDEPENDENT)}</p></footer>
 </div>`;
 }
 
@@ -101,9 +104,9 @@ function pageFor(path: string, frags: Fragrance[]): Page | null {
   switch (path) {
     case "/":
       return {
-        title: "Designer-inspired perfume, poured in small batches",
+        title: "Arabian perfume, hand-poured in Brisbane",
         intro: [
-          "Maison Obsidian makes eau de parfum inspired by the scent profiles of well-known designer fragrances, poured in small batches and offered as perfume, car diffusers and body care, with delivery across Australia.",
+          "Arabian and designer-inspired perfume for Australia, hand-poured in Brisbane at extrait strength from Dubai-sourced oils, so it lasts all day. It smells like the expensive perfume you love, and comes as perfume, car diffusers and body care, delivered Australia-wide.",
           `Every scent comes in three sizes: 10 ml to try (${money(sku(frags[0], "perf10").price)}), 30 ml for everyday (${money(sku(frags[0], "perf30").price)}) and 50 ml signature (${money(sku(frags[0], "perf50").price)}). Build a Discovery Box of any ${DISCOVERY_BOX_SIZE} scents in 10 ml for ${money(DISCOVERY_BOX_PRICE)}.`,
           "Not sure where to start? Name a fragrance you already love and we'll match it, or take the Scent DNA quiz.",
         ],
@@ -111,19 +114,27 @@ function pageFor(path: string, frags: Fragrance[]): Page | null {
       };
     case "/fragrances":
     case "/shop":
-      return { title: "All fragrances", intro: ["Every Maison Obsidian eau de parfum, with the designer scent that inspired it. Each comes in 10 ml, 30 ml and 50 ml."], frags };
+      return {
+        title: path === "/shop" ? "Niche perfume, every way in" : "Extrait de parfum, hand-poured",
+        intro: [
+          path === "/shop"
+            ? "Boutique niche perfume from Australia: every Maison Obsidian scent, with the designer fragrance that inspired it, in 10 ml, 30 ml and 50 ml."
+            : "Extrait de parfum in Australia — 30% perfume oil sourced from Dubai, hand-poured in small batches in Brisbane, so it lasts all day. Every scent in 10 ml, 30 ml and 50 ml, with the designer fragrance that inspired it.",
+        ],
+        frags,
+      };
     case "/new":
       return { title: "New arrivals", intro: ["The latest fragrances from Maison Obsidian, freshly poured in small batches."], frags };
     case "/discovery":
       return {
-        title: "Discovery Box",
-        intro: [`Choose any ${DISCOVERY_BOX_SIZE} fragrances as 10 ml eau de parfum for ${money(DISCOVERY_BOX_PRICE)}, or buy single 10 ml discoveries. Wear each for a few days, then choose your 30 ml or 50 ml.`],
+        title: "Perfume samples. Try before you buy.",
+        intro: [`Perfume samples in Australia, at full extrait strength: a fragrance discovery set of any ${DISCOVERY_BOX_SIZE} scents as 10 ml perfume for ${money(DISCOVERY_BOX_PRICE)}, or single 10 ml perfumes. Choose any ${DISCOVERY_BOX_SIZE} fragrances as 10 ml eau de parfum for ${money(DISCOVERY_BOX_PRICE)}, or buy single 10 ml discoveries. Wear each for a few days, then choose your 30 ml or 50 ml.`],
         frags,
       };
     case "/car":
       return {
-        title: "Car diffusers",
-        intro: [`Obsidian Drive: Maison Obsidian fragrances as a ${FORMAT_BY_KEY.car.name.toLowerCase()} with a wooden cap${car[0] ? `, ${money(sku(car[0], "car").price)} each` : ""}.`],
+        title: "Luxury car diffusers",
+        intro: [`Luxury car diffusers and car perfume for Australia — every scent, from oud car fresheners to fresh citrus, as a hanging ${FORMAT_BY_KEY.car.name.toLowerCase()} with a wooden cap${car[0] ? `, ${money(sku(car[0], "car").price)} each` : ""}.`],
         frags: car,
       };
     case "/body":
@@ -145,8 +156,9 @@ function pageFor(path: string, frags: Fragrance[]): Page | null {
       };
     case "/about":
       return {
-        title: "About Maison Obsidian",
+        title: "Handmade perfume, poured in Brisbane",
         intro: [
+          HOUSE,
           "Discover it. Wear it. Drive with it. Live in it. Maison Obsidian is a batch atelier: each fragrance is poured in small numbers and offered in every format your day needs — eau de parfum in 10, 30 and 50 ml, a car diffuser, and body care.",
           "Each scent is inspired by the profile of a well-known designer fragrance, so you can find yours by a scent you already love.",
         ],
@@ -161,8 +173,10 @@ function pageFor(path: string, frags: Fragrance[]): Page | null {
           "Alternate delivery is for arrangements made directly with the house; include a contact number and clear delivery instructions.",
         ],
       };
-    default:
-      return null;
+    default: {
+      const landing = path.startsWith("/shop/") ? LANDING_BY_SLUG[path.slice(6)] : undefined;
+      return landing ? { title: landing.h1, intro: [landing.intro], frags: frags.filter(landing.matches) } : null;
+    }
   }
 }
 
@@ -188,7 +202,7 @@ export function llmsTxt(frags: Fragrance[], origin: string): string {
   };
   return `# Maison Obsidian
 
-> Small-batch fragrance house making eau de parfum inspired by the scent profiles of well-known designer fragrances, sold online at ${origin} with delivery across Australia, in 10, 30 and 50 ml, as car diffusers, and (coming soon) body care.
+> Boutique perfume house in Brisbane, Queensland, hand-pouring long-lasting Arabian and designer-inspired perfume at extrait strength (30% perfume oil, sourced from Dubai perfumers). Sold online at ${origin} with delivery across Australia: 10 ml samples, 30 and 50 ml bottles, luxury car diffusers, and (coming soon) body care.
 
 ${INDEPENDENT}
 
@@ -208,7 +222,12 @@ ${INDEPENDENT}
 - [All fragrances](${origin}${paths.fragrances})
 - [Discovery Box](${origin}${paths.discovery})
 - [Car diffusers](${origin}${paths.car})
+- [Perfume gifts](${origin}${paths.shop("gifts")})
 - [Shopping help](${origin}${paths.help})
+
+## Shop by note or season
+
+${LANDINGS.filter((l) => !l.slug.startsWith("gifts")).map((l) => `- [${l.eyebrow}](${origin}${paths.shop(l.slug)})`).join("\n")}
 
 ## Fragrances
 

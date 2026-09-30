@@ -38,9 +38,9 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
         <Container className="mo-discovery-grid" style={{ padding: "48px 32px 36px", display: "grid", gridTemplateColumns: "1fr 420px", gap: 40, alignItems: "start" }} >
           <div>
             <div style={{ ...micro, color: GOLD }}>Discovery Collection</div>
-            <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 52, color: CREAM, lineHeight: 1 }}>Meet the fragrance before committing to the bottle.</h1>
+            <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 52, color: CREAM, lineHeight: 1 }}>Perfume samples. Try before you buy.</h1>
             <p style={{ ...body, margin: "14px 0 0", maxWidth: 560 }}>
-              Every scent in the house as a 10 ml discovery (around {money(singles)}), or build your own box of {DISCOVERY_BOX_SIZE} for {money(DISCOVERY_BOX_PRICE)}. Wear one for a week. Then choose the 30 ml Everyday Pour or the 50 ml Signature.
+              Perfume samples in Australia, at full extrait strength: every scent in the house as a 10 ml perfume (around {money(singles)}), or build your own fragrance discovery set of {DISCOVERY_BOX_SIZE} for {money(DISCOVERY_BOX_PRICE)}. Wear one for a week. Then choose the 30 ml Everyday Pour or the 50 ml Signature.
             </p>
             <div style={{ display: "flex", gap: 24, marginTop: 22, ...micro }}>
               <span>◈ 10ml singles</span>

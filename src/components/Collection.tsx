@@ -4,6 +4,7 @@ import { isNew } from "../lib/launch";
 import { MOODS, type Mood, moodsOf, sku as skuOf, formatStatus, matchesReference, fromPrice } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import { trackViewItemList } from "../lib/analytics";
+import { LANDING_BY_SLUG } from "../lib/landings";
 import FragranceCard from "./FragranceCard";
 import HouseBrowser from "./HouseBrowser";
 import { Art, Chip, Container } from "./ui";
@@ -40,10 +41,11 @@ const FORMAT_FACETS: { id: string; label: string; key: FormatKey }[] = [
   { id: "sets", label: "Sets", key: "ritual" },
 ];
 
+// Each heading and first sentence carries the phrase the page is searched by.
 const INTRO: Record<CollectionMode, { eyebrow: string; title: string; copy: string; art?: string; fallback?: string }> = {
-  shop: { eyebrow: "Shop", title: "Every scent. Every way in.", copy: "Filter by who it's for, the mood you're after, or the format you want it in." },
-  fragrances: { eyebrow: "Eau de Parfum · Signature", title: "The fragrances.", copy: "30% extrait, poured in small batches. Meet each in 10 ml, live in it at 30 ml, sign it at 50 ml." },
-  car: { eyebrow: "Obsidian Drive", title: "Your fragrance. Your car.", copy: "Every scent in the house, in our handcrafted wooden-cap car diffuser. Same iconic scents — a bolder journey.", art: "/assets/banner-drive.jpg", fallback: "/assets/bottle-portrait.webp" },
+  shop: { eyebrow: "Shop", title: "Niche perfume, every way in.", copy: "Boutique niche perfume from Australia: filter by who it's for, the scent you're after, or the format you want it in." },
+  fragrances: { eyebrow: "Eau de Parfum · Signature", title: "Extrait de parfum, hand-poured.", copy: "Extrait de parfum in Australia — 30% perfume oil sourced from Dubai, hand-poured in small batches in Brisbane, so it lasts all day. Meet each in 10 ml, live in it at 30 ml, sign it at 50 ml." },
+  car: { eyebrow: "Obsidian Drive", title: "Luxury car diffusers.", copy: "Luxury car diffusers and car perfume for Australia: every scent in the house, from oud to fresh citrus, in our handcrafted hanging diffuser with a wooden cap.", art: "/assets/banner-drive.jpg", fallback: "/assets/bottle-portrait.webp" },
   body: { eyebrow: "Obsidian Ritual", title: "Cleanse. Hydrate. Be obsessed.", copy: "Body wash, moisturiser and the Complete Ritual set. Layer the fragrance from morning to night.", art: "/assets/banner-ritual.jpg", fallback: "/assets/bottle-pair.png" },
 };
 
@@ -56,6 +58,9 @@ const groupLabel = { ...micro, minWidth: 64 } as const;
 export default function Collection({ mode, facet, fragrances, vip, discoveryIds, onQuickView, onToggleDiscovery }: CollectionProps) {
   const initialGender: Filter | "unisex" = facet === "him" ? "men" : facet === "her" ? "women" : facet === "unisex" ? "unisex" : "all";
   const initialMood = MOODS.find((m) => m.id.toLowerCase() === facet)?.id ?? null;
+  // A search landing (/shop/oud, /shop/gifts …): its own heading and filter.
+  const landing = mode === "shop" && facet ? LANDING_BY_SLUG[facet] : undefined;
+  const [useLanding, setUseLanding] = useState(!!landing);
   // Car and body pages are one format; that is the page, not a filter to clear.
   const baseFormat = mode === "car" ? "car" : mode === "body" ? "body" : null;
   const initialFormat = FORMAT_FACETS.find((x) => x.id === facet)?.id ?? baseFormat;
@@ -77,6 +82,7 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
 
   const list = useMemo(() => {
     let out = fragrances;
+    if (landing && useLanding) out = out.filter(landing.matches);
     if (gender === "unisex") out = out.filter((f) => f.gender === "unisex");
     else if (gender !== "all") out = out.filter((f) => matches(f, gender));
     if (mood) out = out.filter((f) => moodsOf(f).includes(mood));
@@ -87,7 +93,7 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
     if (view === "grid" && inspired.trim()) out = out.filter((f) => matchesReference(f, inspired));
     if (onlyNew) out = out.filter((f) => isNew(f));
     return out;
-  }, [fragrances, gender, mood, format, inspired, onlyNew, view]);
+  }, [fragrances, landing, useLanding, gender, mood, format, inspired, onlyNew, view]);
 
   // view_item_list once per distinct result set; the pause lets a shopper
   // finish typing in "Inspired by" before the list counts as seen.
@@ -128,9 +134,11 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
     setFormat(baseFormat);
     setInspired("");
     setOnlyNew(false);
+    setUseLanding(false);
   };
   // The selected filters, each removable on its own.
   const active: { key: string; label: string; clear: () => void }[] = [];
+  if (landing && useLanding) active.push({ key: "landing", label: landing.chip, clear: () => setUseLanding(false) });
   if (mood) active.push({ key: "mood", label: mood, clear: () => setMood(null) });
   if (gender !== "all") active.push({ key: "for", label: GENDERS.find((g) => g.id === gender)?.label ?? gender, clear: () => setGender("all") });
   if (format && format !== baseFormat) active.push({ key: "format", label: FORMAT_FACETS.find((x) => x.id === format)?.label ?? format, clear: () => setFormat(baseFormat) });
@@ -138,7 +146,7 @@ export default function Collection({ mode, facet, fragrances, vip, discoveryIds,
   if (view === "grid" && inspired.trim()) active.push({ key: "inspired", label: `“${inspired.trim()}”`, clear: () => setInspired("") });
   const countText = `${list.length} ${list.length === 1 ? "scent" : "scents"}`;
 
-  const intro = INTRO[mode];
+  const intro = landing ? { eyebrow: landing.eyebrow, title: landing.h1, copy: landing.intro } : INTRO[mode];
   const defaultFormat: FormatKey | undefined = mode === "car" ? "car" : mode === "body" ? "wash" : FORMAT_FACETS.find((x) => x.id === format)?.key;
   const comingSoonCount = mode === "body" ? list.filter((f) => skuOf(f, "wash").status === "coming_soon").length : 0;
 

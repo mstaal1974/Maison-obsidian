@@ -10,6 +10,7 @@ import { type Fragrance, money } from "./data";
 import { availabilityOf, DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE, formatParam, referenceLine, referenceOf, skusInGroup, sku as skuOf, SUBSCRIPTION_DISCOUNT, SUBSCRIPTION_MONTHS, type Sku } from "./formats";
 import { paths } from "./route";
 import type { RatingSummary } from "./reviews";
+import { LANDING_BY_SLUG } from "./landings";
 
 export const SITE_NAME = "Maison Obsidian";
 
@@ -18,9 +19,9 @@ export const SITE_NAME = "Maison Obsidian";
  * checkout (api/stripe/checkout.ts), so nothing here may promise otherwise.
  */
 export const DEFAULT_META: PageMeta = {
-  title: "Designer-Inspired Perfume Australia | Maison Obsidian",
+  title: "Arabian Perfume Australia | Hand-Poured Extrait | Maison Obsidian",
   description:
-    "Designer-inspired eau de parfum, poured in small batches and shipped Australia-wide. Meet any scent as a 10 ml discovery, then choose 30 ml or 50 ml — or take it in the car.",
+    "Arabian and designer-inspired perfume, hand-poured in Brisbane at extrait strength from Dubai-sourced oils. Long lasting, shipped Australia-wide. Try any scent as a 10 ml sample, then choose 30 or 50 ml.",
   image: "/assets/bottle-pair.png",
 };
 
@@ -64,6 +65,9 @@ export function organizationJsonLd(origin: string, sameAs: string[] = []): Recor
     "@id": `${origin}/#organization`,
     name: SITE_NAME,
     url: `${origin}/`,
+    description: "Boutique perfume house hand-pouring extrait-strength fragrance in Brisbane, Queensland.",
+    address: { "@type": "PostalAddress", addressLocality: "Brisbane", addressRegion: "QLD", addressCountry: "AU" },
+    areaServed: { "@type": "Country", name: "Australia" },
     ...(sameAs.length ? { sameAs } : {}),
   };
 }
@@ -87,23 +91,23 @@ export function staticPageMeta(path: string, origin: string, sameAs: string[] = 
       },
     },
     "/fragrances": {
-      title: "Designer-Inspired Perfumes in 10, 30 & 50 ml | Maison Obsidian",
+      title: "Extrait de Parfum Australia | Long Lasting Perfume | Maison Obsidian",
       description:
-        "Every Maison Obsidian eau de parfum, browsable by the designer scent that inspired it. 30% extrait, poured in small batches: meet each in 10 ml, live in it at 30 ml, sign it at 50 ml.",
+        "Extrait de parfum in Australia: 30% Dubai-sourced perfume oil, hand-poured in Brisbane, so it lasts all day. Every scent in 10, 30 and 50 ml, browsable by the designer fragrance that inspired it.",
     },
     "/shop": {
-      title: "Shop Perfume by Scent, Mood & Format | Maison Obsidian",
+      title: "Niche Perfume Australia | Boutique Extrait | Maison Obsidian",
       description:
-        "Shop designer-inspired eau de parfum by who it's for, the mood you're after — woody, fresh, gourmand, floral — or the format: 10 ml, 30 ml, 50 ml or car diffuser.",
+        "Boutique niche perfume from Brisbane: shop extrait-strength fragrance by who it's for, by note — oud, amber, vanilla, leather — or by format: 10 ml, 30 ml, 50 ml or car diffuser.",
     },
     "/discovery": {
-      title: "Build Your Own Perfume Discovery Box | Maison Obsidian Australia",
-      description: `Choose any ${DISCOVERY_BOX_SIZE} fragrances as 10 ml eau de parfum for ${money(DISCOVERY_BOX_PRICE)}, or buy single 10 ml discoveries. Wear each for a week, then choose your 30 ml or 50 ml.`,
+      title: "Perfume Samples Australia | 10ml Discovery Set | Maison Obsidian",
+      description: `Perfume samples in Australia: a fragrance discovery set of any ${DISCOVERY_BOX_SIZE} scents as 10 ml extrait for ${money(DISCOVERY_BOX_PRICE)}, or single 10 ml perfumes. Try before you buy, then choose 30 ml or 50 ml.`,
     },
     "/car": {
-      title: "Car Perfume Diffusers in Your Favourite Scents | Maison Obsidian",
+      title: "Luxury Car Diffuser | Car Perfume Australia | Maison Obsidian",
       description:
-        "Obsidian Drive: every Maison Obsidian fragrance as a 10 ml car diffuser with a wooden cap. Match your car to the scent you wear, or add one to a perfume order.",
+        "Luxury hanging car diffusers and car perfume for Australia: every Maison Obsidian scent, from oud to fresh citrus, as a 10 ml diffuser with a wooden cap. Hand-poured in Brisbane.",
     },
     "/body": {
       title: "Body Wash, Moisturiser & Fragrance Sets | Maison Obsidian",
@@ -118,9 +122,9 @@ export function staticPageMeta(path: string, origin: string, sameAs: string[] = 
       description: "The latest fragrances from Maison Obsidian, freshly poured in small batches. Meet them in 10 ml or go straight to the 50 ml.",
     },
     "/about": {
-      title: "About Maison Obsidian | Small-Batch Designer-Inspired Perfume",
+      title: "Handmade Perfume Brisbane, Queensland | About Maison Obsidian",
       description:
-        "Maison Obsidian pours designer-inspired fragrance in small batches and offers each scent as eau de parfum, a car diffuser and body care. Discover it, wear it, drive with it.",
+        "Maison Obsidian is a boutique perfume house hand-pouring extrait-strength fragrance in Brisbane, Queensland, from Dubai-sourced oils — as perfume, car diffusers and body care.",
     },
     "/help": {
       title: "Shopping Help: Delivery, Payment & Returns | Maison Obsidian",
@@ -128,6 +132,9 @@ export function staticPageMeta(path: string, origin: string, sameAs: string[] = 
         "How ordering works at Maison Obsidian: choosing a size or car diffuser, Australia Post delivery quotes, paying at checkout with Stripe, and getting support.",
     },
   };
+  // A search landing is a page of its own; any other /shop facet is canonical to /shop.
+  const landing = path.startsWith("/shop/") ? LANDING_BY_SLUG[path.slice(6)] : undefined;
+  if (landing) return { title: landing.title, description: landing.description, path };
   const key = path.startsWith("/shop/") ? "/shop" : path;
   const page = pages[key];
   return page ? { ...page, path: key } : null;
