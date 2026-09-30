@@ -1,11 +1,14 @@
+import { useEffect } from "react";
 import { Container, Arrow } from "./ui";
+import { trackSubscriptionOfferViewed } from "../lib/analytics";
 import { SERIF, MONO, btnGold } from "./styles";
 import { navigate, paths } from "../lib/route";
 import { GOLD, CREAM } from "../lib/data";
 import { SUBSCRIPTION_MONTHS } from "../lib/subscription";
 
-/** Home: the Monthly Pour in one band between the mood shop and the range banners. */
-export default function SubscribeBand() {
+/** The Monthly Pour in one band — shown after a purchase (the thank-you page). */
+export default function SubscribeBand({ placement }: { placement: string }) {
+  useEffect(() => trackSubscriptionOfferViewed(placement), [placement]);
   return (
     <section aria-label="The Monthly Pour" style={{ borderBottom: "1px solid #1f1f27", background: "linear-gradient(135deg, rgba(201,169,97,0.08), transparent 55%)" }}>
       <Container style={{ padding: "36px 32px" }}>

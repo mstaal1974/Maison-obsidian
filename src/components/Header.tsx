@@ -1,11 +1,15 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import Logo from "./Logo";
+import SearchOverlay from "./SearchOverlay";
+import { useDialog } from "./useDialog";
 import { Icon } from "./ui";
 import { MONO, SERIF } from "./styles";
 import { navigate, onRouteChange, paths } from "../lib/route";
-import { GOLD, CREAM } from "../lib/data";
+import { type Fragrance, GOLD, CREAM } from "../lib/data";
 
 interface HeaderProps {
+  /** For the search overlay. */
+  fragrances: Fragrance[];
   bagCount: number;
   userEmail: string | null;
   isAdmin: boolean;
@@ -29,8 +33,29 @@ const navLink: CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-// SHOP mega-menu: fragrance first, format second — the architecture the brief
-// asks for. Gender stays as a filter rather than the primary axis.
+// Five primary choices, each a customer intention rather than a slice of the
+// catalogue. Formats, new arrivals and the Monthly Pour live one level down,
+// under Shop, so every page stays within two clicks.
+const PRIMARY: { label: string; to: string }[] = [
+  { label: "Find My Scent", to: paths.find() },
+  { label: "Discovery Sets", to: paths.discovery },
+  { label: "Gifts", to: paths.shop("gifts") },
+  { label: "Our House", to: paths.about },
+];
+
+// SHOP mega-menu: the range and its formats in one column, fragrance families
+// in the other. Gender stays a filter rather than the primary axis.
+const SHOP_LINKS: { label: string; to: string }[] = [
+  { label: "All fragrances", to: paths.fragrances },
+  { label: "New arrivals", to: paths.newArrivals },
+  { label: "10ml — Try it", to: paths.shop("10ml") },
+  { label: "30ml — Everyday", to: paths.shop("30ml") },
+  { label: "50ml — Signature", to: paths.shop("50ml") },
+  { label: "Car diffusers", to: paths.car },
+  { label: "Body & bath", to: paths.body },
+  { label: "Sets", to: paths.shop("sets") },
+  { label: "Subscribe & save", to: paths.subscribe() },
+];
 const BY_FRAGRANCE: { label: string; facet: string }[] = [
   { label: "For Him", facet: "him" },
   { label: "For Her", facet: "her" },
@@ -41,18 +66,10 @@ const BY_FRAGRANCE: { label: string; facet: string }[] = [
   { label: "Floral", facet: "floral" },
   { label: "Spicy", facet: "spicy" },
 ];
-const BY_FORMAT: { label: string; to: string }[] = [
-  { label: "Eau de Parfum", to: paths.fragrances },
-  { label: "10ml Discovery", to: paths.discovery },
-  { label: "30ml — Everyday Pour", to: paths.shop("30ml") },
-  { label: "50ml — Signature Pour", to: paths.shop("50ml") },
-  { label: "Car Diffusers", to: paths.car },
-  { label: "Body", to: paths.body },
-  { label: "Gift & Fragrance Sets", to: paths.shop("sets") },
-];
 
-export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSignIn, onSignOut }: HeaderProps) {
+export default function Header({ fragrances, bagCount, userEmail, isAdmin, onOpenBag, onSignIn, onSignOut }: HeaderProps) {
   const [shopOpen, setShopOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Below 1000px the primary nav is hidden; this drawer is the only way through
   // the site on a phone.
@@ -64,23 +81,10 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
       setShopOpen(false);
       setMenuOpen(false);
       setDrawerOpen(false);
+      setSearchOpen(false);
     };
     return onRouteChange(close);
   }, []);
-
-  // An open drawer covers the page: escape closes it, and the page behind it
-  // must not scroll away underneath.
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawerOpen(false);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [drawerOpen]);
 
   const openShop = () => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
@@ -128,23 +132,23 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                     border: "1px solid #1f1f27",
                     padding: "26px 30px 28px",
                     display: "grid",
-                    gridTemplateColumns: "180px 220px",
+                    gridTemplateColumns: "210px 170px",
                     gap: 40,
                     boxShadow: "0 30px 60px rgba(0,0,0,0.6)",
                   }}
                 >
                   <div>
-                    <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>Shop by fragrance</div>
-                    {BY_FRAGRANCE.map((x) => (
-                      <a key={x.facet} role="menuitem" className="mo-navlink" href={paths.shop(x.facet)} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
+                    <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>Shop</div>
+                    {SHOP_LINKS.map((x) => (
+                      <a key={x.label} role="menuitem" className="mo-navlink" href={x.to} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
                         {x.label}
                       </a>
                     ))}
                   </div>
                   <div>
-                    <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>Shop by format</div>
-                    {BY_FORMAT.map((x) => (
-                      <a key={x.label} role="menuitem" className="mo-navlink" href={x.to} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
+                    <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, marginBottom: 14 }}>By fragrance</div>
+                    {BY_FRAGRANCE.map((x) => (
+                      <a key={x.facet} role="menuitem" className="mo-navlink" href={paths.shop(x.facet)} style={{ ...navLink, display: "block", padding: "7px 0", fontFamily: SERIF, fontSize: 17, letterSpacing: 0, textTransform: "none", color: CREAM }}>
                         {x.label}
                       </a>
                     ))}
@@ -152,17 +156,13 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
                 </div>
               )}
             </div>
-            <a className="mo-navlink mo-navlink-new" style={{ ...navLink, color: GOLD, fontWeight: 700 }} href={paths.newArrivals}>New arrivals</a>
-            <a className="mo-navlink" style={navLink} href={paths.fragrances}>Fragrances</a>
-            <a className="mo-navlink" style={navLink} href={paths.discovery}>Discovery</a>
-            <a className="mo-navlink" style={navLink} href={paths.car}>Car</a>
-            <a className="mo-navlink" style={navLink} href={paths.body}>Body &amp; Sets</a>
-            <a className="mo-navlink" style={navLink} href={paths.subscribe()}>Subscribe</a>
-            <a className="mo-navlink" style={{ ...navLink, color: GOLD }} href={paths.discover}>Scent DNA</a>
+            {PRIMARY.map((x) => (
+              <a key={x.label} className="mo-navlink" style={navLink} href={x.to}>{x.label}</a>
+            ))}
           </nav>
 
           <div className="mo-header-actions" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <button aria-label="Find your scent" onClick={() => navigate(paths.find())} style={{ background: "none", border: 0, cursor: "pointer", padding: 6, display: "grid", placeItems: "center" }}>
+            <button aria-label="Search" aria-haspopup="dialog" onClick={() => setSearchOpen(true)} style={{ background: "none", border: 0, cursor: "pointer", padding: 6, display: "grid", placeItems: "center" }}>
               <Icon name="search" size={19} color={CREAM} />
             </button>
             <span className="mo-header-divider" aria-hidden style={{ width: 1, height: 22, background: "#2a2a33" }} />
@@ -231,13 +231,14 @@ export default function Header({ bagCount, userEmail, isAdmin, onOpenBag, onSign
           containing block for position:fixed, which would trap the drawer
           inside a 72px-tall box. */}
       {drawerOpen && <MobileMenu userEmail={userEmail} isAdmin={isAdmin} onSignIn={onSignIn} onSignOut={onSignOut} onClose={() => setDrawerOpen(false)} />}
+      {searchOpen && <SearchOverlay fragrances={fragrances} onClose={() => setSearchOpen(false)} />}
     </>
   );
 }
 
 /**
- * The phone menu. Everything the desktop bar carries — the two Shop columns,
- * the primary links and the account actions — in one scrollable sheet.
+ * The phone menu: the same five choices as the desktop bar, in the same order,
+ * with Shop opening in place to the same two columns, then the account.
  */
 function MobileMenu({
   userEmail,
@@ -252,13 +253,15 @@ function MobileMenu({
   onSignOut: () => void;
   onClose: () => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialog(ref, true, onClose);
   // navigate() fires a route change, which closes the drawer; go() covers the
   // case where the link is to the page we are already on.
   const go = (to: string) => {
     navigate(to);
     onClose();
   };
-  const heading: CSSProperties = { fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, margin: "0 0 10px" };
+  const heading: CSSProperties = { fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.3em", textTransform: "uppercase", color: GOLD, margin: "14px 0 4px" };
   const item: CSSProperties = {
     display: "block",
     textDecoration: "none",
@@ -270,13 +273,18 @@ function MobileMenu({
     cursor: "pointer",
     color: CREAM,
     fontFamily: SERIF,
-    fontSize: 19,
-    padding: "13px 0",
+    fontSize: 21,
+    padding: "14px 0",
   };
+  const sub: CSSProperties = { ...item, fontSize: 16, padding: "10px 0" };
 
   return (
     <div
+      ref={ref}
       id="mo-mobile-menu"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Menu"
       className="mo-drawer-sheet"
       style={{
         position: "fixed",
@@ -293,65 +301,41 @@ function MobileMenu({
         WebkitOverflowScrolling: "touch",
       }}
     >
-      <nav style={{ padding: "22px 24px 40px", display: "grid", gap: 26 }} aria-label="Mobile">
+      <nav style={{ padding: "12px 24px 40px", display: "grid", gap: 22 }} aria-label="Mobile">
         <div>
-          {[
-            { label: "New arrivals", to: paths.newArrivals },
-            { label: "Fragrances", to: paths.fragrances },
-            { label: "Discovery", to: paths.discovery },
-            { label: "Car", to: paths.car },
-            { label: "Body & Sets", to: paths.body },
-            { label: "Subscribe", to: paths.subscribe() },
-          ].map((x) => (
-            <a
-              key={x.label}
-              className={x.to === paths.newArrivals ? "mo-navlink-new" : undefined}
-              href={x.to}
-              onClick={onClose}
-              style={x.to === paths.newArrivals ? { ...item, color: GOLD, fontWeight: 700 } : item}
-            >
-              {x.label}
-            </a>
-          ))}
-          <a href={paths.find()} onClick={onClose} style={{ ...item, color: GOLD }}>
-            Find your scent
-          </a>
-          <a href={paths.discover} onClick={onClose} style={{ ...item, color: GOLD }}>
-            Scent DNA
-          </a>
-        </div>
-
-        <div>
-          <div style={heading}>Shop by fragrance</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
-            {BY_FRAGRANCE.map((x) => (
-              <a key={x.facet} href={paths.shop(x.facet)} onClick={onClose} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
-                {x.label}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div style={heading}>Shop by format</div>
-          {BY_FORMAT.map((x) => (
-            <a key={x.label} href={x.to} onClick={onClose} style={{ ...item, fontSize: 16, padding: "11px 0" }}>
-              {x.label}
-            </a>
+          <details className="mo-menu-details">
+            <summary style={{ ...item, listStyle: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              Shop <span aria-hidden className="mo-menu-caret" style={{ color: GOLD, fontSize: 16 }}>+</span>
+            </summary>
+            <div style={{ padding: "0 0 8px 14px" }}>
+              <div style={heading}>Shop</div>
+              {SHOP_LINKS.map((x) => (
+                <a key={x.label} href={x.to} onClick={onClose} style={sub}>{x.label}</a>
+              ))}
+              <div style={heading}>By fragrance</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 18px" }}>
+                {BY_FRAGRANCE.map((x) => (
+                  <a key={x.facet} href={paths.shop(x.facet)} onClick={onClose} style={sub}>{x.label}</a>
+                ))}
+              </div>
+            </div>
+          </details>
+          {PRIMARY.map((x) => (
+            <a key={x.label} href={x.to} onClick={onClose} style={item}>{x.label}</a>
           ))}
         </div>
 
         <div>
-          <div style={heading}>Account</div>
+          <div style={{ ...heading, marginTop: 0 }}>Account</div>
           {userEmail ? (
             <>
               <div style={{ fontFamily: MONO, fontSize: 10, color: "rgba(243,236,220,0.5)", paddingBottom: 10, overflow: "hidden", textOverflow: "ellipsis" }}>{userEmail}</div>
-              <button onClick={() => go(paths.account)} style={item}>My Orders</button>
-              <button onClick={() => go(paths.account)} style={item}>My Monthly Pour</button>
+              <button onClick={() => go(paths.account)} style={sub}>My Orders</button>
+              <button onClick={() => go(paths.account)} style={sub}>My Monthly Pour</button>
               {isAdmin && (
                 <>
-                  <button onClick={() => go(paths.admin)} style={item}>Admin Console</button>
-                  <button onClick={() => go(paths.staff)} style={item}>Staff Order Desk</button>
+                  <button onClick={() => go(paths.admin)} style={sub}>Admin Console</button>
+                  <button onClick={() => go(paths.staff)} style={sub}>Staff Order Desk</button>
                 </>
               )}
               <button
@@ -359,7 +343,7 @@ function MobileMenu({
                   onSignOut();
                   onClose();
                 }}
-                style={{ ...item, color: "rgba(243,236,220,0.6)" }}
+                style={{ ...sub, color: "rgba(243,236,220,0.6)" }}
               >
                 Sign Out
               </button>
@@ -370,7 +354,7 @@ function MobileMenu({
                 onSignIn();
                 onClose();
               }}
-              style={item}
+              style={sub}
             >
               Sign In
             </button>

@@ -11,14 +11,14 @@ const TILES = [
   { key: "ritual", title: "Ritual", sub: "Body & bath", src: "/assets/body%20and%20sets.jpg", position: "center 62%", fallback: "/assets/bottle-pair.png", to: paths.body },
 ];
 
-/** Section 2 — the four Maison Obsidian ranges. Explains the business at a glance. */
+/** Home, block 4 — the ranges as moments in the day, after a scent has had the stage. */
 export default function ChooseObsidian() {
   return (
-    <section aria-label="Choose your Obsidian" style={{ padding: "34px 0 22px", borderBottom: "1px solid #1f1f27" }}>
+    <section aria-label="Make it part of your day" style={{ padding: "34px 0 22px", borderBottom: "1px solid #1f1f27" }}>
       <Container>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 20, flexWrap: "wrap" }}>
-          <h2 style={h2}>Choose your Obsidian</h2>
-          <span style={{ ...micro, color: "rgba(243,236,220,0.6)" }}>Different worlds. A bolder you.</span>
+          <h2 style={h2}>Make it part of your day</h2>
+          <span style={{ ...micro, color: "rgba(243,236,220,0.6)" }}>One scent. Every part of your day.</span>
         </div>
         <div className="mo-choose-grid" style={{ marginTop: 22, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
           {TILES.map((t) => (

@@ -908,3 +908,50 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
     animation: none;
   }
 }
+
+/* ── UX simplification ───────────────────────────────────────────────────── */
+/* Phone menu: Shop opens in place. */
+.mo-menu-details > summary::-webkit-details-marker { display: none; }
+.mo-menu-details > summary { cursor: pointer; }
+.mo-menu-details[open] .mo-menu-caret { display: inline-block; transform: rotate(45deg); }
+
+/* Visible keyboard focus everywhere, in the house gold. */
+:focus-visible { outline: 2px solid #c9a961; outline-offset: 2px; }
+
+@media (max-width: 760px) {
+  /* The filter bar stays within reach while scrolling a long collection. */
+  .mo-filters { position: sticky; top: 72px; z-index: 20; background: rgba(11,11,13,0.96); padding-top: 10px; }
+  .mo-search-panel { margin: 0 !important; min-height: 100vh; border: 0 !important; }
+}
+.mo-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (max-width: 900px) {
+  .mo-guided-grid, .mo-trust-grid { grid-template-columns: 1fr !important; }
+  .mo-featured-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* Product page: disclosures, sticky purchase bar. */
+.mo-disclosure > summary::-webkit-details-marker { display: none; }
+.mo-disclosure[open] > summary .mo-disclosure-caret { transform: rotate(45deg); }
+.mo-sticky-buy { display: none; }
+@media (max-width: 760px) {
+  .mo-sticky-buy {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(11,11,13,0.97); border-top: 1px solid #2a2a33;
+  }
+  .mo-pair-grid, .mo-notes-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Checkout: order summary collapses on phones, always open on desktop. */
+.mo-summary-toggle { display: none; }
+.mo-summary-items { display: grid; }
+@media (max-width: 760px) {
+  .mo-summary-heading { display: none !important; }
+  .mo-summary-toggle { display: flex; }
+  .mo-summary-items { display: none; }
+  .mo-summary-items.is-open { display: grid; }
+}
+@media (max-width: 760px) {
+  body.mo-has-sticky-buy .mo-chat-launch { bottom: 84px !important; }
+}

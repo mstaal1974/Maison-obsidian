@@ -13,7 +13,7 @@ import ScentMemory from "./scent/ScentMemory";
 import ScentResult, { type ResultSection } from "./scent/ScentResult";
 import ScentprintRing from "./scent/ScentprintRing";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, goldA, ink, micro } from "./scent/theme";
-import { trackScentMatchCompleted } from "../lib/analytics";
+import { trackQuizComplete, trackQuizStart, trackScentMatchCompleted } from "../lib/analytics";
 
 interface ScentDnaProps {
   fragrances: Fragrance[];
@@ -121,6 +121,7 @@ export default function ScentDna({ fragrances, userId, code: initialCode, onOpen
   }, [initialCode]);
 
   const begin = useCallback(() => {
+    trackQuizStart();
     setNotice(null);
     setStage("quiz");
     window.scrollTo({ top: 0 });
@@ -154,6 +155,7 @@ export default function ScentDna({ fragrances, userId, code: initialCode, onOpen
 
   const complete = useCallback(
     (a: QuizAnswers) => {
+      trackQuizComplete();
       setAnswers(a);
       reveal(computeScentprint(a, fragrances), "discover");
     },
@@ -180,6 +182,7 @@ export default function ScentDna({ fragrances, userId, code: initialCode, onOpen
   );
 
   const retake = useCallback(() => {
+    trackQuizStart();
     setStage("quiz");
     setShared(false);
     window.scrollTo({ top: 0 });

@@ -9,7 +9,7 @@ import type { CheckoutDelivery } from "./lib/shipping";
 import { currentRoute, navigate, onRouteChange, paths, type Route } from "./lib/route";
 import { subscribeBag, bagLines, bagOrders, discoveryIds, addToBag, clearBag, toggleDiscovery, clearDiscovery, type Order } from "./lib/bag";
 import { FORMAT_BY_KEY, DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE, sku } from "./lib/formats";
-import { trackAddToCart, trackBeginCheckout, trackCarDiffuserAttach, trackDiscoveryBoxCompleted, trackPurchase } from "./lib/analytics";
+import { trackAddToCart, trackBeginCheckout, trackCarDiffuserAttach, trackDiscoveryBoxCompleted, trackPurchase, trackSubscriptionStarted } from "./lib/analytics";
 import { DEFAULT_META, siteOrigin, staticPageMeta, usePageMeta } from "./lib/seo";
 import { socialProfiles } from "./lib/social";
 import AuthModal from "./components/AuthModal";
@@ -20,12 +20,13 @@ import Header from "./components/Header";
 import Hero from "./components/Hero";
 import ChooseObsidian from "./components/ChooseObsidian";
 import FindYourScent from "./components/FindYourScent";
-import MoodShop from "./components/MoodShop";
-import RangeBanners from "./components/RangeBanners";
+import FindMore from "./components/FindMore";
+import GuidedChoice from "./components/GuidedChoice";
+import FeaturedScents from "./components/FeaturedScents";
+import TrustBlock from "./components/TrustBlock";
 import Collection from "./components/Collection";
 import Discovery from "./components/Discovery";
-import NewArrivals, { JustPoured } from "./components/NewArrivals";
-import HouseBrowser from "./components/HouseBrowser";
+import NewArrivals from "./components/NewArrivals";
 import ComingSoon from "./components/ComingSoon";
 import { isLaunched, isUpcoming } from "./lib/launch";
 import Help from "./components/Help";
@@ -287,6 +288,7 @@ export default function App() {
         setThanks({ status: "paid", itemCount, amountTotal: r.data.amountTotal });
         setCommitsVersion((v) => v + 1);
       } else if (r?.ok && r.data.kind === "subscription") {
+        trackSubscriptionStarted();
         setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });
         setThanks({ status: "paid" });
         reloadSubs();
@@ -439,6 +441,7 @@ export default function App() {
   return (
     <div className="mo-grain" style={{ minHeight: "100vh", position: "relative", overflowX: "hidden" }}>
       <Header
+        fragrances={fragrances}
         bagCount={bagCount}
         userEmail={auth.user?.email ?? null}
         isAdmin={isAdmin}
@@ -455,14 +458,12 @@ export default function App() {
 
       {route.view === "home" && (
         <main data-screen-label="Home">
+          {/* Five blocks: promise, how to choose, where to start, the ranges, reassurance. */}
           <Hero />
-          <HouseBrowser variant="home" fragrances={fragrances} vip={vip} onQuickView={openQuick} />
+          <GuidedChoice />
+          <FeaturedScents fragrances={fragrances} vip={vip} onQuickView={openQuick} />
           <ChooseObsidian />
-          <JustPoured fragrances={fragrances} vip={vip} discoveryIds={boxIds} onQuickView={openQuick} onToggleDiscovery={onToggleDiscovery} />
-          <FindYourScent fragrances={fragrances} onQuickView={openQuick} userEmail={auth.user?.email} />
-          <MoodShop fragrances={fragrances} onQuickView={openQuick} />
-          <SubscribeBand />
-          <RangeBanners />
+          <TrustBlock />
         </main>
       )}
 
@@ -473,14 +474,12 @@ export default function App() {
           facet={route.view === "shop" ? route.facet : null}
           fragrances={fragrances}
           vip={vip}
-          discoveryIds={boxIds}
           onQuickView={openQuick}
-          onToggleDiscovery={onToggleDiscovery}
         />
       )}
 
       {route.view === "new" && (
-        <NewArrivals fragrances={fragrances} upcoming={catalogue} vip={vip} discoveryIds={boxIds} onQuickView={openQuick} onToggleDiscovery={onToggleDiscovery} />
+        <NewArrivals fragrances={fragrances} upcoming={catalogue} vip={vip} onQuickView={openQuick} />
       )}
 
       {route.view === "discovery" && (
@@ -513,6 +512,8 @@ export default function App() {
           }}
         />
       )}
+      {/* The Monthly Pour is offered after a purchase, not to first-time visitors. */}
+      {route.view === "thanks" && thanks.status === "paid" && !hasActiveSub && <SubscribeBand placement="thanks" />}
 
       {route.view === "checkout" && (
         <Checkout
@@ -531,7 +532,12 @@ export default function App() {
         />
       )}
 
-      {route.view === "find" && <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />}
+      {route.view === "find" && (
+        <>
+          <FindYourScent key={route.query} fragrances={fragrances} mode="page" initialQuery={route.query} onQuickView={openQuick} userEmail={auth.user?.email} />
+          <FindMore fragrances={fragrances} onQuickView={openQuick} />
+        </>
+      )}
 
       {route.view === "product" && selected && (
         <ProductDetail key={selected.slug} frag={selected} fragrances={fragrances} vip={vip} onAdd={add} onQuickView={openQuick} userId={auth.user?.id ?? null} userEmail={auth.user?.email ?? null} onSignIn={() => setAuthOpen(true)} />

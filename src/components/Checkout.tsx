@@ -5,6 +5,7 @@ import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import { type CheckoutDelivery, type ShippingRate, etaLabel, quoteShipping } from "../lib/shipping";
 import { Arrow, Icon } from "./ui";
+import { trackAddShippingInfo } from "../lib/analytics";
 
 /** A mobile in any common shape: 0412 345 678, +61 412 345 678, (04) 1234-5678. */
 function validMobile(v: string): boolean {
@@ -41,6 +42,28 @@ const field: CSSProperties = {
   boxSizing: "border-box",
 };
 const blockLabel: CSSProperties = { ...micro, display: "block", marginBottom: 10 };
+const fieldError: CSSProperties = { margin: "4px 0 0", fontSize: 13, color: "#e0a184" };
+
+type FieldName = "email" | "phone" | "name" | "address" | "city" | "region" | "postcode" | "notes";
+
+/** Where the shopper is: 1 Details, 2 Delivery, 3 Payment (on Stripe). */
+function Steps({ current }: { current: 1 | 2 | 3 }) {
+  const steps = ["Details", "Delivery", "Payment"];
+  return (
+    <ol aria-label="Checkout progress" style={{ listStyle: "none", margin: "16px 0 0", padding: 0, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", fontFamily: MONO, fontSize: 10, letterSpacing: "0.18em", textTransform: "uppercase" }}>
+      {steps.map((label, i) => {
+        const n = (i + 1) as 1 | 2 | 3;
+        const state = n < current ? "done" : n === current ? "current" : "todo";
+        return (
+          <li key={label} aria-current={state === "current" ? "step" : undefined} style={{ display: "flex", alignItems: "center", gap: 10, color: state === "todo" ? "rgba(243,236,220,0.45)" : state === "current" ? GOLD : CREAM }}>
+            <span>{state === "done" ? "✓" : n}. {label}</span>
+            {n < 3 && <span aria-hidden style={{ color: "rgba(243,236,220,0.3)" }}>→</span>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 /**
  * Checkout. Contact, delivery and the order summary live here; the card is
@@ -67,6 +90,11 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   const [remindMe, setRemindMe] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
+  // Inline validation: a field is checked once the shopper has left it.
+  const [touched, setTouched] = useState<Set<FieldName>>(new Set());
+  const touch = (f: FieldName) => () => setTouched((t) => (t.has(f) ? t : new Set(t).add(f)));
+  // On phones the order summary starts collapsed (CSS always shows it on desktop).
+  const [summaryOpen, setSummaryOpen] = useState(false);
   // Postal checkout remains blocked until a valid quote is available.
   const [postageOff, setPostageOff] = useState(false);
 
@@ -146,12 +174,43 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           ? "Please wait for a valid postage quote before continuing."
           : null;
 
+  const fieldErrors: Partial<Record<FieldName, string>> = {
+    email: !contact.trim() ? "Enter your email for the receipt." : !validEmail ? "That email address doesn't look right." : undefined,
+    phone: !phone.trim() ? "Enter a mobile for delivery updates." : !validPhone ? "That doesn't look like a mobile — e.g. 0412 345 678." : undefined,
+    name: !fullName.trim() ? "Enter the name for delivery." : undefined,
+    ...(alternate
+      ? { notes: !notes.trim() ? "Tell us how to get it to you." : undefined }
+      : {
+          address: !address.trim() ? "Enter the street address." : undefined,
+          city: !city.trim() ? "Enter the suburb." : undefined,
+          region: !region.trim() ? "Enter the state." : undefined,
+          postcode: !/^\d{4}$/.test(postcode.trim()) ? "Postcodes are four digits." : undefined,
+        }),
+  };
+  const errorFor = (f: FieldName) => ((touched.has(f) || showError) && fieldErrors[f]) || null;
+  const invalid = (f: FieldName) => ({
+    "aria-invalid": !!errorFor(f),
+    "aria-describedby": errorFor(f) ? `mo-err-${f}` : undefined,
+    onBlur: touch(f),
+  });
+  const errorLine = (f: FieldName) => {
+    const e = errorFor(f);
+    return e ? <p id={`mo-err-${f}`} role="alert" style={fieldError}>{e}</p> : null;
+  };
+  const detailsDone = validEmail && validPhone && !!fullName.trim();
+  const deliveryDone = alternate ? !!notes.trim() : !missing && !!rate && ship?.status === "ready";
+  const step: 1 | 2 | 3 = !detailsDone ? 1 : !deliveryDone ? 2 : 3;
+
   const place = () => {
     if (formError) {
       setShowError(true);
       return;
     }
     setShowError(false);
+    trackAddShippingInfo(
+      rows.map((r) => ({ id: r.frag.id, name: r.frag.name, format: r.line.format, priceCents: unit(r), qty: r.line.qty })),
+      alternate ? "alternate" : rate?.name ?? "auspost",
+    );
     onPlaceOrder(delivery);
   };
 
@@ -185,6 +244,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         ← Back to shopping
       </button>
       <h1 style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 46, color: CREAM, margin: "14px 0 0" }}>Checkout</h1>
+      <Steps current={step} />
       {cancelled && (
         <p style={{ marginTop: 14, border: "1px solid rgba(201,169,97,0.5)", padding: "12px 16px", fontSize: 14, lineHeight: 1.6, color: "rgba(243,236,220,0.75)" }}>
           You came back without paying — nothing was charged. Your bag is exactly as you left it.
@@ -197,8 +257,14 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           <div>
             <span style={blockLabel}>Contact</span>
             <div style={{ display: "grid", gap: 10 }}>
-              <input type="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} />
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile number" autoComplete="tel" inputMode="tel" aria-label="Mobile number" required style={field} />
+              <div>
+                <input type="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} {...invalid("email")} />
+                {errorLine("email")}
+              </div>
+              <div>
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile number" autoComplete="tel" inputMode="tel" aria-label="Mobile number" required style={field} {...invalid("phone")} />
+                {errorLine("phone")}
+              </div>
             </div>
             <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.6, color: "rgba(243,236,220,0.5)" }}>
               {signedIn ? (
@@ -242,7 +308,10 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           <div>
             <span style={blockLabel}>{alternate ? "Delivery details" : "Shipping address"}</span>
             <div style={{ display: "grid", gap: 10 }}>
-              <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" autoComplete="name" aria-label="Full name" style={field} />
+              <div>
+                <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" autoComplete="name" aria-label="Full name" style={field} {...invalid("name")} />
+                {errorLine("name")}
+              </div>
               {alternate ? (
                 <>
                   <textarea
@@ -252,14 +321,19 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                     aria-label="Delivery details"
                     rows={4}
                     style={{ ...field, height: "auto", padding: "11px 13px", lineHeight: 1.6, resize: "vertical" }}
+                    {...invalid("notes")}
                   />
+                  {errorLine("notes")}
                 </>
               ) : (
                 <>
-                  <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" autoComplete="street-address" aria-label="Street address" style={field} />
+                  <div>
+                    <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" autoComplete="street-address" aria-label="Street address" style={field} {...invalid("address")} />
+                    {errorLine("address")}
+                  </div>
                   <div className="mo-checkout-triple" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 0.9fr", gap: 10 }}>
-                    <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Suburb" autoComplete="address-level2" aria-label="Suburb" style={field} />
-                    <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="State" autoComplete="address-level1" aria-label="State" style={field} />
+                    <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Suburb" autoComplete="address-level2" aria-label="Suburb" style={field} {...invalid("city")} />
+                    <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="State" autoComplete="address-level1" aria-label="State" style={field} {...invalid("region")} />
                     <input
                       value={postcode}
                       onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
@@ -268,8 +342,12 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                       inputMode="numeric"
                       aria-label="Postcode"
                       style={field}
+                      {...invalid("postcode")}
                     />
                   </div>
+                  {errorLine("city")}
+                  {errorLine("region")}
+                  {errorLine("postcode")}
                   <div style={{ ...micro, fontSize: 8 }}>Australia only · postage is quoted live as you type your postcode</div>
                 </>
               )}
@@ -307,8 +385,19 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
 
         {/* ── Summary ── */}
         <aside style={{ border: "1px solid #1f1f27", background: "#101015", padding: 22, display: "grid", gap: 14, position: "sticky", top: 100 }}>
-          <span style={blockLabel}>Order summary</span>
-          <div style={{ display: "grid", gap: 10 }}>
+          <span style={blockLabel} className="mo-summary-heading">Order summary</span>
+          <button
+            type="button"
+            className="mo-summary-toggle"
+            aria-expanded={summaryOpen}
+            aria-controls="mo-summary-items"
+            onClick={() => setSummaryOpen((o) => !o)}
+            style={{ background: "none", border: 0, padding: 0, cursor: "pointer", color: CREAM, justifyContent: "space-between", alignItems: "center", fontFamily: MONO, fontSize: 12 }}
+          >
+            <span>{summaryOpen ? "Hide" : "Show"} order summary ({rows.reduce((n, r) => n + r.line.qty, 0)})</span>
+            <span style={{ fontFamily: SERIF, fontSize: 22 }}>{moneyExact(total)}</span>
+          </button>
+          <div id="mo-summary-items" className={`mo-summary-items${summaryOpen ? " is-open" : ""}`} style={{ gap: 10 }}>
             {rows.map(({ line, frag }) => {
               const s = skuOf(frag, line.format);
               return (

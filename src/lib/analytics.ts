@@ -135,3 +135,58 @@ export function trackBeginCheckout(list: AnalyticsItem[]): void {
 export function trackPurchase(transactionId: string, totalCents: number, list: AnalyticsItem[]): void {
   gtag("event", "purchase", { transaction_id: transactionId, currency: CURRENCY, value: totalCents / 100, items: items(list) });
 }
+
+// ── Funnel events added with the UX simplification ──────────────────────────
+// Recommended GA4 names where one exists (view_item_list, view_cart,
+// remove_from_cart, add_shipping_info, search), house names otherwise. As
+// above, none carries anything personal: search terms are fragrance names.
+
+/** A merchandising list was shown (home signatures, a collection grid …). */
+export function trackViewItemList(listName: string, list: AnalyticsItem[]): void {
+  if (!list.length) return;
+  gtag("event", "view_item_list", { item_list_name: listName, items: items(list) });
+}
+
+export function trackViewCart(list: AnalyticsItem[]): void {
+  gtag("event", "view_cart", { currency: CURRENCY, value: value(list), items: items(list) });
+}
+
+export function trackRemoveFromCart(item: AnalyticsItem): void {
+  gtag("event", "remove_from_cart", { currency: CURRENCY, value: value([item]), items: items([item]) });
+}
+
+/** Delivery details were completed at checkout (before Stripe takes payment). */
+export function trackAddShippingInfo(list: AnalyticsItem[], tier: string): void {
+  gtag("event", "add_shipping_info", { currency: CURRENCY, value: value(list), shipping_tier: tier, items: items(list) });
+}
+
+/** A catalogue search from the header search overlay. */
+export function trackSearch(term: string): void {
+  const t = term.trim();
+  if (t) gtag("event", "search", { search_term: t.slice(0, 100) });
+}
+
+/** Scent DNA: started, each step answered (by number only), finished. */
+export function trackQuizStart(): void {
+  gtag("event", "quiz_start");
+}
+export function trackQuizStep(step: number): void {
+  gtag("event", "quiz_step", { step });
+}
+export function trackQuizComplete(): void {
+  gtag("event", "quiz_complete");
+}
+
+/** A size or format was chosen on a product page or quick view. */
+export function trackFormatSelected(item: AnalyticsItem): void {
+  gtag("event", "format_selected", { format: item.format, items: items([item]) });
+}
+
+/** A Monthly Pour offer was shown; `placement` says where (product, bag, thanks …). */
+export function trackSubscriptionOfferViewed(placement: string): void {
+  gtag("event", "subscription_offer_viewed", { placement });
+}
+
+export function trackSubscriptionStarted(): void {
+  gtag("event", "subscription_started");
+}

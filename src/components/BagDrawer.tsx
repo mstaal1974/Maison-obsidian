@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { type Fragrance, GOLD, CREAM, money } from "../lib/data";
 import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
@@ -6,6 +6,8 @@ import { navigate, paths } from "../lib/route";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "../lib/shipping";
 import BottleImage from "./BottleImage";
 import { Arrow, Icon } from "./ui";
+import { useDialog } from "./useDialog";
+import { trackRemoveFromCart, trackViewCart } from "../lib/analytics";
 import { MONO, SERIF, btnGold, btnGhost, btnLink, micro } from "./styles";
 
 interface BagDrawerProps {
@@ -25,22 +27,29 @@ interface BagDrawerProps {
  * you" is the obvious add at the end.
  */
 export default function BagDrawer({ lines, fragrances, placed, onClose, onCheckout, onAddCar }: BagDrawerProps) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const panel = useRef<HTMLElement>(null);
+  useDialog(panel, true, onClose);
 
   const byId = useMemo(() => new Map(fragrances.map((f) => [f.id, f])), [fragrances]);
   const rows = lines.map((l) => ({ line: l, frag: byId.get(l.fragranceId) })).filter((r): r is { line: BagLine; frag: Fragrance } => !!r.frag);
   const unit = (r: { line: BagLine; frag: Fragrance }) => r.line.unitPrice ?? skuOf(r.frag, r.line.format).price;
   const subtotal = rows.reduce((s, r) => s + unit(r) * r.line.qty, 0);
+  // Once per opening of a bag with something in it.
+  useEffect(() => {
+    if (placed || !rows.length) return;
+    trackViewCart(rows.map((r) => ({ id: r.frag.id, name: r.frag.name, format: r.line.format, priceCents: unit(r), qty: r.line.qty })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const remove = (r: { line: BagLine; frag: Fragrance }) => {
+    trackRemoveFromCart({ id: r.frag.id, name: r.frag.name, format: r.line.format, priceCents: unit(r), qty: r.line.qty });
+    removeLine(r.line.id);
+  };
   const crossSell = rows.find((r) => FORMAT_BY_KEY[r.line.format].group === "wear" && !lines.some((l) => l.fragranceId === r.frag.id && l.format === "car") && skuOf(r.frag, "car").buyable)?.frag;
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Your bag" style={{ position: "fixed", inset: 0, zIndex: 95, display: "flex", justifyContent: "flex-end" }}>
       <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(3px)" }} />
-      <aside className="mo-drawer mo-scroll" style={{ position: "relative", width: 470, maxWidth: "100%", height: "100%", overflowY: "auto", background: "#0f0f13", borderLeft: "1px solid #1f1f27", padding: 28, display: "flex", flexDirection: "column", gap: 18 }}>
+      <aside ref={panel} className="mo-drawer mo-scroll" style={{ position: "relative", width: 470, maxWidth: "100%", height: "100%", overflowY: "auto", background: "#0f0f13", borderLeft: "1px solid #1f1f27", padding: 28, display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: SERIF, fontSize: 26, color: CREAM }}>
             <Icon name="bag" size={18} /> {placed ? "Thank you" : "Your bag"}
@@ -76,19 +85,24 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
         ) : (
           <>
             <div style={{ display: "grid", gap: 12 }}>
-              {rows.map(({ line, frag }) => {
+              {rows.map((r) => {
+                const { line, frag } = r;
                 const s = skuOf(frag, line.format);
+                const ready = s.stock >= line.qty;
                 return (
                   <div key={line.id} style={{ display: "grid", gridTemplateColumns: "64px 1fr auto", gap: 14, alignItems: "center", borderBottom: "1px solid #1f1f27", paddingBottom: 12 }}>
                     <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-square.jpg" alt="" accent={frag.accent} liquid={frag.liquid} height={76} />
                     <div>
                       <div style={{ fontFamily: SERIF, fontSize: 18, color: CREAM, lineHeight: 1.05 }}>{frag.name}</div>
                       <div style={{ ...micro, marginTop: 4 }}>{line.label ? `${line.label} · ${s.def.label}` : s.def.name}{line.engraving ? ` · “${line.engraving}”` : ""}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 4, color: ready ? "#8bb98a" : "rgba(243,236,220,0.6)" }}>
+                        {ready ? "Ready to ship · 1–2 business days" : "Filled to order · ships in 5–7 business days"}
+                      </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                        <button aria-label="Decrease" onClick={() => setQty(line.id, line.qty - 1)} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>−</button>
+                        <button aria-label={`Decrease quantity of ${frag.name}`} onClick={() => (line.qty <= 1 ? remove(r) : setQty(line.id, line.qty - 1))} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>−</button>
                         <span style={{ fontFamily: MONO, fontSize: 12, color: CREAM, minWidth: 14, textAlign: "center" }}>{line.qty}</span>
-                        <button aria-label="Increase" onClick={() => setQty(line.id, line.qty + 1)} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>+</button>
-                        <button onClick={() => removeLine(line.id)} style={{ ...btnLink, color: "rgba(243,236,220,0.5)", marginLeft: 8, fontSize: 8.5 }}>Remove</button>
+                        <button aria-label={`Increase quantity of ${frag.name}`} onClick={() => setQty(line.id, line.qty + 1)} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>+</button>
+                        <button onClick={() => remove(r)} style={{ ...btnLink, color: "rgba(243,236,220,0.5)", marginLeft: 8, fontSize: 8.5 }}>Remove</button>
                       </div>
                     </div>
                     <span style={{ fontFamily: MONO, fontSize: 13, color: CREAM }}>{money((line.unitPrice ?? s.price) * line.qty)}</span>
@@ -115,14 +129,12 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
               <div style={{ ...micro, fontSize: 8 }}>Delivery and postage are chosen at checkout</div>
 
               <FreeShippingProgress subtotal={subtotal} />
-              <div style={{ ...micro, fontSize: 8, display: "flex", gap: 14 }}>
-                <span><Icon name="refresh" size={12} color="rgba(243,236,220,0.6)" /> 30-day returns</span>
-              </div>
-              <button className="mo-cta" style={{ ...btnGold, justifyContent: "center" }} onClick={onCheckout}>
+              <button className="mo-cta" style={{ ...btnGold, justifyContent: "center", height: 52 }} onClick={onCheckout}>
                 Checkout <Arrow />
               </button>
-              <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: "rgba(243,236,220,0.5)" }}>
-                Secure card checkout by Stripe. Free shipping over $100 and 30-day returns.
+              <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, color: "rgba(243,236,220,0.55)", display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <span><Icon name="lock" size={11} color="rgba(243,236,220,0.55)" /> Secure checkout by Stripe · no account needed</span>
+                <span><Icon name="refresh" size={11} color="rgba(243,236,220,0.55)" /> 30-day returns</span>
               </p>
             </div>
           </>

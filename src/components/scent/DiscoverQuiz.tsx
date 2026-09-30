@@ -15,6 +15,7 @@ import {
 } from "../../lib/scentQuiz";
 import type { OccasionKey, Wearer } from "../../lib/scentdna";
 import Glyph from "./Glyph";
+import { trackQuizStep } from "../../lib/analytics";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, glass, goldA, ink, micro } from "./theme";
 
 interface QuizProps {
@@ -39,6 +40,9 @@ export default function DiscoverQuiz({ fragrances, initial, onComplete, onExit }
   useEffect(() => () => {
     if (advancing.current) window.clearTimeout(advancing.current);
   }, []);
+
+  // Which question was reached, by number only: where people drop out.
+  useEffect(() => trackQuizStep(index + 1), [index]);
 
   const go = useCallback(
     (next: number) => {

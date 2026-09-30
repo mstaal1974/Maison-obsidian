@@ -12,9 +12,7 @@ import { MONO, SERIF, btnGhost, btnLink, micro } from "./styles";
 interface Props {
   fragrances: Fragrance[];
   vip: boolean;
-  discoveryIds: string[];
   onQuickView: (f: Fragrance, format?: FormatKey) => void;
-  onToggleDiscovery: (f: Fragrance) => void;
   /** The whole catalogue, for the Coming soon row (only future launches show). */
   upcoming?: Fragrance[];
 }
@@ -22,7 +20,7 @@ interface Props {
 const body = { fontSize: 15, lineHeight: 1.6, color: "rgba(243,236,220,0.65)" } as const;
 
 /** /new: everything launched in the last NEW_DAYS days, newest first. */
-export default function NewArrivals({ fragrances, vip, discoveryIds, onQuickView, onToggleDiscovery, upcoming: all = [] }: Props) {
+export default function NewArrivals({ fragrances, vip, onQuickView, upcoming: all = [] }: Props) {
   const list = useMemo(() => newArrivals(fragrances), [fragrances]);
   const soon = useMemo(() => upcoming(all), [all]);
   usePageMeta(staticPageMeta(paths.newArrivals, siteOrigin()));
@@ -47,7 +45,7 @@ export default function NewArrivals({ fragrances, vip, discoveryIds, onQuickView
         ) : (
           <div className="mo-vault-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {list.map((f) => (
-              <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
+              <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} listName="new_arrivals" />
             ))}
           </div>
         )}
@@ -71,7 +69,7 @@ export default function NewArrivals({ fragrances, vip, discoveryIds, onQuickView
 }
 
 /** Home page row: up to four of the newest, only when there are any. */
-export function JustPoured({ fragrances, vip, discoveryIds, onQuickView, onToggleDiscovery }: Props) {
+export function JustPoured({ fragrances, vip, onQuickView }: Props) {
   const list = useMemo(() => newArrivals(fragrances).slice(0, 4), [fragrances]);
   if (!list.length) return null;
   return (
@@ -88,7 +86,7 @@ export function JustPoured({ fragrances, vip, discoveryIds, onQuickView, onToggl
         </div>
         <div className="mo-vault-grid" style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {list.map((f) => (
-            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
+            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} listName="just_poured" />
           ))}
         </div>
       </Container>

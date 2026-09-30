@@ -84,7 +84,7 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
         </div>
         <div className="mo-vault-grid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {fragrances.map((f) => (
-            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} defaultFormat="perf10" inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
+            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} defaultFormat="perf10" listName="discovery" inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
           ))}
         </div>
       </Container>

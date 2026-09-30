@@ -1,12 +1,13 @@
-import { Art, SideCaption, Arrow } from "./ui";
-import { btnGold, btnGhost, SERIF } from "./styles";
+import { Art, Arrow } from "./ui";
+import { btnGold, MONO, SERIF } from "./styles";
 import { navigate, paths } from "../lib/route";
-import { CREAM } from "../lib/data";
+import { CREAM, GOLD } from "../lib/data";
+import { FEATURED_FROM_SALES } from "../lib/merchandising";
 
 /**
- * Hero — "Wear it. Live it. Take it with you." over the full lineup: 50 ml,
- * 30 ml, discovery, car diffuser, body wash and moisturiser. Drop the comp's
- * lineup shot in as /assets/hero-lineup.jpg; until then the stock pair stands in.
+ * Hero — one promise, one primary action, one quiet way to get help, and one
+ * line of reassurance. The formats are named once, in the promise; choosing
+ * between them waits until a scent has been chosen.
  */
 export default function Hero() {
   return (
@@ -20,25 +21,28 @@ export default function Hero() {
         style={{ minHeight: 520 }}
         overlay="linear-gradient(90deg, rgba(11,11,13,0.96) 0%, rgba(11,11,13,0.82) 32%, rgba(11,11,13,0.25) 60%, rgba(11,11,13,0.15) 100%), linear-gradient(0deg, rgba(11,11,13,0.7) 0%, transparent 30%)"
       >
-        <div className="mo-hero-grid" style={{ position: "relative", maxWidth: 1400, margin: "0 auto", padding: "64px 32px 58px", display: "grid", gridTemplateColumns: "1fr auto", alignItems: "end", minHeight: 520, gap: 40 }}>
+        <div className="mo-hero-grid" style={{ position: "relative", maxWidth: 1400, margin: "0 auto", padding: "64px 32px 58px", display: "flex", alignItems: "flex-end", minHeight: 520 }}>
           <div className="mo-rise" style={{ maxWidth: 560 }}>
             <h1 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(44px, 5.4vw, 76px)", lineHeight: 1.02, color: CREAM, letterSpacing: "-0.01em" }}>
               Wear it. Live it.
               <br />
               Take it with you.
             </h1>
-            <p style={{ margin: "26px 0 0", fontFamily: SERIF, fontSize: 21, color: "rgba(243,236,220,0.9)", lineHeight: 1.35 }}>Iconic fragrances. Now for every part of your world.</p>
-            <p style={{ margin: "10px 0 0", fontFamily: SERIF, fontSize: 16, color: "rgba(243,236,220,0.6)", letterSpacing: "0.04em" }}>Eau de Parfum · Discovery · Car · Body · Sets</p>
-            <div style={{ display: "flex", gap: 14, marginTop: 34, flexWrap: "wrap" }}>
-              <button className="mo-cta" style={btnGold} onClick={() => navigate(paths.shop())}>
-                Shop all <Arrow />
+            <p style={{ margin: "24px 0 0", fontFamily: SERIF, fontSize: 21, color: "rgba(243,236,220,0.9)", lineHeight: 1.35 }}>
+              Maison Obsidian fragrances, poured across perfume, car and body.
+            </p>
+            <div style={{ display: "flex", gap: 26, marginTop: 32, alignItems: "center", flexWrap: "wrap" }}>
+              <button className="mo-cta" style={{ ...btnGold, height: 52, padding: "0 30px" }} onClick={() => navigate(paths.fragrances)}>
+                {FEATURED_FROM_SALES ? "Shop best sellers" : "Shop the fragrances"} <Arrow />
               </button>
-              <button className="mo-ghost" style={btnGhost} onClick={() => navigate(paths.fragrances)}>
-                Discover the collection
-              </button>
+              <a href={paths.find()} style={{ color: CREAM, fontFamily: SERIF, fontSize: 18, textDecoration: "underline", textUnderlineOffset: 5, textDecorationColor: "rgba(201,169,97,0.6)" }}>
+                Help me find my scent
+              </a>
             </div>
+            <p style={{ margin: "26px 0 0", fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.2em", textTransform: "uppercase", color: GOLD }}>
+              10 ml samples · Free standard post over $100 · 30-day returns
+            </p>
           </div>
-          <SideCaption lines={["Fragrance", "beyond", "boundaries", "—", "A bolder", "you"]} style={{ alignSelf: "start", paddingTop: 70 }} />
         </div>
       </Art>
     </section>
