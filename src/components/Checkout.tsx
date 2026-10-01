@@ -1,10 +1,12 @@
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { type Fragrance, CREAM, GOLD, money, moneyExact } from "../lib/data";
 import type { BagLine } from "../lib/bag";
 import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import { type CheckoutDelivery, type ShippingRate, etaLabel, quoteShipping } from "../lib/shipping";
+import { type AnalyticsItem, trackAddPaymentInfo, trackAddShippingInfo } from "../lib/analytics";
 import { Arrow, Icon } from "./ui";
+import "../styles/checkout.css";
 
 /** A mobile in any common shape: 0412 345 678, +61 412 345 678, (04) 1234-5678. */
 function validMobile(v: string): boolean {
@@ -41,6 +43,11 @@ const field: CSSProperties = {
   boxSizing: "border-box",
 };
 const blockLabel: CSSProperties = { ...micro, display: "block", marginBottom: 10 };
+const fieldError: CSSProperties = { margin: "6px 0 0", fontSize: 13, lineHeight: 1.45, color: "#d98a6a" };
+
+/** Fields checked on blur and again on Place Order. */
+type FieldKey = "email" | "phone" | "name" | "address" | "city" | "region" | "postcode" | "notes";
+const STEPS = ["Details", "Delivery", "Payment"] as const;
 
 /**
  * Checkout. Contact, delivery and the order summary live here; the card is
@@ -67,6 +74,9 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   const [remindMe, setRemindMe] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
+  // Fields the customer has left at least once; their errors show from then on.
+  const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
+  const [summaryOpen, setSummaryOpen] = useState(false);
   // Postal checkout remains blocked until a valid quote is available.
   const [postageOff, setPostageOff] = useState(false);
 
@@ -146,12 +156,62 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           ? "Please wait for a valid postage quote before continuing."
           : null;
 
+  // Per-field messages, shown under each field once it has been left (or on
+  // Place Order). Typing is never blocked; formError above still gates submit.
+  const errors: Record<FieldKey, string | null> = {
+    email: !contact.trim() ? "Enter your email address." : !validEmail ? "That email address doesn't look right." : null,
+    phone: !phone.trim() ? "Enter a mobile number." : !validPhone ? "That mobile number doesn't look right — e.g. 0412 345 678." : null,
+    name: !fullName.trim() ? "Enter the name for the parcel." : null,
+    address: alternate || address.trim() ? null : "Enter a street address.",
+    city: alternate || city.trim() ? null : "Enter a suburb.",
+    region: alternate || region.trim() ? null : "Enter a state.",
+    postcode: alternate || /^\d{4}$/.test(postcode.trim()) ? null : "Enter a 4-digit postcode.",
+    notes: !alternate || notes.trim() ? null : "Tell us how to get it to you.",
+  };
+  const shown = (k: FieldKey) => ((showError || touched[k]) && errors[k]) || null;
+  /** Blur tracking, aria wiring and the error border for one field. */
+  const check = (k: FieldKey) => ({
+    onBlur: () => setTouched((t) => (t[k] ? t : { ...t, [k]: true })),
+    "aria-invalid": shown(k) ? true : undefined,
+    "aria-describedby": shown(k) ? `mo-co-err-${k}` : undefined,
+  });
+  const errBorder = (k: FieldKey): CSSProperties => (shown(k) ? { borderColor: "rgba(217,138,106,0.8)" } : {});
+  const errorFor = (k: FieldKey) => {
+    const msg = shown(k);
+    return msg ? <p id={`mo-co-err-${k}`} style={fieldError}>{msg}</p> : null;
+  };
+
+  // Details → Delivery → Payment. Payment itself happens on Stripe, so it is
+  // only current while the hand-off is under way.
+  const detailsDone = validEmail && validPhone && !!fullName.trim();
+  const step = busy ? 2 : detailsDone ? 1 : 0;
+
+  const analyticsItems = useMemo<AnalyticsItem[]>(
+    () =>
+      lines.flatMap((l) => {
+        const f = byId.get(l.fragranceId);
+        return f ? [{ id: f.id, name: f.name, format: l.format, priceCents: l.unitPrice ?? skuOf(f, l.format).price, qty: l.qty }] : [];
+      }),
+    [lines, byId],
+  );
+
+  // add_shipping_info when a delivery option is settled: alternate picked, or
+  // an Australia Post service quoted (the default) or chosen. Once per option.
+  const shippingTier = alternate ? "alternate" : rate && ship?.status === "ready" ? `Australia Post · ${rate.name}` : null;
+  const lastTier = useRef<string | null>(null);
+  useEffect(() => {
+    if (!shippingTier || shippingTier === lastTier.current || !analyticsItems.length) return;
+    lastTier.current = shippingTier;
+    trackAddShippingInfo(analyticsItems, shippingTier);
+  }, [shippingTier, analyticsItems]);
+
   const place = () => {
     if (formError) {
       setShowError(true);
       return;
     }
     setShowError(false);
+    trackAddPaymentInfo(analyticsItems);
     onPlaceOrder(delivery);
   };
 
@@ -166,6 +226,27 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           : rate
             ? { value: rate.chargeCents === 0 ? "Free" : moneyExact(rate.chargeCents), note: rate.chargeCents === 0 ? `Australia Post · ${rate.name}` : `Australia Post · ${rate.name} · incl. GST ${moneyExact(rate.gstCents)}`, tone: rate.chargeCents === 0 ? "#8bb98a" : CREAM }
             : { value: "Enter postcode", note: "", tone: "rgba(243,236,220,0.55)" };
+
+  // The bag's lines, shared by the desktop summary and the mobile drop-down.
+  const summaryItems = (
+    <div style={{ display: "grid", gap: 10 }}>
+      {rows.map(({ line, frag }) => {
+        const s = skuOf(frag, line.format);
+        return (
+          <div key={line.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+            <span style={{ fontFamily: SERIF, fontSize: 17, color: CREAM, lineHeight: 1.25 }}>
+              {frag.name} <span style={{ color: "rgba(243,236,220,0.55)" }}>× {line.qty}</span>
+              <span style={{ display: "block", ...micro, fontSize: 8 }}>
+                {line.label ? `${line.label} · ${s.def.label}` : FORMAT_BY_KEY[line.format].name}
+                {line.engraving ? ` · “${line.engraving}”` : ""}
+              </span>
+            </span>
+            <span style={{ fontFamily: MONO, fontSize: 14, color: CREAM }}>{money(unit({ line, frag }) * line.qty)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   if (!rows.length) {
     return (
@@ -185,11 +266,53 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         ← Back to shopping
       </button>
       <h1 style={{ fontFamily: SERIF, fontWeight: 300, fontSize: 46, color: CREAM, margin: "14px 0 0" }}>Checkout</h1>
+      <nav aria-label="Checkout progress" style={{ marginTop: 12 }}>
+        <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, ...micro, fontSize: 9 }}>
+          {STEPS.map((label, i) => (
+            <li key={label} aria-current={i === step ? "step" : undefined} style={{ display: "inline-flex", alignItems: "center", gap: 8, color: i === step ? GOLD : i < step ? "rgba(243,236,220,0.7)" : "rgba(243,236,220,0.4)" }}>
+              {i > 0 && <span aria-hidden="true" style={{ color: "rgba(243,236,220,0.3)" }}>→</span>}
+              <span style={{ borderBottom: i === step ? `1px solid ${GOLD}` : "1px solid transparent", paddingBottom: 2 }}>{label}</span>
+              {label === "Payment" && <span style={{ color: "rgba(243,236,220,0.35)", textTransform: "none", letterSpacing: 0 }}>(on Stripe)</span>}
+            </li>
+          ))}
+        </ol>
+      </nav>
       {cancelled && (
         <p style={{ marginTop: 14, border: "1px solid rgba(201,169,97,0.5)", padding: "12px 16px", fontSize: 14, lineHeight: 1.6, color: "rgba(243,236,220,0.75)" }}>
           You came back without paying — nothing was charged. Your bag is exactly as you left it.
         </p>
       )}
+
+      {/* Phones: the summary sits above the form, folded away until asked for. */}
+      <div className="mo-co-mobile-summary" style={{ marginTop: 22, border: "1px solid #1f1f27", background: "#101015" }}>
+        <button
+          type="button"
+          aria-expanded={summaryOpen}
+          aria-controls="mo-co-mobile-summary-body"
+          onClick={() => setSummaryOpen((o) => !o)}
+          style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, background: "none", border: 0, padding: "14px 16px", color: CREAM, cursor: "pointer", textAlign: "left" }}
+        >
+          <span style={{ ...micro, fontSize: 9, color: GOLD }}>{summaryOpen ? "Hide" : "Show"} order summary</span>
+          <span style={{ fontFamily: MONO, fontSize: 14 }}>
+            {moneyExact(total)} <span aria-hidden="true" style={{ display: "inline-block", marginLeft: 6, transform: summaryOpen ? "rotate(180deg)" : "none" }}>▾</span>
+          </span>
+        </button>
+        {summaryOpen && (
+          <div id="mo-co-mobile-summary-body" style={{ padding: "0 16px 16px", display: "grid", gap: 12 }}>
+            {summaryItems}
+            <div style={{ display: "grid", gap: 6, borderTop: "1px solid #1f1f27", paddingTop: 12, fontFamily: MONO, fontSize: 13, color: CREAM }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={micro}>Subtotal</span>
+                <span>{moneyExact(subtotal)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={micro}>Shipping</span>
+                <span style={{ color: shippingCell.tone }}>{shippingCell.value}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="mo-checkout-grid" style={{ marginTop: 30, display: "grid", gridTemplateColumns: "minmax(0,1fr) 400px", gap: 34, alignItems: "start" }}>
         {/* ── Details ── */}
@@ -197,8 +320,14 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           <div>
             <span style={blockLabel}>Contact</span>
             <div style={{ display: "grid", gap: 10 }}>
-              <input type="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" style={field} />
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile number" autoComplete="tel" inputMode="tel" aria-label="Mobile number" required style={field} />
+              <div>
+                <input type="email" name="email" value={contact} onChange={(e) => setTypedEmail(e.target.value)} placeholder="Email address" autoComplete="email" aria-label="Email address" required {...check("email")} style={{ ...field, ...errBorder("email") }} />
+                {errorFor("email")}
+              </div>
+              <div>
+                <input type="tel" name="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile number" autoComplete="tel" inputMode="tel" aria-label="Mobile number" required {...check("phone")} style={{ ...field, ...errBorder("phone") }} />
+                {errorFor("phone")}
+              </div>
             </div>
             <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.6, color: "rgba(243,236,220,0.5)" }}>
               {signedIn ? (
@@ -242,7 +371,10 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
           <div>
             <span style={blockLabel}>{alternate ? "Delivery details" : "Shipping address"}</span>
             <div style={{ display: "grid", gap: 10 }}>
-              <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" autoComplete="name" aria-label="Full name" style={field} />
+              <div>
+                <input name="name" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" autoComplete="name" aria-label="Full name" required {...check("name")} style={{ ...field, ...errBorder("name") }} />
+                {errorFor("name")}
+              </div>
               {alternate ? (
                 <>
                   <textarea
@@ -251,24 +383,42 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                     placeholder="How should we get this to you? A hand delivery, a pickup time, or a friend's name, address and contact."
                     aria-label="Delivery details"
                     rows={4}
-                    style={{ ...field, height: "auto", padding: "11px 13px", lineHeight: 1.6, resize: "vertical" }}
+                    required
+                    {...check("notes")}
+                    style={{ ...field, height: "auto", padding: "11px 13px", lineHeight: 1.6, resize: "vertical", ...errBorder("notes") }}
                   />
+                  {errorFor("notes")}
                 </>
               ) : (
                 <>
-                  <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" autoComplete="street-address" aria-label="Street address" style={field} />
-                  <div className="mo-checkout-triple" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 0.9fr", gap: 10 }}>
-                    <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Suburb" autoComplete="address-level2" aria-label="Suburb" style={field} />
-                    <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="State" autoComplete="address-level1" aria-label="State" style={field} />
-                    <input
-                      value={postcode}
-                      onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                      placeholder="Postcode"
-                      autoComplete="postal-code"
-                      inputMode="numeric"
-                      aria-label="Postcode"
-                      style={field}
-                    />
+                  <div>
+                    <input name="address-line1" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" autoComplete="shipping address-line1" aria-label="Street address" required {...check("address")} style={{ ...field, ...errBorder("address") }} />
+                    {errorFor("address")}
+                  </div>
+                  <div className="mo-checkout-triple" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 0.9fr", gap: 10, alignItems: "start" }}>
+                    <div>
+                      <input name="address-level2" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Suburb" autoComplete="shipping address-level2" aria-label="Suburb" required {...check("city")} style={{ ...field, ...errBorder("city") }} />
+                      {errorFor("city")}
+                    </div>
+                    <div>
+                      <input name="address-level1" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="State" autoComplete="shipping address-level1" aria-label="State" required {...check("region")} style={{ ...field, ...errBorder("region") }} />
+                      {errorFor("region")}
+                    </div>
+                    <div>
+                      <input
+                        name="postal-code"
+                        value={postcode}
+                        onChange={(e) => setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        placeholder="Postcode"
+                        autoComplete="shipping postal-code"
+                        inputMode="numeric"
+                        aria-label="Postcode"
+                        required
+                        {...check("postcode")}
+                        style={{ ...field, ...errBorder("postcode") }}
+                      />
+                      {errorFor("postcode")}
+                    </div>
                   </div>
                   <div style={{ ...micro, fontSize: 8 }}>Australia only · postage is quoted live as you type your postcode</div>
                 </>
@@ -308,23 +458,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         {/* ── Summary ── */}
         <aside style={{ border: "1px solid #1f1f27", background: "#101015", padding: 22, display: "grid", gap: 14, position: "sticky", top: 100 }}>
           <span style={blockLabel}>Order summary</span>
-          <div style={{ display: "grid", gap: 10 }}>
-            {rows.map(({ line, frag }) => {
-              const s = skuOf(frag, line.format);
-              return (
-                <div key={line.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-                  <span style={{ fontFamily: SERIF, fontSize: 17, color: CREAM, lineHeight: 1.25 }}>
-                    {frag.name} <span style={{ color: "rgba(243,236,220,0.55)" }}>× {line.qty}</span>
-                    <span style={{ display: "block", ...micro, fontSize: 8 }}>
-                      {line.label ? `${line.label} · ${s.def.label}` : FORMAT_BY_KEY[line.format].name}
-                      {line.engraving ? ` · “${line.engraving}”` : ""}
-                    </span>
-                  </span>
-                  <span style={{ fontFamily: MONO, fontSize: 14, color: CREAM }}>{money(unit({ line, frag }) * line.qty)}</span>
-                </div>
-              );
-            })}
-          </div>
+          <div className="mo-co-aside-items">{summaryItems}</div>
 
           <div style={{ display: "grid", gap: 6, borderTop: "1px solid #1f1f27", paddingTop: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 14, color: CREAM }}>

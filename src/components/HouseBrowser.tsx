@@ -183,7 +183,7 @@ export default function HouseBrowser({ fragrances, vip, onQuickView, variant = "
                   <button style={{ ...btnGhost, height: 40, justifyContent: "center" }} onClick={() => navigate(paths.about)}>VIP members only</button>
                 ) : (
                   <button style={{ ...btnGold, height: 40, justifyContent: "center" }} onClick={() => onQuickView(active.frag)}>
-                    Choose options <Arrow size={10} />
+                    Choose size <Arrow size={10} />
                   </button>
                 )}
                 <button style={{ ...btnLink, justifyContent: "center", fontSize: 9 }} onClick={() => navigate(paths.product(active.frag.slug))}>

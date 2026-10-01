@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { DISCOVERY_BOX_SIZE, DISCOVERY_BOX_PRICE, profileOf, sku as skuOf } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
+import { trackViewItemList } from "../lib/analytics";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import { Arrow, Container } from "./ui";
@@ -23,6 +24,12 @@ interface DiscoveryProps {
 export default function Discovery({ fragrances, vip, discoveryIds, onToggleDiscovery, onAddBox, onQuickView }: DiscoveryProps) {
   const picked = useMemo(() => discoveryIds.map((id) => fragrances.find((f) => f.id === id)).filter((f): f is Fragrance => !!f), [discoveryIds, fragrances]);
   const full = picked.length === DISCOVERY_BOX_SIZE;
+  // view_item_list for the 10 ml singles, once per distinct set shown.
+  const listIds = fragrances.map((f) => f.id).join(",");
+  useEffect(() => {
+    if (listIds) trackViewItemList("discovery_singles", fragrances.map((f) => ({ id: f.id, name: f.name, format: "perf10", priceCents: skuOf(f, "perf10").price })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listIds]);
   const singles = useMemo(() => Math.round(fragrances.reduce((s, f) => s + skuOf(f, "perf10").price, 0) / Math.max(1, fragrances.length)), [fragrances]);
 
   return (
@@ -31,9 +38,9 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
         <Container className="mo-discovery-grid" style={{ padding: "48px 32px 36px", display: "grid", gridTemplateColumns: "1fr 420px", gap: 40, alignItems: "start" }} >
           <div>
             <div style={{ ...micro, color: GOLD }}>Discovery Collection</div>
-            <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 52, color: CREAM, lineHeight: 1 }}>Meet the fragrance before committing to the bottle.</h1>
+            <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 52, color: CREAM, lineHeight: 1 }}>Perfume samples. Try before you buy.</h1>
             <p style={{ ...body, margin: "14px 0 0", maxWidth: 560 }}>
-              Every scent in the house as a 10 ml discovery (around {money(singles)}), or build your own box of {DISCOVERY_BOX_SIZE} for {money(DISCOVERY_BOX_PRICE)}. Wear one for a week. Then choose the 30 ml Everyday Pour or the 50 ml Signature.
+              Perfume samples in Australia, at full extrait strength: every scent in the house as a 10 ml perfume (around {money(singles)}), or build your own fragrance discovery set of {DISCOVERY_BOX_SIZE} for {money(DISCOVERY_BOX_PRICE)}. Wear one for a week. Then choose the 30 ml Everyday Pour or the 50 ml Signature.
             </p>
             <div style={{ display: "flex", gap: 24, marginTop: 22, ...micro }}>
               <span>◈ 10ml singles</span>
@@ -80,11 +87,11 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
       <Container style={{ padding: "26px 32px 60px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 28, color: CREAM }}>10ml singles</h2>
-          <span style={{ ...micro }}>Tap ♡ to add to your box · “Choose options” for a single</span>
+          <span style={{ ...micro }}>Tap ♡ to add to your box · “Choose size” for a single</span>
         </div>
         <div className="mo-vault-grid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {fragrances.map((f) => (
-            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} defaultFormat="perf10" inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
+            <FragranceCard key={f.id} frag={f} vip={vip} onQuickView={onQuickView} defaultFormat="perf10" listName="discovery_singles" inDiscovery={discoveryIds.includes(f.id)} onToggleDiscovery={onToggleDiscovery} />
           ))}
         </div>
       </Container>

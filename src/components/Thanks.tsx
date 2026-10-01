@@ -1,4 +1,7 @@
+import { useEffect, useRef } from "react";
 import { CREAM, GOLD, moneyExact } from "../lib/data";
+import { trackSubscriptionOfferViewed } from "../lib/analytics";
+import { SUBSCRIPTION_DISCOUNT, SUBSCRIPTION_MONTHS } from "../lib/subscription";
 import { navigate, paths } from "../lib/route";
 import { Arrow, Icon } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
@@ -26,6 +29,16 @@ interface ThanksProps {
  */
 export default function Thanks({ state, sessionId, signedIn, onJoin }: ThanksProps) {
   const reference = sessionId ? `MO-${sessionId.slice(-6).toUpperCase()}` : null;
+  const paid = state.status === "paid";
+
+  // The Monthly Pour offer is shown once the payment is confirmed, never on
+  // "checking" or an error. Counted once per visit to the page.
+  const offerSeen = useRef(false);
+  useEffect(() => {
+    if (!paid || offerSeen.current) return;
+    offerSeen.current = true;
+    trackSubscriptionOfferViewed("thanks");
+  }, [paid]);
   return (
     <main data-screen-label="Thank you" style={{ maxWidth: 720, margin: "0 auto", padding: "140px 32px 110px", textAlign: "center" }}>
       <div style={{ display: "inline-flex", width: 60, height: 60, borderRadius: "50%", border: `1px solid ${GOLD}`, alignItems: "center", justifyContent: "center" }}>
@@ -61,6 +74,21 @@ export default function Thanks({ state, sessionId, signedIn, onJoin }: ThanksPro
         <p style={{ margin: "20px auto 0", maxWidth: 480, fontFamily: MONO, fontSize: 11, lineHeight: 1.7, color: "rgba(243,236,220,0.45)" }}>
           You checked out as a guest — no account needed. Make one with the same email and this order joins your order history.
         </p>
+      )}
+
+      {paid && (
+        <aside aria-label="The Monthly Pour" style={{ margin: "56px auto 0", maxWidth: 520, borderTop: "1px solid #1f1f27", paddingTop: 28 }}>
+          <div style={{ ...micro, color: GOLD }}>The Monthly Pour</div>
+          <p style={{ margin: "10px 0 0", fontFamily: SERIF, fontSize: 21, lineHeight: 1.3, color: CREAM }}>
+            Found your scent? Subscribe &amp; save {Math.round(SUBSCRIPTION_DISCOUNT * 100)}% — pick a new one each month.
+          </p>
+          <p style={{ margin: "8px 0 0", fontSize: 13, lineHeight: 1.65, color: "rgba(243,236,220,0.5)" }}>
+            A {SUBSCRIPTION_MONTHS}-month plan, billed monthly. Cancel from your account.
+          </p>
+          <button style={{ ...btnLink, fontSize: 9, marginTop: 12 }} onClick={() => navigate(paths.subscribe())}>
+            See how it works
+          </button>
+        </aside>
       )}
     </main>
   );

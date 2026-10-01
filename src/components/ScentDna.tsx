@@ -13,7 +13,7 @@ import ScentMemory from "./scent/ScentMemory";
 import ScentResult, { type ResultSection } from "./scent/ScentResult";
 import ScentprintRing from "./scent/ScentprintRing";
 import { MONO, SD, SERIF, ctaGhost, ctaGold, ctaQuiet, eyebrow, goldA, ink, micro } from "./scent/theme";
-import { trackScentMatchCompleted } from "../lib/analytics";
+import { trackQuizComplete, trackScentMatchCompleted } from "../lib/analytics";
 
 interface ScentDnaProps {
   fragrances: Fragrance[];
@@ -141,6 +141,7 @@ export default function ScentDna({ fragrances, userId, code: initialCode, onOpen
   /** The reveal, whichever door they came through. */
   const reveal = useCallback((p: Scentprint, source: string) => {
     trackScentMatchCompleted(source);
+    trackQuizComplete("scent_dna");
     setPrint(p);
     setStage("building");
     storeScentprint(p, null);

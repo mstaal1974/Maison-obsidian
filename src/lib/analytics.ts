@@ -10,9 +10,13 @@
 //
 // Ecommerce events use GA4's recommended names so the Monetisation reports
 // fill in: view_item, select_item, add_to_cart, begin_checkout, purchase.
-// Money is sent in dollars (the app works in cents). Three events of the
-// house's own: discovery_box_completed, scent_match_completed and
-// car_diffuser_attach — none carries quiz answers or anything personal.
+// Money is sent in dollars (the app works in cents). The funnel between them
+// uses GA4's names too: view_item_list, search, view_cart, remove_from_cart,
+// add_shipping_info and add_payment_info. Events of the house's own:
+// discovery_box_completed, scent_match_completed, car_diffuser_attach,
+// quiz_start, quiz_step, quiz_complete, format_selected,
+// subscription_offer_viewed and subscription_started — none carries quiz
+// answers, search text beyond the query itself, or anything personal.
 
 import type { FormatKey } from "./data";
 import { onRouteChange } from "./route";
@@ -134,4 +138,60 @@ export function trackBeginCheckout(list: AnalyticsItem[]): void {
 /** One per paid order; GA ignores a repeat of the same transaction id. */
 export function trackPurchase(transactionId: string, totalCents: number, list: AnalyticsItem[]): void {
   gtag("event", "purchase", { transaction_id: transactionId, currency: CURRENCY, value: totalCents / 100, items: items(list) });
+}
+
+/** A listing was shown: a collection, search results, "Where to start" … */
+export function trackViewItemList(list: string, shown: AnalyticsItem[]): void {
+  gtag("event", "view_item_list", { item_list_name: list, items: items(shown.slice(0, 20)) });
+}
+
+/** A catalogue search. `kind` separates our own scents from "inspired by" matches. */
+export function trackSearch(term: string, kind: "catalogue" | "match", results: number): void {
+  const t = term.trim().slice(0, 80);
+  if (t) gtag("event", "search", { search_term: t, search_kind: kind, results });
+}
+
+export function trackViewCart(list: AnalyticsItem[]): void {
+  gtag("event", "view_cart", { currency: CURRENCY, value: value(list), items: items(list) });
+}
+
+export function trackRemoveFromCart(item: AnalyticsItem): void {
+  gtag("event", "remove_from_cart", { currency: CURRENCY, value: value([item]), items: items([item]) });
+}
+
+/** Delivery chosen at checkout: "pickup", or a carrier/service name. */
+export function trackAddShippingInfo(list: AnalyticsItem[], tier: string): void {
+  gtag("event", "add_shipping_info", { currency: CURRENCY, value: value(list), shipping_tier: tier, items: items(list) });
+}
+
+/** Details complete, handing over to Stripe for payment. */
+export function trackAddPaymentInfo(list: AnalyticsItem[]): void {
+  gtag("event", "add_payment_info", { currency: CURRENCY, value: value(list), payment_type: "card", items: items(list) });
+}
+
+export function trackQuizStart(quiz: string): void {
+  gtag("event", "quiz_start", { quiz });
+}
+
+/** Step reached, by number only — never the answer given. */
+export function trackQuizStep(quiz: string, step: number): void {
+  gtag("event", "quiz_step", { quiz, step });
+}
+
+export function trackQuizComplete(quiz: string): void {
+  gtag("event", "quiz_complete", { quiz });
+}
+
+/** A size or format chosen on a product page or in quick view. */
+export function trackFormatSelected(item: AnalyticsItem, where: string): void {
+  gtag("event", "format_selected", { where, items: items([item]) });
+}
+
+export function trackSubscriptionOfferViewed(where: string): void {
+  gtag("event", "subscription_offer_viewed", { where });
+}
+
+/** A Monthly Pour confirmed as paid on return from Stripe. */
+export function trackSubscriptionStarted(sessionId: string): void {
+  gtag("event", "subscription_started", { transaction_id: sessionId });
 }

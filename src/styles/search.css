@@ -1,0 +1,87 @@
+/* Universal search overlay (SearchOverlay.tsx). Only what inline styles can't
+   do lives here: the phone/desktop split, focus rings, hover and motion. */
+
+.mo-search-scrim {
+  animation: moFade 0.18s ease;
+}
+
+/* Desktop: a sheet dropping from the top of the viewport, capped at 760px. */
+.mo-search-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  max-height: calc(100vh - 64px);
+  max-height: calc(100dvh - 64px);
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #1f1f27;
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.65);
+  animation: moSearchDrop 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes moSearchDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.mo-search-input::placeholder {
+  color: rgba(243, 236, 220, 0.38);
+}
+.mo-search-field:focus-within {
+  border-color: #c9a961 !important;
+}
+
+.mo-search-row {
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.mo-search-row:hover,
+.mo-search-row:focus-visible {
+  background: rgba(201, 169, 97, 0.08) !important;
+  border-color: rgba(201, 169, 97, 0.55) !important;
+  outline: none;
+}
+.mo-search-row:focus-visible {
+  box-shadow: inset 0 0 0 1px #c9a961;
+}
+
+/* Phones: the whole screen, so the keyboard and the results never fight. */
+@media (max-width: 720px) {
+  .mo-search-sheet {
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin-top: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  .mo-search-head {
+    padding: 12px 16px !important;
+  }
+  .mo-search-body {
+    padding: 18px 16px 40px !important;
+  }
+  .mo-search-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mo-search-scrim,
+  .mo-search-sheet {
+    animation: none;
+  }
+}
+
+/* The dialog has its own close button; drop the browser's clear control. */
+.mo-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}

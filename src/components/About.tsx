@@ -25,8 +25,8 @@ export default function About({ vip, signedIn, onJoin }: AboutProps) {
     <main data-screen-label="About">
       <Container style={{ padding: "48px 32px 20px" }}>
         <div style={{ ...micro, color: GOLD }}>The House</div>
-        <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 52, color: CREAM, lineHeight: 1 }}>One scent. Every part of your day.</h1>
-        <p style={{ ...body, margin: "14px 0 0", maxWidth: 620 }}>Discover it. Wear it. Drive with it. Live in it. Maison Obsidian is a batch atelier: each fragrance is poured in small numbers and offered in every format your day needs.</p>
+        <h1 style={{ margin: "10px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: 52, color: CREAM, lineHeight: 1 }}>Handmade perfume, poured in Brisbane.</h1>
+        <p style={{ ...body, margin: "14px 0 0", maxWidth: 620 }}>Maison Obsidian is a boutique perfume house hand-pouring extrait-strength fragrance in Brisbane, Queensland, from oils sourced from Dubai perfumers. Discover it. Wear it. Drive with it. Live in it. Each fragrance is poured in small batches and offered in every format your day needs.</p>
         <div style={{ marginTop: 30, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
           {RANGES.map(([name, fmt, copy]) => (
             <div key={name} style={{ border: "1px solid #1f1f27", padding: 16 }}>

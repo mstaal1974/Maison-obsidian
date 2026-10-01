@@ -1,0 +1,17 @@
+/* Checkout: the order summary folds above the form on phones.
+   Desktop keeps the sticky summary in the right-hand column (index.css). */
+
+.mo-co-mobile-summary {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mo-co-mobile-summary {
+    display: block;
+  }
+  /* The lines are already in the drop-down above; the aside below the form
+     keeps the totals and the payment button. */
+  .mo-co-aside-items {
+    display: none;
+  }
+}

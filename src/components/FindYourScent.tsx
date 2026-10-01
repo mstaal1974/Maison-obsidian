@@ -2,6 +2,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { type Fragrance, GOLD, CREAM } from "../lib/data";
 import { findMatches, isStrongMatch, MOODS, fromLabel, profileOf, availableIn, referenceOf } from "../lib/formats";
 import { submitScentRequest } from "../lib/requests";
+import { trackSearch } from "../lib/analytics";
 import { navigate, paths } from "../lib/route";
 import { Arrow, Container, Icon, Chip, InspiredBy } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
@@ -34,6 +35,9 @@ export default function FindYourScent({ fragrances, mode = "section", initialQue
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setSubmitted(q);
+    // Tracked on submit only, so a /find?q= link (the header search's "See
+    // all matches") isn't counted a second time when the page opens.
+    if (q.trim()) trackSearch(q, "match", findMatches(q, fragrances, mode === "page" ? 8 : 3).length);
     if (mode === "section" && q.trim()) navigate(paths.find(q), false);
   };
 

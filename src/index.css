@@ -908,3 +908,53 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
     animation: none;
   }
 }
+
+/* ─── Simplified homepage and header ──────────────────────────────────────── */
+
+/* Five links fit where the full nav's eight don't, so the simplified header
+   keeps its bar down to 1100px before handing over to the drawer. */
+@media (min-width: 1100px) and (max-width: 1280px) {
+  .mo-simple-header .mo-nav {
+    display: flex !important;
+  }
+  .mo-simple-header .mo-burger {
+    display: none !important;
+  }
+  .mo-simple-header .mo-account-desktop {
+    display: block !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .mo-start-grid,
+  .mo-trust-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .mo-guided-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+.mo-guided-card {
+  transition: border-color 0.25s ease;
+}
+.mo-guided-card:hover {
+  border-color: rgba(201, 169, 97, 0.45) !important;
+}
+
+@media (max-width: 720px) {
+  /* Cards turn to rows on phones (see .mo-card above), one per line. */
+  .mo-start-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .mo-trust-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

@@ -1,5 +1,5 @@
 // After `vite build`: a static page per fragrance and per storefront page, a
-// sitemap, robots.txt and the Merchant Center product feed.
+// sitemap, robots.txt, llms.txt and the Merchant Center product feed.
 //
 // The storefront is a single-page app, so without this every URL serves the
 // same index.html: one title, one description, one social card. Crawlers and
@@ -16,6 +16,12 @@
 // The storefront's own pages (/discovery, /car, /fragrances …) get the same
 // treatment from staticPageMeta(), so each has its own title, description and
 // canonical URL before any script runs.
+//
+// Each page also carries its content as plain HTML inside #root
+// (src/lib/snapshot.ts), for AI crawlers and anything else that reads the page
+// without running it; the app replaces it on start. The home page's
+// index.html gets its content too, so the SPA fallback for every other path
+// is a separate, empty app.html (vercel.json).
 //
 // dist/merchant-feed.xml lists every purchasable SKU for Google Merchant
 // Center (src/lib/feed.ts); add it there as a scheduled fetch.
@@ -55,6 +61,8 @@ await build({
       `export { merchantFeed } from "./src/lib/feed";`,
       `export { socialProfiles } from "./src/lib/social";`,
       `export { isLaunched } from "./src/lib/launch";`,
+      `export { snapshotHtml, llmsTxt } from "./src/lib/snapshot";`,
+      `export { LANDING_PATHS } from "./src/lib/landings";`,
     ].join("\n"),
     resolveDir: root,
     loader: "ts",
@@ -66,7 +74,7 @@ await build({
   outfile: bundle,
   logLevel: "error",
 });
-const { FRAGS, withBottleImage, productMeta, staticPageMeta, headTags, merchantFeed, socialProfiles, isLaunched } = await import(pathToFileURL(bundle).href);
+const { FRAGS, withBottleImage, productMeta, staticPageMeta, headTags, merchantFeed, socialProfiles, isLaunched, snapshotHtml, llmsTxt, LANDING_PATHS } = await import(pathToFileURL(bundle).href);
 await rm(bundle, { force: true });
 
 /** Mirrors rowToFragrance() in src/lib/store.ts. */
@@ -154,6 +162,14 @@ function cardImage(f) {
 }
 
 const template = await readFile(join(dist, "index.html"), "utf8");
+// The empty shell every path without a page of its own falls back to.
+await writeFile(join(dist, "app.html"), template);
+
+/** The page's readable content inside #root, when there is some. */
+const withContent = (html, path, frags) => {
+  const body = snapshotHtml(path, frags);
+  return body ? html.replace(/<div id="root"><\/div>/, () => `<div id="root">${body}</div>`) : html;
+};
 // The shell's generic tags give way to the page's own.
 const shell = template
   .replace(/\s*<title>[\s\S]*?<\/title>/, "")
@@ -167,7 +183,7 @@ const launched = frags.filter((f) => f.slug && /^[a-z0-9-]+$/.test(f.slug) && is
 const pages = [];
 for (const f of launched) {
   const meta = productMeta(f, origin, cardImage(f), rated.get(f.id) ?? null);
-  const html = shell.replace(/\s*<\/head>/, `\n    ${headTags(meta, origin)}\n  </head>`);
+  const html = withContent(shell.replace(/\s*<\/head>/, `\n    ${headTags(meta, origin)}\n  </head>`), meta.path, launched);
   const dir = join(dist, "fragrance", f.slug);
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, "index.html"), html);
@@ -178,16 +194,19 @@ for (const f of launched) {
 // screens are not. Each but the home page gets its own head, as above; the
 // home page's index.html is also the app shell every other path falls back to,
 // so it keeps the generic tags and the app adds the rest.
-const statics = ["/", "/new", "/fragrances", "/shop", "/discovery", "/car", "/body", "/subscribe", "/discover", "/about", "/help"];
+const statics = ["/", "/new", "/fragrances", "/shop", ...LANDING_PATHS, "/discovery", "/car", "/body", "/subscribe", "/discover", "/about", "/help"];
 const sameAs = socialProfiles(env).map((p) => p.url);
 let staticCount = 0;
 for (const p of statics) {
-  if (p === "/") continue;
+  if (p === "/") {
+    await writeFile(join(dist, "index.html"), withContent(template, "/", launched));
+    continue;
+  }
   const meta = staticPageMeta(p, origin, sameAs);
   if (!meta) continue;
   const dir = join(dist, p.slice(1));
   await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, "index.html"), shell.replace(/\s*<\/head>/, `\n    ${headTags({ image: "/assets/bottle-pair.png", ...meta }, origin)}\n  </head>`));
+  await writeFile(join(dir, "index.html"), withContent(shell.replace(/\s*<\/head>/, `\n    ${headTags({ image: "/assets/bottle-pair.png", ...meta }, origin)}\n  </head>`), p, launched));
   staticCount++;
 }
 const today = new Date().toISOString().slice(0, 10);
@@ -215,9 +234,11 @@ Sitemap: ${origin}/sitemap.xml
 `,
 );
 
+await writeFile(join(dist, "llms.txt"), llmsTxt(launched, origin));
+
 const feed = merchantFeed(launched, { origin, imageFor: cardImage });
 await writeFile(join(dist, "merchant-feed.xml"), feed.xml);
 
 console.log(
-  `prerender: ${pages.length} fragrance pages from the ${source} catalogue, ${staticCount} storefront pages, sitemap.xml, robots.txt and merchant-feed.xml (${feed.count} items) for ${origin}`,
+  `prerender: ${pages.length} fragrance pages from the ${source} catalogue, ${staticCount} storefront pages, sitemap.xml, robots.txt, llms.txt and merchant-feed.xml (${feed.count} items) for ${origin}`,
 );
