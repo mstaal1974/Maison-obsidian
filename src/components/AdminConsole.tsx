@@ -29,6 +29,7 @@ import ScentRequests from "./ScentRequests";
 import AdminSubscriptions from "./AdminSubscriptions";
 import AdminMarketing from "./AdminMarketing";
 import AdminReviews from "./AdminReviews";
+import AdminAnalytics from "./AdminAnalytics";
 import AdminWaitlist from "./AdminWaitlist";
 import { NEW_DAYS, isLaunched, isNew } from "../lib/launch";
 import { composeInspiration, referenceOf } from "../lib/formats";
@@ -75,7 +76,7 @@ const BLANK: Fragrance = {
 };
 
 export default function AdminConsole({ fragrances, configured, onReload, demoCommits }: AdminConsoleProps) {
-  const [tab, setTab] = useState<"catalogue" | "matrix" | "fulfillment" | "requests" | "waitlist" | "reviews" | "subscriptions" | "marketing">("catalogue");
+  const [tab, setTab] = useState<"catalogue" | "matrix" | "fulfillment" | "requests" | "waitlist" | "reviews" | "subscriptions" | "marketing" | "analytics">("catalogue");
 
   return (
     <main data-screen-label="Admin" style={{ maxWidth: 1340, margin: "0 auto", padding: "48px 32px 90px" }}>
@@ -90,7 +91,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
       )}
 
       <div style={{ display: "flex", gap: 22, margin: "28px 0 30px", borderBottom: "1px solid #1f1f27" }}>
-        {(["catalogue", "matrix", "fulfillment", "subscriptions", "requests", "waitlist", "reviews", "marketing"] as const).map((t) => (
+        {(["catalogue", "matrix", "fulfillment", "subscriptions", "requests", "waitlist", "reviews", "marketing", "analytics"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -107,7 +108,7 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
               fontWeight: 600,
             }}
           >
-            {t === "catalogue" ? "Catalogue & Inventory" : t === "matrix" ? "Product Matrix" : t === "fulfillment" ? "Fulfillment" : t === "subscriptions" ? "Monthly Pour" : t === "requests" ? "Requests" : t === "waitlist" ? "Waitlist" : t === "reviews" ? "Reviews" : "Marketing"}
+            {t === "catalogue" ? "Catalogue & Inventory" : t === "matrix" ? "Product Matrix" : t === "fulfillment" ? "Fulfillment" : t === "subscriptions" ? "Monthly Pour" : t === "requests" ? "Requests" : t === "waitlist" ? "Waitlist" : t === "reviews" ? "Reviews" : t === "analytics" ? "Analytics" : "Marketing"}
           </button>
         ))}
       </div>
@@ -139,6 +140,8 @@ export default function AdminConsole({ fragrances, configured, onReload, demoCom
         <AdminWaitlist fragrances={fragrances} configured={configured} />
       ) : tab === "reviews" ? (
         <AdminReviews fragrances={fragrances} configured={configured} />
+      ) : tab === "analytics" ? (
+        <AdminAnalytics configured={configured} />
       ) : (
         <AdminMarketing fragrances={fragrances} configured={configured} />
       )}

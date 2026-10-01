@@ -132,3 +132,50 @@ if your privacy policy covers it. Under **Aggregated event measurement** (or
 The pixel sets cookies and sends browsing activity to Meta. Add a line to the
 privacy policy saying the site uses the Meta Pixel to measure and personalise
 advertising, with a link to <https://www.facebook.com/privacy/policy>.
+
+## 5. The house's own analytics (Admin → Analytics)
+
+Heatmaps, customer journeys, the purchase funnel and page reports, recorded in
+your own Supabase database — no third party.
+
+1. Apply `supabase/migrations/0036_site_analytics.sql` (Supabase → SQL editor,
+   or `supabase db push`).
+2. Redeploy. Recording starts on its own wherever Supabase is configured; set
+   `VITE_SITE_ANALYTICS=off` in Vercel to stop it.
+3. Sign in as an admin → **Admin → Analytics**. Then under **Settings**, tick
+   *Don't record visits from this browser* on each device you use, so your own
+   browsing stays out of the numbers.
+
+| Report | What it shows |
+| --- | --- |
+| Overview | Visits, visitors, conversion, revenue, add-to-bag rate, pages per visit, visits per day, sources (UTM tag or referring site), devices |
+| Funnel | Visits reaching: visited → viewed a fragrance → added to bag → started checkout → went to payment → purchased |
+| Pages & paths | Views, landings, exits and average scroll depth per page; the most common page-to-page moves |
+| Customer journeys | Each visit as its pages and key actions in order — filter to buyers, or to visits that left with items in the bag |
+| Heatmaps | Clicks drawn over the live page at desktop, tablet or mobile width; how far down visitors scrolled; the most clicked buttons and links |
+
+**What is stored:** a random visitor id and visit id, the page path (no query
+string), UTM tags and the referring site's name, device size, click positions
+with the clicked button's label, scroll depth, and shopping events with their
+value and fragrance ids. Never names, emails, addresses or anything typed.
+Admin, staff, account and reset pages are never recorded. Browsers sending
+Global Privacy Control are not recorded.
+
+**Heatmaps** use the page as it is today, so after a redesign pick a short date
+range or old clicks will sit over the new layout.
+
+**Retention:** Settings → *Delete older events* removes anything over 13 months.
+
+## 6. Session recordings (optional): Microsoft Clarity
+
+Your own analytics shows where people click; Clarity adds recordings of real
+visits. It's free.
+
+1. <https://clarity.microsoft.com> → **New project** → your site's address.
+2. Copy the project ID (Settings → Overview, e.g. `k3abc9xyz1`).
+3. Vercel → Environment Variables → `VITE_CLARITY_ID` = that ID, Production only. Redeploy.
+4. Admin → Analytics → Settings then links straight to your Clarity dashboard.
+
+Clarity masks typed text by default. Add a line to the privacy policy: the site
+uses Microsoft Clarity to understand how it is used, with a link to
+<https://privacy.microsoft.com/privacystatement>.

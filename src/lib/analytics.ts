@@ -26,6 +26,7 @@
 
 import type { FormatKey } from "./data";
 import { onRouteChange } from "./route";
+import { siteEvent } from "./sitelog";
 
 declare global {
   interface Window {
@@ -43,6 +44,12 @@ const PRIVATE = /^\/(admin|staff|account|reset)(\/|$)/;
 
 function gtag(...args: unknown[]): void {
   if (enabled) window.gtag?.(...args);
+  // The same events go to the house's own analytics (admin → Analytics);
+  // page views are recorded there separately, and search terms aren't kept.
+  if (args[0] === "event" && args[1] !== "page_view" && typeof args[1] === "string") {
+    const p = (args[2] ?? {}) as { value?: number; items?: { item_id: string }[] };
+    siteEvent(args[1], p.value, p.items?.map((i) => i.item_id));
+  }
 }
 
 const PIXEL = String(import.meta.env.VITE_META_PIXEL_ID ?? "").trim();
@@ -84,7 +91,10 @@ function pageView(): void {
 
 /** Loads gtag.js and starts page tracking. Call once, before the app renders. */
 export function initAnalytics(): void {
-  if (typeof window === "undefined" || (!enabled && !pixelOn)) return;
+  // The admin's heatmap preview shows the storefront in a frame: not a visit.
+  if (typeof window === "undefined" || window.self !== window.top) return;
+  if (CLARITY) initClarity();
+  if (!enabled && !pixelOn) return;
   if (pixelOn) initPixel();
   if (!enabled) {
     pageView();
@@ -259,3 +269,22 @@ const pixelData = (list: AnalyticsItem[]) => ({
   value: value(list),
   num_items: list.reduce((n, i) => n + (i.qty ?? 1), 0),
 });
+
+// Microsoft Clarity (VITE_CLARITY_ID): session recordings and its own
+// heatmaps, viewed at clarity.microsoft.com. Off unless the ID is set. Clarity
+// masks typed text by default.
+const CLARITY = /^[a-z0-9]{6,20}$/.test(String(import.meta.env.VITE_CLARITY_ID ?? "").trim()) ? String(import.meta.env.VITE_CLARITY_ID).trim() : "";
+
+function initClarity(): void {
+  if (PRIVATE.test(window.location.pathname) || window.self !== window.top) return;
+  const w = window as unknown as { clarity?: ((...a: unknown[]) => void) & { q?: unknown[] } };
+  w.clarity =
+    w.clarity ||
+    function (...a: unknown[]) {
+      (w.clarity!.q = w.clarity!.q || []).push(a);
+    };
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = `https://www.clarity.ms/tag/${CLARITY}`;
+  document.head.appendChild(s);
+}

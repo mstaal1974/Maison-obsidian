@@ -958,3 +958,10 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* Admin → Analytics: the heatmap's side panel drops below it on narrow screens. */
+@media (max-width: 1000px) {
+  .mo-heat-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
