@@ -99,3 +99,36 @@ The product pages carry matching `ProductGroup` / `Offer` structured data.
 3. Check **Diagnostics** before any paid Shopping test. Titles and descriptions
    deliberately leave out the "inspired by" designer names — review that
    wording against Google's counterfeit-goods policy before adding it.
+
+## 4. Meta Pixel (Facebook & Instagram ads)
+
+1. Vercel → your project → **Settings → Environment Variables**, add
+   `VITE_META_PIXEL_ID` = your Pixel ID (the number from Meta Events Manager →
+   **Data sources**) for **Production** only.
+2. **Redeploy**. Like the GA ID, it is baked in at build time.
+3. Check it: Events Manager → your pixel → **Test events**, enter the site's
+   address and browse; or install the *Meta Pixel Helper* Chrome extension.
+
+### What is sent
+
+| Meta event | When (same moment as the GA event) |
+| --- | --- |
+| `PageView` | Every storefront screen (not admin, staff or account) |
+| `ViewContent` | A fragrance page is opened |
+| `AddToCart` | Anything goes in the bag |
+| `InitiateCheckout` | The customer continues to payment |
+| `AddPaymentInfo` | The checkout form is complete and hands over to Stripe |
+| `Purchase` | A paid order is confirmed, with its total; the Stripe session id is the event id, so a refresh isn't counted twice |
+| `Search` | A search in the header search or the fragrance matcher |
+| `Subscribe` | A Monthly Pour is confirmed as paid |
+
+In Events Manager → **Settings**, turn on **Automatic advanced matching** only
+if your privacy policy covers it. Under **Aggregated event measurement** (or
+*Web event configuration*), rank `Purchase` first, then `InitiateCheckout`,
+`AddToCart`, `ViewContent`.
+
+### Privacy
+
+The pixel sets cookies and sends browsing activity to Meta. Add a line to the
+privacy policy saying the site uses the Meta Pixel to measure and personalise
+advertising, with a link to <https://www.facebook.com/privacy/policy>.

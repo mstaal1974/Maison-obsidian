@@ -18,6 +18,12 @@
 // subscription_offer_viewed and subscription_started — none carries quiz
 // answers, search text beyond the query itself, or anything personal.
 
+//
+// The Meta Pixel (VITE_META_PIXEL_ID) rides along: PageView on every screen
+// and Meta's standard events for the same moments — ViewContent, AddToCart,
+// InitiateCheckout, AddPaymentInfo, Purchase, Search, Subscribe — so Facebook
+// and Instagram ads can be measured and retargeted. Off unless the ID is set.
+
 import type { FormatKey } from "./data";
 import { onRouteChange } from "./route";
 
@@ -25,6 +31,8 @@ declare global {
   interface Window {
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
+    fbq?: ((...args: unknown[]) => void) & { callMethod?: (...args: unknown[]) => void; queue?: unknown[]; loaded?: boolean; version?: string; push?: unknown };
+    _fbq?: unknown;
   }
 }
 
@@ -35,6 +43,14 @@ const PRIVATE = /^\/(admin|staff|account|reset)(\/|$)/;
 
 function gtag(...args: unknown[]): void {
   if (enabled) window.gtag?.(...args);
+}
+
+const PIXEL = String(import.meta.env.VITE_META_PIXEL_ID ?? "").trim();
+const pixelOn = /^\d{6,20}$/.test(PIXEL);
+
+/** A Meta standard event; `eventID` lets Meta de-duplicate (the order id). */
+function fbq(event: string, data?: Record<string, unknown>, eventID?: string): void {
+  if (pixelOn) window.fbq?.("track", event, data ?? {}, eventID ? { eventID } : undefined);
 }
 
 const CAMPAIGN = /^(utm_(source|medium|campaign|content|term|id)|gclid|gbraid|wbraid|fbclid|ttclid)$/;
@@ -62,12 +78,19 @@ function pageView(): void {
       page_path: path,
       page_title: document.title,
     });
+    fbq("PageView");
   }, 60);
 }
 
 /** Loads gtag.js and starts page tracking. Call once, before the app renders. */
 export function initAnalytics(): void {
-  if (!enabled || typeof window === "undefined") return;
+  if (typeof window === "undefined" || (!enabled && !pixelOn)) return;
+  if (pixelOn) initPixel();
+  if (!enabled) {
+    pageView();
+    onRouteChange(pageView);
+    return;
+  }
   window.dataLayer = window.dataLayer || [];
   // gtag.js reads the arguments object itself, not an array.
   window.gtag = function () {
@@ -105,6 +128,7 @@ const value = (list: AnalyticsItem[]) => list.reduce((n, i) => n + (i.priceCents
 
 export function trackViewItem(item: AnalyticsItem): void {
   gtag("event", "view_item", { currency: CURRENCY, value: value([item]), items: items([item]) });
+  fbq("ViewContent", { ...pixelData([item]), ...(item.name ? { content_name: item.name } : {}) });
 }
 
 /** A product opened from a listing (a card in a collection, related scents …). */
@@ -129,15 +153,18 @@ export function trackCarDiffuserAttach(item: AnalyticsItem): void {
 
 export function trackAddToCart(item: AnalyticsItem): void {
   gtag("event", "add_to_cart", { currency: CURRENCY, value: value([item]), items: items([item]) });
+  fbq("AddToCart", pixelData([item]));
 }
 
 export function trackBeginCheckout(list: AnalyticsItem[]): void {
   gtag("event", "begin_checkout", { currency: CURRENCY, value: value(list), items: items(list) });
+  fbq("InitiateCheckout", pixelData(list));
 }
 
 /** One per paid order; GA ignores a repeat of the same transaction id. */
 export function trackPurchase(transactionId: string, totalCents: number, list: AnalyticsItem[]): void {
   gtag("event", "purchase", { transaction_id: transactionId, currency: CURRENCY, value: totalCents / 100, items: items(list) });
+  fbq("Purchase", { ...pixelData(list), value: totalCents / 100 }, transactionId);
 }
 
 /** A listing was shown: a collection, search results, "Where to start" … */
@@ -145,10 +172,15 @@ export function trackViewItemList(list: string, shown: AnalyticsItem[]): void {
   gtag("event", "view_item_list", { item_list_name: list, items: items(shown.slice(0, 20)) });
 }
 
+let lastPixelSearch = "";
+
 /** A catalogue search. `kind` separates our own scents from "inspired by" matches. */
 export function trackSearch(term: string, kind: "catalogue" | "match", results: number): void {
   const t = term.trim().slice(0, 80);
   if (t) gtag("event", "search", { search_term: t, search_kind: kind, results });
+  // The search box reports both result groups for one query; Meta hears it once.
+  if (t && t !== lastPixelSearch) fbq("Search", { search_string: t });
+  lastPixelSearch = t;
 }
 
 export function trackViewCart(list: AnalyticsItem[]): void {
@@ -167,6 +199,7 @@ export function trackAddShippingInfo(list: AnalyticsItem[], tier: string): void 
 /** Details complete, handing over to Stripe for payment. */
 export function trackAddPaymentInfo(list: AnalyticsItem[]): void {
   gtag("event", "add_payment_info", { currency: CURRENCY, value: value(list), payment_type: "card", items: items(list) });
+  fbq("AddPaymentInfo", pixelData(list));
 }
 
 export function trackQuizStart(quiz: string): void {
@@ -194,4 +227,35 @@ export function trackSubscriptionOfferViewed(where: string): void {
 /** A Monthly Pour confirmed as paid on return from Stripe. */
 export function trackSubscriptionStarted(sessionId: string): void {
   gtag("event", "subscription_started", { transaction_id: sessionId });
+  fbq("Subscribe", { currency: CURRENCY }, sessionId);
 }
+
+/** Meta's base code, as fbevents.js expects it; page views are sent by pageView(). */
+function initPixel(): void {
+  if (window.fbq) return;
+  const q: unknown[] = [];
+  const f = function (...args: unknown[]) {
+    if (f.callMethod) f.callMethod(...args);
+    else q.push(args);
+  } as NonNullable<Window["fbq"]>;
+  f.push = f;
+  f.loaded = true;
+  f.version = "2.0";
+  f.queue = q;
+  window.fbq = f;
+  window._fbq = f;
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = "https://connect.facebook.net/en_US/fbevents.js";
+  document.head.appendChild(s);
+  f("init", PIXEL);
+}
+
+const pixelData = (list: AnalyticsItem[]) => ({
+  content_ids: list.map((i) => i.id),
+  contents: list.map((i) => ({ id: i.id, quantity: i.qty ?? 1, ...(i.priceCents != null ? { item_price: i.priceCents / 100 } : {}) })),
+  content_type: "product",
+  currency: CURRENCY,
+  value: value(list),
+  num_items: list.reduce((n, i) => n + (i.qty ?? 1), 0),
+});
