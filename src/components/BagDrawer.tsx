@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { type Fragrance, GOLD, CREAM, money } from "../lib/data";
-import { type BagLine, type Order, setQty, removeLine } from "../lib/bag";
-import { type Sku, sku as skuOf, availabilityOf, FORMAT_BY_KEY } from "../lib/formats";
+import { type BagLine, type Order, setQty, removeLine, discoveryProgress, DISCOVERY_LABEL } from "../lib/bag";
+import { type Sku, sku as skuOf, availabilityOf, FORMAT_BY_KEY, DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE } from "../lib/formats";
 import { type AnalyticsItem, trackRemoveFromCart, trackViewCart } from "../lib/analytics";
 import { navigate, paths } from "../lib/route";
 import { FREE_SHIPPING_THRESHOLD_CENTS } from "../lib/shipping";
@@ -103,6 +103,8 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
           </div>
         ) : (
           <>
+            {/* First thing read in the bag, so the box (or how near it is) is never below the fold. */}
+            <DiscoveryGuide rows={rows} lines={lines} onShop={() => { onClose(); navigate(paths.discovery); }} />
             <div style={{ display: "grid", gap: 12 }}>
               {rows.map(({ line, frag }) => {
                 const s = skuOf(frag, line.format);
@@ -200,6 +202,48 @@ function FreeShippingProgress({ subtotal }: { subtotal: number }) {
       <div role="progressbar" aria-label="Progress to free shipping" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} style={{ height: 3, background: "#26262e", overflow: "hidden" }}>
         <div style={{ width: `${pct}%`, height: "100%", background: GOLD, transition: "width 320ms cubic-bezier(0.2, 0.8, 0.2, 1)" }} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * The Discovery Box, said plainly in the bag: how many more 10 ml samples
+ * make a box (any five, from anywhere on the site), and once a box is made,
+ * that it's applied and what it saves against the single price.
+ */
+function DiscoveryGuide({ rows, lines, onShop }: { rows: { line: BagLine; frag: Fragrance }[]; lines: BagLine[]; onShop: () => void }) {
+  const { boxes, loose, toNext } = discoveryProgress(lines);
+  if (!boxes && !loose) return null;
+  const single = rows.find((r) => r.line.format === "perf10")?.frag;
+  const singlePrice = single ? skuOf(single, "perf10").price : 0;
+  const saved = rows.filter((r) => r.line.label === DISCOVERY_LABEL).reduce((n, r) => n + (skuOf(r.frag, "perf10").price - (r.line.unitPrice ?? 0)) * r.line.qty, 0);
+  const setSaving = singlePrice * DISCOVERY_BOX_SIZE - DISCOVERY_BOX_PRICE;
+  return (
+    <div role="status" style={{ border: `1px solid ${boxes ? GOLD : "rgba(201,169,97,0.4)"}`, background: boxes ? "rgba(201,169,97,0.08)" : "none", padding: "14px 16px", display: "grid", gap: 8 }}>
+      {boxes > 0 && (
+        <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: CREAM }}>
+          <span aria-hidden style={{ color: GOLD }}>✓ </span>
+          <b>Discovery Box applied</b>: {boxes > 1 ? `${boxes} boxes of ` : ""}{DISCOVERY_BOX_SIZE} × 10 ml for {money(DISCOVERY_BOX_PRICE)}{boxes > 1 ? " each" : ""}.
+          {saved > 0 && <> You save {money(saved)}.</>}
+        </p>
+      )}
+      {loose > 0 && (
+        <>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, color: CREAM }}>
+            Add {toNext} more 10 ml {toNext === 1 ? "sample" : "samples"} and {loose === 1 ? "it becomes" : "they become"} {boxes ? "another" : "a"} Discovery Box: any {DISCOVERY_BOX_SIZE} for {money(DISCOVERY_BOX_PRICE)}
+            {setSaving > 0 ? ` (save ${money(setSaving)})` : ""}. We'll apply it automatically.
+          </p>
+          {/* Five dots: the loose samples so far towards the next box. */}
+          <div aria-hidden style={{ display: "flex", gap: 6 }}>
+            {Array.from({ length: DISCOVERY_BOX_SIZE }).map((_, i) => (
+              <span key={i} style={{ width: 14, height: 14, borderRadius: "50%", border: `1px solid ${GOLD}`, background: i < loose % DISCOVERY_BOX_SIZE ? GOLD : "none" }} />
+            ))}
+          </div>
+          <button style={{ ...btnLink, fontSize: 12, justifySelf: "start" }} onClick={onShop}>
+            Choose more samples <Arrow size={10} />
+          </button>
+        </>
+      )}
     </div>
   );
 }

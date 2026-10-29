@@ -87,7 +87,7 @@ export default function Discovery({ fragrances, vip, discoveryIds, onToggleDisco
       <Container style={{ padding: "26px 32px 60px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: 28, color: CREAM }}>10ml singles</h2>
-          <span style={{ ...micro }}>Tap ♡ to add to your box · “Choose size” for a single</span>
+          <span style={{ fontSize: 14, lineHeight: 1.5, color: "rgba(243,236,220,0.75)" }}>Tap “Add to Discovery Box” on any five — or add 10 ml singles: any five in your bag become a box automatically.</span>
         </div>
         <div className="mo-vault-grid" style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {fragrances.map((f) => (

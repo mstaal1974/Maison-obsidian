@@ -9,6 +9,7 @@ import Reviews, { Stars } from "./Reviews";
 import BottleImage from "./BottleImage";
 import FragranceCard from "./FragranceCard";
 import NotifyMe from "./NotifyMe";
+import DiscoveryHint from "./DiscoveryHint";
 import { bottleBackdrop } from "./adminStyles";
 import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow, Container, Icon, IconBadge, SideCaption, InspiredBy } from "./ui";
@@ -367,6 +368,7 @@ export default function ProductDetail({ frag, fragrances, vip, onAdd, onQuickVie
                 <span><Icon name="refresh" size={12} color={MUTED} /> 30-day returns</span>
               </span>
             </div>
+            {key === "perf10" && chosen.buyable && !locked && <DiscoveryHint />}
 
             {/* One tap further in: car and body, coming soon, a pairing or engraving, the subscription */}
             <div style={{ marginTop: 16 }}>
