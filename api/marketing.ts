@@ -103,11 +103,11 @@ export default async function handler(req: any, res: any) {
   res.setHeader("Cache-Control", "no-store");
   try {
     const response = await client.beta.messages.create({
-      model: "claude-opus-5",
+      model: "claude-opus-5-5",
       max_tokens: 2048,
       output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
-      betas: ["server-side-fallback-2026-06-01"],
-      fallbacks: [{ model: "claude-opus-4-8" }],
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: [{ model: "claude-opus-5" }],
       system: SYSTEM,
       messages: [{ role: "user", content: user }],
     });

@@ -31,10 +31,10 @@ type Stage = "hero" | "quiz" | "converse" | "memory" | "building" | "result" | "
 
 const STEPS = ["Discover", "Scent DNA", "Matches", "Explore"];
 
-// The conversational and photograph routes are built, wired and reachable —
-// they are only kept off the hero while the model paths are unproven in
-// production. Set this to true to put both doors back; nothing else changes.
-const AI_ENTRY_POINTS: boolean = false;
+// The conversational and photograph routes on the hero. Both fall back to the
+// quiz's local reasoning when the AI route is unavailable; set this to false to
+// take both doors off the hero again — nothing else changes.
+const AI_ENTRY_POINTS: boolean = true;
 
 /** The miniature under the hero CTA: a plausible print, not anybody's. */
 const DEMO_DIMS: { dim: ScentDim; value: number }[] = [

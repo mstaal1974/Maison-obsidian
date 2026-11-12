@@ -294,14 +294,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     const response = await client.beta.messages.create({
-      model: "claude-opus-5",
+      model: "claude-opus-5-5",
       max_tokens: 4096,
       // Structured outputs: the reply is guaranteed to match SCHEMA.
       output_config: { effort: "medium", format: { type: "json_schema", schema: SCHEMA } },
       // Server-side refusal fallback keeps the console working if the primary
       // model declines a request; the fallback bills at its own rate.
-      betas: ["server-side-fallback-2026-06-01"],
-      fallbacks: [{ model: "claude-opus-4-8" }],
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: [{ model: "claude-opus-5" }],
       system: SYSTEM,
       messages: [{ role: "user", content: user }],
     });

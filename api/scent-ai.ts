@@ -213,7 +213,7 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
 };
 
 const EFFORT: Record<string, "low" | "medium" | "high"> = {
-  converse: "medium",
+  converse: "low", // a live chat turn: keep the wait short
   imagine: "medium",
   explain: "low",
   curate: "medium",
@@ -413,14 +413,14 @@ export default async function handler(req: any, res: any) {
 
   try {
     const response = await client.beta.messages.create({
-      model: "claude-opus-5",
+      model: "claude-opus-5-5",
       max_tokens: op === "explain" || op === "curate" ? 8192 : 4096,
       output_config: { effort: EFFORT[op] ?? "medium", format: { type: "json_schema", schema } },
       // Everything above the breakpoint is identical for every operation, so a
       // customer moving through the experience reads the catalogue once.
       system: cacheableSystem(catalogue),
-      betas: ["server-side-fallback-2026-06-01"],
-      fallbacks: [{ model: "claude-opus-4-8" }],
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: [{ model: "claude-opus-5" }],
       messages: [{ role: "user", content: userContent(op, body) }],
     });
 
