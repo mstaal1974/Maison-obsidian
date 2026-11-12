@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { type Fragrance, money } from "../../lib/data";
-import { DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE, referenceOf } from "../../lib/formats";
+import { DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE, referenceOf, sku } from "../../lib/formats";
 import {
   BEHAVIOURS,
   BEHAVIOUR_LABEL,
@@ -15,7 +15,7 @@ import {
   type Scentprint,
   type Wearer,
 } from "../../lib/scentdna";
-import { captureScentLead, scentUrl } from "../../lib/scentShare";
+import { captureScentLead, emailScentResult, scentUrl } from "../../lib/scentShare";
 import { curateSet, explainMatches, type CuratedSet, type MatchExplanation } from "../../lib/scentai";
 import { learnedPrint, loadSignals, recordFeedback, recordWear, whatChanged, type ScentSignal } from "../../lib/scentLearning";
 import BottleImage from "../BottleImage";
@@ -35,6 +35,8 @@ interface ResultProps {
   onOpenProduct: (slug: string) => void;
   onAddSample: (frag: Fragrance) => void;
   onAddDiscoveryBox: (frags: Fragrance[]) => void;
+  /** The closest match as a hanging car diffuser. */
+  onAddDiffuser: (frag: Fragrance) => void;
   onRetake: () => void;
   onSection: (section: ResultSection) => void;
   /** A lead capture can mint a new code; the share link follows it. */
@@ -48,7 +50,7 @@ interface ResultProps {
  * shareable card, the closest matches, the Scent Universe and the ways out of
  * the experience and into the house.
  */
-export default function ScentResult({ print, code, fragrances, revealed, onOpenProduct, onAddSample, onAddDiscoveryBox, onRetake, onSection, onCode, onWearer }: ResultProps) {
+export default function ScentResult({ print, code, fragrances, revealed, onOpenProduct, onAddSample, onAddDiscoveryBox, onAddDiffuser, onRetake, onSection, onCode, onWearer }: ResultProps) {
   // Everything below reads the *learned* print: the answers they gave, plus
   // every sample worn and every word said since. The original is kept as the
   // origin so the learning can always be explained or unwound.
@@ -73,7 +75,13 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
   const wearer: Wearer = shown.wearer ?? "all";
   // The Discovery Box is exactly five 10 ml, so only offer it when the shelf
   // can actually fill one.
-  const boxable = matches.length >= DISCOVERY_BOX_SIZE ? top.slice(0, DISCOVERY_BOX_SIZE).map((m) => m.frag) : null;
+  const boxable =
+    matches.length >= DISCOVERY_BOX_SIZE && top.slice(0, DISCOVERY_BOX_SIZE).every((m) => sku(m.frag, "perf10").buyable)
+      ? top.slice(0, DISCOVERY_BOX_SIZE).map((m) => m.frag)
+      : null;
+  // The first close match that can go in the car.
+  const diffuser = top.find((m) => sku(m.frag, "car").buyable)?.frag ?? null;
+  const scrollToEmail = () => document.getElementById("sd-email")?.scrollIntoView({ behavior: "smooth", block: "center" });
   const url = scentUrl(code);
   const sections = useRef<Record<ResultSection, HTMLElement | null>>({ scentprint: null, matches: null, universe: null, explore: null });
 
@@ -212,6 +220,21 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
         </div>
       </section>
 
+      {/* ─── Try them: the box first ──────────────────────────────────────── */}
+      {(boxable || diffuser) && (
+        <section className="sd-pad" style={{ maxWidth: 1240, margin: "0 auto", padding: "0 32px 56px" }}>
+          <TryPanel
+            box={boxable}
+            percents={Object.fromEntries(top.map((m) => [m.frag.id, m.percent]))}
+            diffuser={diffuser}
+            onAddBox={() => boxable && onAddDiscoveryBox(boxable)}
+            onAddDiffuser={() => diffuser && onAddDiffuser(diffuser)}
+            onSwap={() => sections.current.matches?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onEmail={scrollToEmail}
+          />
+        </section>
+      )}
+
       {/* ─── 03 · Your closest matches ────────────────────────────────────── */}
       <section ref={register("matches")} data-section="matches" className="sd-pad" style={{ maxWidth: 1240, margin: "0 auto", padding: "50px 32px 60px", borderTop: `1px solid ${ink(0.07)}` }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24, flexWrap: "wrap" }}>
@@ -321,13 +344,19 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
         <div className="sd-lead-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 480px)", gap: 46, alignItems: "start" }}>
           <div>
             <div style={eyebrow}>Keep it</div>
-            <h2 style={{ margin: "14px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(30px, 4vw, 48px)", color: SD.text, lineHeight: 1.04 }}>
-              Keep your Scentprint.
+            <h2 id="sd-email" style={{ margin: "14px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(30px, 4vw, 48px)", color: SD.text, lineHeight: 1.04, scrollMarginTop: 120 }}>
+              Email my results.
             </h2>
             <p style={{ ...bodyText, marginTop: 14, maxWidth: 560 }}>
-              Leave your address and we'll hold your Scentprint on file, so it sharpens every time you tell us something new — a bottle you loved, a sample you didn't. Your link reopens this result on any device; the card is yours to download above.
+              We'll send your Scent DNA, your five closest matches and your link — it reopens this result on any device. We also keep your Scentprint on file, so it sharpens every time you tell us something new.
             </p>
-            <LeadForm print={shown} onCode={onCode} />
+            <LeadForm
+              print={shown}
+              code={code}
+              onCode={onCode}
+              identity={{ primary: identity.primary, secondary: identity.secondary }}
+              matches={top.slice(0, DISCOVERY_BOX_SIZE).map((m) => ({ slug: m.frag.slug, percent: m.percent }))}
+            />
 
             <LearningPanel
               signals={signals}
@@ -343,14 +372,14 @@ export default function ScentResult({ print, code, fragrances, revealed, onOpenP
           <aside style={{ ...glass, padding: "30px 28px 32px" }}>
             <div style={eyebrow}>Where to next</div>
             <div style={{ display: "grid", gap: 12, marginTop: 20 }}>
-              {top[0] && (
-                <button className="sd-cta" style={{ ...ctaGold, width: "100%" }} onClick={() => onOpenProduct(top[0].frag.slug)}>
-                  Shop {top[0].frag.name}
+              {boxable && (
+                <button className="sd-cta" style={{ ...ctaGold, width: "100%" }} onClick={() => onAddDiscoveryBox(boxable)}>
+                  Add my {DISCOVERY_BOX_SIZE} matches · {money(DISCOVERY_BOX_PRICE)}
                 </button>
               )}
-              {boxable && (
-                <button className="sd-cta" style={{ ...ctaGhost, width: "100%" }} onClick={() => onAddDiscoveryBox(boxable)}>
-                  Build my {DISCOVERY_BOX_SIZE}-scent discovery set
+              {top[0] && (
+                <button className="sd-cta" style={{ ...(boxable ? ctaGhost : ctaGold), width: "100%" }} onClick={() => onOpenProduct(top[0].frag.slug)}>
+                  Shop {top[0].frag.name}
                 </button>
               )}
               <button className="sd-cta" style={{ ...ctaQuiet, width: "100%" }} onClick={onRetake}>
@@ -586,11 +615,107 @@ function BehaviourBar({ label, poles, value }: { label: string; poles: [string, 
   );
 }
 
+/**
+ * The first thing after the reveal is the way to try it: the five closest
+ * matches as a Discovery Box, priced as a set with the saving said plainly.
+ * Swapping is the matches grid below; the closest match as a car diffuser and
+ * "email me these" sit alongside for anyone not ready to buy.
+ */
+function TryPanel({
+  box,
+  percents,
+  diffuser,
+  onAddBox,
+  onAddDiffuser,
+  onSwap,
+  onEmail,
+}: {
+  box: Fragrance[] | null;
+  percents: Record<string, number>;
+  diffuser: Fragrance | null;
+  onAddBox: () => void;
+  onAddDiffuser: () => void;
+  onSwap: () => void;
+  onEmail: () => void;
+}) {
+  const singles = box ? box.reduce((n, f) => n + sku(f, "perf10").price, 0) : 0;
+  const saving = singles - DISCOVERY_BOX_PRICE;
+  const car = diffuser ? sku(diffuser, "car") : null;
+  return (
+    <div className="sd-try" style={{ ...glass, padding: "30px 28px", border: `1px solid ${goldA(0.45)}` }}>
+      {box && (
+        <>
+          <div style={eyebrow}>Try your matches</div>
+          <h2 style={{ margin: "12px 0 0", fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(30px, 4vw, 46px)", color: SD.text, lineHeight: 1.04 }}>
+            Your {DISCOVERY_BOX_SIZE} closest, in one box.
+          </h2>
+          <p style={{ ...bodyText, marginTop: 10, maxWidth: 620 }}>
+            {DISCOVERY_BOX_SIZE} × 10 ml of your top matches for {money(DISCOVERY_BOX_PRICE)}
+            {saving > 0 ? ` — save ${money(saving)} on buying them singly` : ""}. Wear each one for a day before you choose a full bottle.
+          </p>
+          <ol className="sd-try-list" style={{ listStyle: "none", margin: "22px 0 0", padding: 0, display: "grid", gridTemplateColumns: `repeat(${DISCOVERY_BOX_SIZE}, minmax(0, 1fr))`, gap: 12 }}>
+            {box.map((f) => (
+              <li key={f.id} style={{ textAlign: "center", minWidth: 0 }}>
+                <BottleImage imageUrl={f.imageUrl} fallbackSrc="/assets/bottle-portrait.png" alt={f.name} accent={f.accent} liquid={f.liquid} height={120} />
+                <div style={{ marginTop: 8, fontFamily: SERIF, fontSize: 17, color: SD.text, lineHeight: 1.15, overflowWrap: "anywhere" }}>{f.name}</div>
+                <div style={{ ...micro, marginTop: 4, color: goldA(0.85) }}>{percents[f.id] ?? 0}%</div>
+              </li>
+            ))}
+          </ol>
+          <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap", alignItems: "center" }}>
+            <button className="sd-cta" style={{ ...ctaGold, height: 52, padding: "0 26px", fontSize: 11 }} onClick={onAddBox}>
+              Add my {DISCOVERY_BOX_SIZE} · {money(DISCOVERY_BOX_PRICE)}
+            </button>
+            <button className="sd-cta" style={{ ...ctaQuiet, height: 52 }} onClick={onSwap}>
+              Swap one
+            </button>
+            <button type="button" onClick={onEmail} style={{ background: "none", border: 0, color: goldA(0.9), cursor: "pointer", fontSize: 14, textDecoration: "underline", textUnderlineOffset: 4, padding: "8px 4px" }}>
+              Not ready? Email me my results
+            </button>
+          </div>
+        </>
+      )}
+      {diffuser && car && (
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginTop: box ? 26 : 0, paddingTop: box ? 22 : 0, borderTop: box ? `1px solid ${ink(0.08)}` : "none" }}>
+          <div style={{ flex: "1 1 280px" }}>
+            <div style={{ ...micro, color: goldA(0.8) }}>For the drive</div>
+            <p style={{ margin: "6px 0 0", fontSize: 15, lineHeight: 1.6, color: ink(0.7) }}>
+              {diffuser.name} as a hanging car diffuser — your scent, wherever you're going. {money(car.price)}.
+            </p>
+          </div>
+          <button className="sd-cta" style={{ ...ctaGhost, height: 46 }} onClick={onAddDiffuser}>
+            Add car diffuser · {money(car.price)}
+          </button>
+          {!box && (
+            <button type="button" onClick={onEmail} style={{ background: "none", border: 0, color: goldA(0.9), cursor: "pointer", fontSize: 14, textDecoration: "underline", textUnderlineOffset: 4, padding: "8px 4px" }}>
+              Email me my results
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Lead capture: an email, and a separate, unticked yes to marketing. */
-function LeadForm({ print, onCode }: { print: Scentprint; onCode: (code: string) => void }) {
+function LeadForm({
+  print,
+  code,
+  onCode,
+  identity,
+  matches,
+}: {
+  print: Scentprint;
+  code: string;
+  onCode: (code: string) => void;
+  identity: { primary: string; secondary: string };
+  matches: { slug: string; percent: number }[];
+}) {
   const [email, setEmail] = useState("");
   const [marketing, setMarketing] = useState(false);
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  // Whether the email itself went: the Scentprint is kept either way.
+  const [sent, setSent] = useState<"sent" | "unavailable" | "failed">("sent");
 
   const submit = useCallback(
     async (e: FormEvent) => {
@@ -598,21 +723,24 @@ function LeadForm({ print, onCode }: { print: Scentprint; onCode: (code: string)
       setState("busy");
       const r = await captureScentLead(email, print, marketing);
       if (r.ok) {
+        const c = r.code ?? code;
         if (r.code) onCode(r.code);
+        setSent(await emailScentResult(c, identity, matches));
         setState("done");
       } else {
         setState("error");
       }
     },
-    [email, marketing, print, onCode],
+    [email, marketing, print, code, onCode, identity, matches],
   );
 
   if (state === "done") {
     return (
       <div style={{ ...glass, marginTop: 26, padding: "24px 26px" }}>
-        <p style={{ margin: 0, fontFamily: SERIF, fontSize: 26, color: SD.softGold }}>Kept.</p>
+        <p style={{ margin: 0, fontFamily: SERIF, fontSize: 26, color: SD.softGold }}>{sent === "sent" ? "Sent — check your inbox." : "Kept."}</p>
         <p style={{ margin: "8px 0 0", fontSize: 13.5, lineHeight: 1.7, color: ink(0.6) }}>
-          Your Scentprint is on file{marketing ? " and you're on the inner-circle list — unsubscribe any time from your account" : ""}. Keep the link: it opens this result on any device.
+          {sent === "sent" ? "Your results are on their way, and your" : sent === "failed" ? "We couldn't send the email just now, but your" : "Your"} Scentprint is on file
+          {marketing ? " and you're on the inner-circle list — unsubscribe any time from your account" : ""}. Keep the link: it opens this result on any device.
         </p>
       </div>
     );
@@ -631,7 +759,7 @@ function LeadForm({ print, onCode }: { print: Scentprint; onCode: (code: string)
           style={{ flex: 1, background: "none", border: 0, outline: "none", color: SD.text, fontFamily: MONO, fontSize: 13, letterSpacing: "0.04em", padding: "14px 0" }}
         />
         <button className="sd-cta" type="submit" style={{ ...ctaGold, height: 46, padding: "0 22px", fontSize: 10 }} disabled={state === "busy"}>
-          {state === "busy" ? "Saving…" : "Keep my Scentprint"}
+          {state === "busy" ? "Sending…" : "Email my results"}
         </button>
       </div>
       <label style={{ display: "flex", gap: 11, marginTop: 16, alignItems: "flex-start", cursor: "pointer" }}>

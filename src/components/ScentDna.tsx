@@ -24,6 +24,7 @@ interface ScentDnaProps {
   onOpenProduct: (slug: string) => void;
   onAddSample: (frag: Fragrance) => void;
   onAddDiscoveryBox: (frags: Fragrance[]) => void;
+  onAddDiffuser: (frag: Fragrance) => void;
 }
 
 type Stage = "hero" | "quiz" | "converse" | "memory" | "building" | "result" | "opening";
@@ -54,7 +55,7 @@ const DEMO_DIMS: { dim: ScentDim; value: number }[] = [
  * Linkable straight from social, a QR code or an ad: no storefront navigation
  * required, its own chrome, and every result shareable as its own URL.
  */
-export default function ScentDna({ fragrances, userId, code: initialCode, onOpenProduct, onAddSample, onAddDiscoveryBox }: ScentDnaProps) {
+export default function ScentDna({ fragrances, userId, code: initialCode, onOpenProduct, onAddSample, onAddDiscoveryBox, onAddDiffuser }: ScentDnaProps) {
   const [stage, setStage] = useState<Stage>(initialCode ? "opening" : "hero");
   const [print, setPrint] = useState<Scentprint | null>(null);
   const [code, setCode] = useState<string>(initialCode ?? "");
@@ -267,6 +268,7 @@ export default function ScentDna({ fragrances, userId, code: initialCode, onOpen
             onOpenProduct={onOpenProduct}
             onAddSample={onAddSample}
             onAddDiscoveryBox={onAddDiscoveryBox}
+            onAddDiffuser={onAddDiffuser}
             onRetake={retake}
             onSection={setSection}
             onCode={setCode}

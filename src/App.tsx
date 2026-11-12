@@ -435,6 +435,13 @@ export default function App() {
               setBagOpen(true);
             }}
             onAddDiscoveryBox={addBox}
+            onAddDiffuser={(f) => {
+              const item = { id: f.id, name: f.name, format: "car" as const, priceCents: sku(f, "car").price };
+              addToBag(f.id, "car", 1);
+              trackAddToCart(item);
+              setPlaced(null);
+              setBagOpen(true);
+            }}
           />
         </Suspense>
         {bagDrawer}

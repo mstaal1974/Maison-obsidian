@@ -226,3 +226,26 @@ async function attachEmail(code: string, email: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Email the result to the address now on file for this code. The server reads
+ * the address from the saved row, not from here, and sends each result once.
+ */
+export async function emailScentResult(
+  code: string,
+  identity: { primary: string; secondary: string },
+  matches: { slug: string; percent: number }[],
+): Promise<"sent" | "unavailable" | "failed"> {
+  if (!code || isEncodedCode(code)) return "unavailable";
+  try {
+    const r = await fetch("/api/scent-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "email-result", code, identity, matches }),
+    });
+    if (r.ok || r.status === 409) return "sent"; // 409: already emailed
+    return r.status === 501 ? "unavailable" : "failed";
+  } catch {
+    return "failed";
+  }
+}

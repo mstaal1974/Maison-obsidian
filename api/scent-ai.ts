@@ -19,6 +19,7 @@
 // its own local reasoning, so the experience still works.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { emailScentResult } from "./_lib/scentEmail.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -372,6 +373,11 @@ export default async function handler(req: any, res: any) {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
+  // "Email my results" lives here too (api/_lib/scentEmail.ts): it needs no
+  // model, and the Hobby plan allows 12 functions a deployment.
+  const raw = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body ?? {};
+  if (raw.op === "email-result") return emailScentResult(req, res, clientIp(req));
+
   // Either name works: Vercel projects have been set up with both
   // ANTHROPIC_API_KEY and the shorter ANTHROPIC_KEY, and a mismatch here
   // fails silently — the route 501s and the fallback hides it.

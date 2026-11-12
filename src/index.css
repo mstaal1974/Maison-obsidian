@@ -431,6 +431,10 @@ body {
    of a common handset in Chrome), every question fits without scrolling. */
 @media (max-width: 760px) {
   .sd-grid-4, .sd-grid-3 { grid-template-columns: minmax(0, 1fr) !important; }
+  /* The five box bottles stay in one row and scroll sideways on a phone. */
+  .sd-try { padding: 22px 18px !important; }
+  .sd-try-list { grid-template-columns: repeat(5, 96px) !important; overflow-x: auto; padding-bottom: 6px !important; scroll-snap-type: x mandatory; }
+  .sd-try-list > li { scroll-snap-align: start; }
   .sd-quiz-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
   .sd-quiz-chips { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
   /* Sized against the viewport's own height, not a breakpoint: a 553px-tall
