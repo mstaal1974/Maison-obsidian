@@ -845,6 +845,16 @@ export function decodeScentprint(code: string): Scentprint | null {
 }
 
 /** Rebuilds a Scentprint from a stored row, tolerating a partial payload. */
+/**
+ * The fragrance they said they love, as shown back to them: a name, not an
+ * email address or a link (a browser's autofill can drop one into the field).
+ */
+export function cleanLoves(v: string | null | undefined): string | null {
+  const s = (v ?? "").trim().replace(/\s+/g, " ");
+  if (!s || s.length > 80 || /@|https?:|www\./i.test(s)) return null;
+  return s;
+}
+
 export function scentprintFrom(
   dims: Partial<ScentVector>,
   behaviour?: Partial<BehaviourVector>,
@@ -866,7 +876,7 @@ export function scentprintFrom(
     behaviour: b,
     occasions: OCCASIONS.filter((o) => (occasions ?? []).includes(o)),
     wearer: wearer === "him" || wearer === "her" ? wearer : "all",
-    loves: loves ?? null,
+    loves: cleanLoves(loves),
     createdAt: new Date().toISOString(),
   };
 }

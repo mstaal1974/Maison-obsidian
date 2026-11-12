@@ -138,7 +138,7 @@ const SCHEMAS: Record<string, Record<string, unknown>> = {
           properties: {
             slug: { type: "string" },
             headline: { type: "string", description: "Six words or fewer on why this one." },
-            body: { type: "string", description: "Two sentences. Name the dimensions they share, using the numbers given." },
+            body: { type: "string", description: "Two sentences in plain words: what they share and why it suits them. No scores in brackets; the only number allowed is the overall compatibility, once." },
             caution: { type: "string", description: "Optional: the one way it might not suit them. Omit if there isn't one." },
           },
         },
@@ -260,7 +260,7 @@ function instruction(op: string, body: any): string {
     case "explain":
       return [
         "For each fragrance below, say why it suits this person.",
-        "You are given their Scentprint, the fragrance's own, the computed compatibility, and the dimensions they share. Use those numbers; never state a different one.",
+        "You are given their Scentprint, the fragrance's own, the computed compatibility, and the dimensions they share. Use those numbers to decide what to say, but don't recite them: write \"leathery and dark, like you\", not \"leather (you 92, it 87)\". The only number a customer should read is the overall compatibility, exactly as given.",
         "Name what the two actually have in common, in plain words. If the fragrance pushes somewhere they didn't ask for, say so in caution rather than hiding it.",
         "Return one explanation per fragrance, in the order given.",
       ].join(" ");

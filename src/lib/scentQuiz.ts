@@ -10,6 +10,7 @@
 import type { Fragrance } from "./data";
 import { findMatches } from "./formats";
 import {
+  cleanLoves,
   BEHAVIOURS,
   OCCASIONS,
   SCENT_DIMS,
@@ -630,7 +631,7 @@ export function computeScentprint(a: QuizAnswers, fragrances: Fragrance[] = []):
     behaviour,
     occasions,
     wearer: a.wearer ?? "all",
-    loves: lovedMatch ? loved : loved || null,
+    loves: cleanLoves(loved),
     createdAt: new Date().toISOString(),
   };
 }

@@ -394,6 +394,9 @@ function LovedField({ question, fragrances, value, onChange }: { question: Loved
           placeholder="Start typing a fragrance or house…"
           aria-label={question.prompt}
           autoComplete="off"
+          name="mo-fragrance-search"
+          data-1p-ignore
+          data-lpignore="true"
           style={{ flex: 1, background: "none", border: 0, outline: "none", color: SD.text, fontFamily: SERIF, fontSize: 22, padding: "12px 0" }}
         />
         {value && (
