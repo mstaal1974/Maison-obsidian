@@ -1,3 +1,4 @@
+import DiscoveryHint from "./DiscoveryHint";
 import { useEffect, useState } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
 import { GROUPS, type FormatGroup, skusInGroup, sku as skuOf, profileOf, referenceOf, type Sku } from "../lib/formats";
@@ -118,6 +119,7 @@ export default function QuickView({ frag, initialFormat, onClose, onAdd }: Quick
           <button className="mo-cta" style={{ ...btnGold, justifyContent: "center", opacity: chosen.buyable ? 1 : 0.5 }} disabled={!chosen.buyable} onClick={() => onAdd(frag, key, 1)}>
             {chosen.buyable ? "Add to bag" : chosen.status === "coming_soon" ? "Coming soon" : "Sold out"} <Arrow />
           </button>
+          {key === "perf10" && chosen.buyable && <DiscoveryHint />}
           <button style={{ ...btnLink, justifyContent: "center" }} onClick={() => { onClose(); navigate(paths.product(frag.slug)); }}>
             View the full fragrance <Arrow size={10} />
           </button>

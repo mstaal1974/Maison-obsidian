@@ -34,6 +34,7 @@ import About from "./components/About";
 import ProductDetail from "./components/ProductDetail";
 import QuickView from "./components/QuickView";
 import BagDrawer from "./components/BagDrawer";
+import DiscoveryNudge from "./components/DiscoveryNudge";
 import Checkout from "./components/Checkout";
 import Thanks, { type ThanksState } from "./components/Thanks";
 import Footer from "./components/Footer";
@@ -437,6 +438,7 @@ export default function App() {
           />
         </Suspense>
         {bagDrawer}
+      <DiscoveryNudge fragrances={fragrances} onOpenBox={() => setBagOpen(false)} />
       </div>
     );
   }
@@ -597,6 +599,7 @@ export default function App() {
       {quick && <QuickView frag={quick.frag} initialFormat={quick.format} onClose={() => setQuick(null)} onAdd={(f, k, q) => add(f, k, q)} />}
 
       {bagDrawer}
+      <DiscoveryNudge fragrances={fragrances} onOpenBox={() => setBagOpen(false)} />
 
       {auth.recovery && (
         <PasswordReset updatePassword={auth.updatePassword} onDismiss={auth.clearRecovery} />

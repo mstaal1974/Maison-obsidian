@@ -1,10 +1,12 @@
+import { useSyncExternalStore } from "react";
 import { type Fragrance, type FormatKey, GOLD, CREAM, money } from "../lib/data";
-import { profileOf, fromPrice, referenceOf } from "../lib/formats";
+import { DISCOVERY_BOX_SIZE, profileOf, fromPrice, referenceOf } from "../lib/formats";
+import { discoveryIds, subscribeBag } from "../lib/bag";
 import { navigate, paths } from "../lib/route";
 import { trackSelectItem } from "../lib/analytics";
 import { isNew } from "../lib/launch";
 import BottleImage from "./BottleImage";
-import { Arrow, Icon, InspiredBy } from "./ui";
+import { Arrow, InspiredBy } from "./ui";
 import { MONO, SERIF, micro } from "./styles";
 
 interface FragranceCardProps {
@@ -78,20 +80,52 @@ export default function FragranceCard({ frag, vip, onQuickView, inDiscovery, onT
           >
             {locked ? "VIP members only" : <>Choose size <Arrow size={10} /></>}
           </button>
-          {onToggleDiscovery && !locked && (
-            // Quiet secondary control: a 10 ml of this scent in the Discovery Box.
-            <button
-              className="mo-card-discovery"
-              onClick={() => onToggleDiscovery(frag)}
-              aria-pressed={!!inDiscovery}
-              style={{ alignSelf: "flex-start", background: "none", border: 0, padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", whiteSpace: "nowrap", color: inDiscovery ? GOLD : "rgba(243,236,220,0.5)" }}
-            >
-              <Icon name="heart" size={12} color={inDiscovery ? GOLD : "rgba(243,236,220,0.5)"} />
-              {inDiscovery ? "In your Discovery Box" : "Add to Discovery Box"}
-            </button>
-          )}
+          {onToggleDiscovery && !locked && <BoxButton frag={frag} inBox={!!inDiscovery} onToggle={onToggleDiscovery} />}
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * Add this scent's 10 ml to the Discovery Box — a full-width button with the
+ * box's progress on it, so choosing five reads as one task: "+ Add", then
+ * "✓ In your box", and "box full" once five are chosen (pressing it then opens
+ * the box to swap one out).
+ */
+function BoxButton({ frag, inBox, onToggle }: { frag: Fragrance; inBox: boolean; onToggle: (f: Fragrance) => void }) {
+  const picked = useSyncExternalStore(subscribeBag, discoveryIds, discoveryIds).length;
+  const full = !inBox && picked >= DISCOVERY_BOX_SIZE;
+  return (
+    <button
+      type="button"
+      className="mo-card-discovery"
+      aria-pressed={inBox}
+      aria-label={inBox ? `${frag.name} is in your Discovery Box, ${picked} of ${DISCOVERY_BOX_SIZE}. Remove it` : full ? "Your Discovery Box is full. View your box" : `Add ${frag.name} to your Discovery Box, ${picked} of ${DISCOVERY_BOX_SIZE} chosen`}
+      onClick={() => onToggle(frag)}
+      style={{
+        alignSelf: "stretch",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: 6,
+        minHeight: 46,
+        padding: "8px 12px",
+        cursor: "pointer",
+        border: `1px ${full ? "dashed" : "solid"} ${inBox ? GOLD : "rgba(201,169,97,0.7)"}`,
+        background: inBox ? GOLD : full ? "none" : "rgba(201,169,97,0.12)",
+        color: inBox ? "#0b0b0d" : full ? "rgba(243,236,220,0.6)" : CREAM,
+        fontSize: 14,
+        fontWeight: 600,
+        textAlign: "left",
+        lineHeight: 1.3,
+      }}
+    >
+      <span aria-hidden style={{ display: "inline-grid", placeItems: "center", width: 22, height: 22, flexShrink: 0, borderRadius: "50%", background: inBox ? "#0b0b0d" : GOLD, color: inBox ? GOLD : "#0b0b0d", fontSize: 14 }}>
+        {inBox ? "✓" : full ? "5" : "+"}
+      </span>
+      <span>{inBox ? "In your box" : full ? "Box full · View box" : "Add to Discovery Box"}</span>
+      <span aria-hidden style={{ marginLeft: "auto", fontSize: 13, fontWeight: 500, opacity: 0.8 }}>{picked}/{DISCOVERY_BOX_SIZE}</span>
+    </button>
   );
 }

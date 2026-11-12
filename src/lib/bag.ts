@@ -3,6 +3,7 @@
 // external store so any component can subscribe with useSyncExternalStore.
 
 import type { FormatKey } from "./data";
+import { DISCOVERY_BOX_PRICE, DISCOVERY_BOX_SIZE } from "./formats";
 
 export interface BagLine {
   id: string; // `${fragranceId}:${format}` (or `${fragranceId}:${format}:box` for a Discovery Box piece)
@@ -71,7 +72,69 @@ function loadOrders(): Order[] {
   return all;
 }
 
-let lines: BagLine[] = load<BagLine[]>(BAG_KEY, []);
+export const DISCOVERY_LABEL = "Discovery Box";
+const BOX_UNIT = Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE);
+
+/**
+ * Any five 10 ml bottles in the bag are a Discovery Box, however they were
+ * added: from the Discovery page's builder, or one at a time from product
+ * pages. After every change the 10 ml bottles are regrouped so that every
+ * complete five is priced as a box ($50 the set) and the rest at the single
+ * price — and a box can never be left incomplete (checkout only accepts boxes
+ * in complete fives; api/_lib/stripe.ts). Bottles already in a box stay in it
+ * first, so taking one out never shuffles which others count. An engraved 10 ml
+ * is a personalised bottle, so it stays out of boxes.
+ */
+function regroup(input: BagLine[]): BagLine[] {
+  const pooled = (l: BagLine) => l.format === "perf10" && !l.engraving;
+  const pool = input.filter(pooled);
+  const total = pool.reduce((n, l) => n + l.qty, 0);
+  let boxed = Math.floor(total / DISCOVERY_BOX_SIZE) * DISCOVERY_BOX_SIZE;
+  // Each fragrance's 10 ml bottles: how many are boxed now, and in all.
+  const per = new Map<string, { boxed: number; all: number }>();
+  for (const l of pool) {
+    const p = per.get(l.fragranceId) ?? { boxed: 0, all: 0 };
+    p.all += l.qty;
+    if (l.label === DISCOVERY_LABEL) p.boxed += l.qty;
+    per.set(l.fragranceId, p);
+  }
+  // Fill the boxes: bottles already boxed first, then singles, in bag order.
+  const take = new Map<string, number>();
+  for (const pass of ["boxed", "single"] as const) {
+    for (const [id, p] of per) {
+      if (!boxed) break;
+      const have = take.get(id) ?? 0;
+      const want = pass === "boxed" ? Math.min(p.boxed, p.all) : p.all - have;
+      const n = Math.min(want, boxed);
+      take.set(id, have + n);
+      boxed -= n;
+    }
+  }
+  const out: BagLine[] = [];
+  const done = new Set<string>();
+  for (const l of input) {
+    if (!pooled(l)) {
+      out.push(l);
+      continue;
+    }
+    if (done.has(l.fragranceId)) continue;
+    done.add(l.fragranceId);
+    const p = per.get(l.fragranceId)!;
+    const inBox = take.get(l.fragranceId) ?? 0;
+    if (inBox) out.push({ id: `${l.fragranceId}:perf10:box`, fragranceId: l.fragranceId, format: "perf10", qty: inBox, engraving: null, unitPrice: BOX_UNIT, label: DISCOVERY_LABEL });
+    if (p.all - inBox) out.push({ id: `${l.fragranceId}:perf10`, fragranceId: l.fragranceId, format: "perf10", qty: p.all - inBox, engraving: null });
+  }
+  return out;
+}
+
+/** How the bag's 10 ml bottles stand against the Discovery Box: complete boxes, and loose bottles. */
+export function discoveryProgress(bag: BagLine[]): { boxes: number; loose: number; toNext: number } {
+  const boxedUnits = bag.filter((l) => l.label === DISCOVERY_LABEL).reduce((n, l) => n + l.qty, 0);
+  const loose = bag.filter((l) => l.format === "perf10" && !l.engraving && l.label !== DISCOVERY_LABEL).reduce((n, l) => n + l.qty, 0);
+  return { boxes: Math.floor(boxedUnits / DISCOVERY_BOX_SIZE), loose, toNext: DISCOVERY_BOX_SIZE - (loose % DISCOVERY_BOX_SIZE) };
+}
+
+let lines: BagLine[] = regroup(load<BagLine[]>(BAG_KEY, []));
 let orders: Order[] = loadOrders();
 const subs = new Set<() => void>();
 function emit() {
@@ -98,15 +161,17 @@ export function addToBag(
 ): void {
   const id = `${fragranceId}:${format}${extra?.label ? ":box" : ""}`;
   const existing = lines.find((l) => l.id === id);
-  lines = existing
-    ? lines.map((l) => (l.id === id ? { ...l, qty: Math.min(9, l.qty + qty), engraving: engraving ?? l.engraving } : l))
-    : [...lines, { id, fragranceId, format, qty, engraving, ...extra }];
+  lines = regroup(
+    existing
+      ? lines.map((l) => (l.id === id ? { ...l, qty: Math.min(9, l.qty + qty), engraving: engraving ?? l.engraving } : l))
+      : [...lines, { id, fragranceId, format, qty, engraving, ...extra }],
+  );
   save(BAG_KEY, lines);
   emit();
 }
 
 export function setQty(id: string, qty: number): void {
-  lines = qty <= 0 ? lines.filter((l) => l.id !== id) : lines.map((l) => (l.id === id ? { ...l, qty: Math.min(9, qty) } : l));
+  lines = regroup(qty <= 0 ? lines.filter((l) => l.id !== id) : lines.map((l) => (l.id === id ? { ...l, qty: Math.min(9, qty) } : l)));
   save(BAG_KEY, lines);
   emit();
 }
