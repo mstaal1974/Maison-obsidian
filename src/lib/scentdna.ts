@@ -735,7 +735,7 @@ export function identityOf(print: Scentprint): ScentIdentity {
       : b.intensity < 38
         ? "You want it close to the skin — found, not announced."
         : "You want presence without volume.";
-  const narrative = `You are drawn to fragrances that feel ${lead} and effortless, with enough ${core} depth to give them character without becoming heavy. A thread of ${accent} keeps them from reading plain. ${weight}`;
+  const narrative = `You are drawn to fragrances that feel ${lead} and ${character[2].toLowerCase()}, with enough ${core} to give them character without becoming heavy. A thread of ${accent} keeps them from reading plain. ${weight}`;
 
   return { primary, secondary, character, narrative, top: ranked.slice(0, 10) };
 }
