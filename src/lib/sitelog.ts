@@ -80,7 +80,16 @@ function flush(leaving = false): void {
     headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ p_events: batch }),
     keepalive: leaving,
-  }).catch(() => undefined);
+  })
+    .then((r) => {
+      // 404: the log_site_events function isn't in the database yet (migration
+      // 0036 not run). Stop for this visit rather than fail on every page.
+      if (r.status === 404) {
+        on = false;
+        queue.length = 0;
+      }
+    })
+    .catch(() => undefined);
   if (queue.length) flush(leaving);
 }
 

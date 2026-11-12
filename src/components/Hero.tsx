@@ -5,15 +5,15 @@ import { CREAM } from "../lib/data";
 
 /**
  * Hero — "Wear it. Live it. Take it with you." over the full lineup: 50 ml,
- * 30 ml, discovery, car diffuser, body wash and moisturiser. Drop the comp's
- * lineup shot in as /assets/hero-lineup.jpg; until then the stock pair stands in.
+ * 30 ml, discovery, car diffuser, body wash and moisturiser. The stock pair
+ * stands in until a lineup shot is added (point src at it once the file exists —
+ * a src that 404s costs every visitor a failed request).
  */
 export default function Hero() {
   return (
     <section aria-label="Hero" style={{ borderBottom: "1px solid #1f1f27" }}>
       <Art
-        src="/assets/hero-lineup.jpg"
-        fallback="/assets/bottle-pair.png"
+        src="/assets/bottle-pair.png"
         alt="Maison Obsidian eau de parfum, discovery bottle, car diffuser and body care"
         position="right center"
         priority

@@ -42,8 +42,7 @@ function FocusedHero() {
   return (
     <section aria-label="Hero" style={{ borderBottom: "1px solid #1f1f27" }}>
       <Art
-        src="/assets/hero-lineup.jpg"
-        fallback="/assets/bottle-pair.png"
+        src="/assets/bottle-pair.png"
         alt="Maison Obsidian eau de parfum, discovery bottle, car diffuser and body care"
         position="right center"
         priority
