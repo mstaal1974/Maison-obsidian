@@ -10,6 +10,7 @@ import { GOLD, CREAM } from "../lib/data";
 const LINKS: { label: string; to: string }[] = [
   { label: "Discovery Box", to: paths.discovery },
   { label: "Car Diffusers", to: paths.car },
+  { label: "Gift Vouchers", to: paths.giftCard },
   { label: "Scent DNA", to: paths.discover },
   { label: "About", to: paths.about },
   { label: "Shopping help", to: paths.help },

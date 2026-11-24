@@ -3,6 +3,8 @@ import { CREAM, GOLD, moneyExact } from "../lib/data";
 import { trackSubscriptionOfferViewed } from "../lib/analytics";
 import { SUBSCRIPTION_DISCOUNT, SUBSCRIPTION_MONTHS } from "../lib/subscription";
 import { navigate, paths } from "../lib/route";
+import type { IssuedVoucher } from "../lib/stripe";
+import VoucherThanks from "./VoucherThanks";
 import { Arrow, Icon } from "./ui";
 import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
 
@@ -12,6 +14,8 @@ export interface ThanksState {
   itemCount?: number;
   amountTotal?: number | null;
   message?: string;
+  /** A gift voucher bought: shown as the card, with its code, to print. */
+  voucher?: IssuedVoucher;
 }
 
 interface ThanksProps {
@@ -39,6 +43,7 @@ export default function Thanks({ state, sessionId, signedIn, onJoin }: ThanksPro
     offerSeen.current = true;
     trackSubscriptionOfferViewed("thanks");
   }, [paid]);
+  if (state.voucher) return <VoucherThanks v={state.voucher} />;
   return (
     <main data-screen-label="Thank you" style={{ maxWidth: 720, margin: "0 auto", padding: "140px 32px 110px", textAlign: "center" }}>
       <div style={{ display: "inline-flex", width: 60, height: 60, borderRadius: "50%", border: `1px solid ${GOLD}`, alignItems: "center", justifyContent: "center" }}>

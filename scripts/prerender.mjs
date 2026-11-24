@@ -194,7 +194,7 @@ for (const f of launched) {
 // screens are not. Each but the home page gets its own head, as above; the
 // home page's index.html is also the app shell every other path falls back to,
 // so it keeps the generic tags and the app adds the rest.
-const statics = ["/", "/new", "/fragrances", "/shop", ...LANDING_PATHS, "/discovery", "/car", "/body", "/subscribe", "/discover", "/about", "/help"];
+const statics = ["/", "/new", "/fragrances", "/shop", ...LANDING_PATHS, "/discovery", "/car", "/body", "/gift-card", "/subscribe", "/discover", "/about", "/help"];
 const sameAs = socialProfiles(env).map((p) => p.url);
 let staticCount = 0;
 for (const p of statics) {

@@ -13,6 +13,7 @@
 // Every handler is idempotent, so Stripe's retries are safe.
 
 import { getStripe, json, rawBody, serviceClient, route, notConfigured } from "../_lib/stripe.js";
+import { issueVoucher } from "../_lib/voucher.js";
 import { prepareRenewal, recordDispute, recordRefund, recordRenewal, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
 import { sendRecoveryEmail, withOriginalMetadata } from "../_lib/recovery.js";
 import type Stripe from "stripe";
@@ -49,6 +50,7 @@ export default route("webhook", async function handler(req: any, res: any) {
         const session = await withOriginalMetadata(stripe, event.data.object);
         if (session.payment_status !== "paid") break;
         if (session.mode === "payment" && session.metadata?.kind === "order") await recordOrder(stripe, db, session);
+        if (session.mode === "payment" && session.metadata?.kind === "voucher") await issueVoucher(stripe, db, session);
         if (session.mode === "subscription") await recordSubscriptionStart(stripe, db, session);
         break;
       }

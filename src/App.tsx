@@ -52,6 +52,7 @@ const AdminConsole = lazy(() => import("./components/AdminConsole"));
 const StaffDesk = lazy(() => import("./components/StaffDesk"));
 const ScentDna = lazy(() => import("./components/ScentDna"));
 const BodyBath = lazy(() => import("./components/BodyBath"));
+const GiftCard = lazy(() => import("./components/GiftCard"));
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => currentRoute());
@@ -289,6 +290,9 @@ export default function App() {
         setStripeNotice({ kind: "order", detail: `${itemCount} item(s) · ${money(r.data.amountTotal ?? 0)} paid` });
         setThanks({ status: "paid", itemCount, amountTotal: r.data.amountTotal });
         setCommitsVersion((v) => v + 1);
+      } else if (r?.ok && r.data.kind === "voucher" && r.data.voucher) {
+        trackPurchase(sessionId, r.data.amountTotal ?? r.data.voucher.amountCents, [{ id: "gift-voucher", name: "Gift voucher", priceCents: r.data.voucher.amountCents, qty: 1 }]);
+        setThanks({ status: "paid", voucher: r.data.voucher });
       } else if (r?.ok && r.data.kind === "subscription") {
         trackSubscriptionStarted(sessionId);
         setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });
@@ -483,6 +487,12 @@ export default function App() {
           <SubscribeBand />
           <RangeBanners />
         </main>
+      )}
+
+      {route.view === "giftcard" && (
+        <Suspense fallback={null}>
+          <GiftCard cancelled={route.cancelled} accountEmail={auth.user?.email ?? null} />
+        </Suspense>
       )}
 
       {route.view === "body" && (

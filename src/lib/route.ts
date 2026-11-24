@@ -20,6 +20,7 @@ export type Route =
   | { view: "discovery" }
   | { view: "car" }
   | { view: "body" }
+  | { view: "giftcard"; cancelled: boolean }
   | { view: "find"; query: string }
   // Discover Your Scent DNA — a standalone campaign experience. Reachable at
   // /discover and /scent-dna (clean paths, rewritten to the app) as well as the
@@ -62,6 +63,12 @@ export function parseHash(hash: string): Route {
       return { view: "car" };
     case "body":
       return { view: "body" };
+    case "gift-card":
+    case "gift-cards":
+    case "gift-voucher": {
+      const qs = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)) : null;
+      return { view: "giftcard", cancelled: qs?.get("cancelled") === "1" };
+    }
     case "discover":
     case "scent-dna":
       return { view: "scent", code: null };
@@ -175,6 +182,7 @@ export const paths = {
   discovery: "/discovery",
   car: "/car",
   body: "/body",
+  giftCard: "/gift-card",
   find: (q?: string) => (q ? `/find?q=${encodeURIComponent(q)}` : "/find"),
   discover: "/discover",
   scent: (code: string) => `/scent/${encodeURIComponent(code)}`,

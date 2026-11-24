@@ -59,6 +59,7 @@ const BY_FORMAT: { label: string; to: string }[] = [
   { label: "Car Diffusers", to: paths.car },
   { label: "Body", to: paths.body },
   { label: "Gift & Fragrance Sets", to: paths.shop("sets") },
+  { label: "Gift Vouchers", to: paths.giftCard },
 ];
 
 // Simplified navigation: five customer intentions at the top level. The
@@ -76,6 +77,7 @@ const SIMPLE_SHOP: { label: string; to: string }[] = [
   { label: "Car diffusers", to: paths.car },
   { label: "Body & bath", to: paths.body },
   { label: "Sets", to: paths.shop("sets") },
+  { label: "Gift vouchers", to: paths.giftCard },
   { label: "Subscribe & save", to: paths.subscribe() },
 ];
 

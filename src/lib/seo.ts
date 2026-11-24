@@ -113,6 +113,10 @@ export function staticPageMeta(path: string, origin: string, sameAs: string[] = 
       title: "Fragrance Gift Box: Perfume, Body Wash & Lotion | Maison Obsidian",
       description: "The Maison Obsidian Gift Box: your fragrance as a 30 ml eau de parfum, body wash and body lotion, boxed, for $60. Add a handwritten gift card.",
     },
+    "/gift-card": {
+      title: "Perfume Gift Voucher Australia | Gift Card $10–$500 | Maison Obsidian",
+      description: "A Maison Obsidian gift voucher from $10 to $500: design the card, add a note, and it's emailed instantly — to you or straight to them. Valid for three years.",
+    },
     "/subscribe": {
       title: "The Monthly Pour — Perfume Subscription | Maison Obsidian",
       description: `A bottle a month for ${SUBSCRIPTION_MONTHS} months at ${Math.round(SUBSCRIPTION_DISCOUNT * 100)}% under the shelf price. Choose the size, then the scent each month.`,

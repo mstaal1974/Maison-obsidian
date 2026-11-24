@@ -11,6 +11,7 @@ import { type CheckoutLine, customerFor, getStripe, json, loadCatalogue, priceLi
 import { auspostConfigured, quoteRates } from "../_lib/auspost.js";
 import { bagFits, chunkBag } from "../_lib/record.js";
 import { parcelFor } from "../_lib/parcel.js";
+import { startVoucherCheckout } from "../_lib/voucher.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -24,6 +25,8 @@ export default route("checkout", async function handler(req: any, res: any) {
   const user = await userFromRequest(req);
 
   const body = readBody(req);
+  // A gift voucher is its own, digital checkout (api/_lib/voucher.ts).
+  if (body.kind === "voucher") return startVoucherCheckout(req, res, stripe, body, user);
   const lines = (Array.isArray(body.lines) ? body.lines : []) as CheckoutLine[];
   if (!lines.length) return json(res, 400, { error: "Your bag is empty" });
 

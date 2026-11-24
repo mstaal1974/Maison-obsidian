@@ -74,7 +74,7 @@ export const LANDINGS: Landing[] = [
     description: `Perfume gifts in Australia: a 50 ml extrait for ${money(HOUSE_PRICE.ml50)}, a luxury car diffuser for ${money(HOUSE_PRICE.car)}, or a discovery set of five. Hand-poured in Brisbane, gift sets for her and men's fragrance gifts.`,
     eyebrow: "Gifts",
     h1: "Perfume gifts, hand-poured in Brisbane.",
-    intro: `Perfume gifts for Australia — luxury gifts under $50: every 50 ml extrait is ${money(HOUSE_PRICE.ml50)}, a hanging car diffuser ${money(HOUSE_PRICE.car)}, and 50 ml bottles can be engraved. Not sure of their taste? A discovery set of five lets them choose.`,
+    intro: `Perfume gifts for Australia — luxury gifts under $50: every 50 ml extrait is ${money(HOUSE_PRICE.ml50)}, a hanging car diffuser ${money(HOUSE_PRICE.car)}, and 50 ml bottles can be engraved. Not sure of their taste? A discovery set of five lets them choose — or give a gift voucher, from $10.`,
     chip: "Gifts",
     matches: all,
   },

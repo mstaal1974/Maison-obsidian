@@ -980,3 +980,58 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
   /* Two scents a row on a phone; the name sits above the "Inspired by". */
   .mo-bb-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
 }
+
+/* ─── Gift voucher card (VoucherCard) ─────────────────────────────────────── */
+.mo-vstage { perspective: 1800px; width: 100%; max-width: 660px; margin: 0 auto; cursor: pointer; --mx: 50%; --my: 40%; outline: none; }
+.mo-vstage:focus-visible .mo-vface { box-shadow: 0 0 0 2px #c9a961, 0 30px 60px -15px rgba(0,0,0,0.85); }
+.mo-vtilt { transition: transform 0.15s ease-out; transform-style: preserve-3d; }
+.mo-vflip { position: relative; width: 100%; aspect-ratio: 1.62 / 1; transition: transform 0.85s cubic-bezier(0.23, 1, 0.32, 1); transform-style: preserve-3d; }
+.mo-vflip.is-flipped { transform: rotateY(180deg); }
+.mo-vface {
+  position: absolute; inset: 0; border-radius: 14px; overflow: hidden; container-type: inline-size;
+  -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  box-shadow: 0 30px 60px -15px rgba(0,0,0,0.85), 0 0 0 1px rgba(212,175,55,0.35), inset 0 0 40px rgba(0,0,0,0.35);
+}
+.mo-vback { transform: rotateY(180deg); }
+.mo-v-obsidian {
+  background-color: #0b0b0d;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(212,175,55,0.07) 0%, transparent 45%),
+    radial-gradient(circle at 80% 85%, rgba(197,160,89,0.06) 0%, transparent 50%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 4px),
+    linear-gradient(160deg, #121216 0%, #09090b 55%, #0e0e12 100%);
+}
+.mo-v-alabaster {
+  background-color: #f7f4ec;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(122,89,21,0.06) 0%, transparent 50%),
+    radial-gradient(circle at 85% 80%, rgba(94,67,13,0.06) 0%, transparent 50%),
+    repeating-linear-gradient(-45deg, rgba(17,17,20,0.018) 0 1px, transparent 1px 4px),
+    linear-gradient(160deg, #fbf9f4 0%, #f7f4ec 55%, #efe9db 100%);
+  box-shadow: 0 30px 60px -15px rgba(0,0,0,0.75), 0 0 0 1px rgba(197,160,89,0.6);
+}
+.mo-vsheen {
+  position: absolute; inset: 0; pointer-events: none; z-index: 2; mix-blend-mode: screen;
+  background: radial-gradient(circle at var(--mx) var(--my), rgba(255,244,200,0.14) 0%, rgba(212,175,55,0.05) 30%, transparent 65%);
+}
+.mo-v-alabaster .mo-vsheen { mix-blend-mode: overlay; background: radial-gradient(circle at var(--mx) var(--my), rgba(212,175,55,0.22) 0%, rgba(255,255,255,0.25) 28%, transparent 65%); }
+@container (max-width: 420px) { .mo-vdomain { display: none; } }
+@media (prefers-reduced-motion: reduce) { .mo-vflip, .mo-vtilt { transition: none; } }
+
+/* Printing a voucher: only the two flat faces, front above back. */
+.mo-voucher-print { display: none; }
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body.mo-printing-voucher * { visibility: hidden !important; }
+  body.mo-printing-voucher .mo-voucher-print, body.mo-printing-voucher .mo-voucher-print * { visibility: visible !important; }
+  body.mo-printing-voucher .mo-voucher-print { display: flex !important; flex-direction: column; align-items: center; gap: 12mm; position: absolute; left: 0; top: 0; width: 100%; }
+  body.mo-printing-voucher .mo-voucher-print .mo-vface { position: relative !important; inset: auto; width: 175mm; height: 108mm; box-shadow: none !important; break-inside: avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
+/* Gift voucher page: the form above the card on narrow screens. */
+@media (max-width: 960px) {
+  .mo-gc-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .mo-gc-grid > section:last-child { order: -1; }
+}
+@media (max-width: 520px) { .mo-gc-two { grid-template-columns: minmax(0, 1fr) !important; } }
+@media (max-width: 520px) { .mo-gc-grid [role="radiogroup"] button { letter-spacing: 0.06em !important; font-size: 10.5px !important; } }

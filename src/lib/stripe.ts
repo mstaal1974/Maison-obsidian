@@ -147,8 +147,35 @@ export async function stripeSubscribe(format: FormatKey, fragranceId: string | n
   return call<{ url: string }>("/api/stripe/subscribe", { method: "POST", body: JSON.stringify({ format, fragranceId, pickMode }) });
 }
 
+export interface IssuedVoucher {
+  code: string;
+  amountCents: number;
+  finish: "obsidian" | "alabaster";
+  to: string;
+  from: string;
+  message: string;
+  issuedAt: string;
+  expiresAt: string;
+}
+
+export interface VoucherRequest {
+  amount: number; // whole dollars
+  finish: "obsidian" | "alabaster";
+  to: string;
+  from: string;
+  message: string;
+  email: string;
+  recipientEmail: string;
+}
+
+/** A gift voucher → the hosted Checkout URL. Null when Stripe isn't reachable. */
+export async function voucherCheckout(v: VoucherRequest) {
+  return call<{ url: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ kind: "voucher", ...v }) });
+}
+
 export interface ConfirmResult {
-  kind: "order" | "subscription" | "other";
+  kind: "order" | "subscription" | "voucher" | "other";
+  voucher?: IssuedVoucher;
   lines?: { f: string; k: FormatKey; q: number; e: string | null; s: number; u: number }[];
   amountTotal?: number | null;
 }

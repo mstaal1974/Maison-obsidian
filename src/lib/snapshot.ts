@@ -139,8 +139,13 @@ function pageFor(path: string, frags: Fragrance[]): Page | null {
       };
     case "/body":
       return {
-        title: "Body wash, moisturiser and sets",
+        title: "The Gift Box",
         intro: ["The Gift Box: a Maison Obsidian fragrance as a 30 ml eau de parfum, body wash and body lotion, boxed, for $60, with an optional handwritten gift card. Body wash and lotion come only in the Gift Box. Choose who it is for, pick the scent by the fragrance it is inspired by, then add a card."],
+      };
+    case "/gift-card":
+      return {
+        title: "Gift vouchers",
+        intro: ["A Maison Obsidian gift voucher from $10 to $500. Choose the cardstock (Obsidian Noir or Alabaster Silk), the value, who it's for and a note; it's emailed the moment it's paid, to you or straight to them, with a printable card. Redeem it as a promotion code at checkout, in one order, within three years."],
       };
     case "/subscribe":
       return {
