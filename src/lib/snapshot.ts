@@ -140,7 +140,7 @@ function pageFor(path: string, frags: Fragrance[]): Page | null {
     case "/body":
       return {
         title: "Body wash, moisturiser and sets",
-        intro: ["Body wash and body lotion in Maison Obsidian fragrances, or the Gift Box: a 30 ml eau de parfum, body wash and body lotion, boxed, for $60, with an optional handwritten gift card. Choose who it is for, pick the scent by the fragrance it is inspired by, then choose and add a card."],
+        intro: ["The Gift Box: a Maison Obsidian fragrance as a 30 ml eau de parfum, body wash and body lotion, boxed, for $60, with an optional handwritten gift card. Body wash and lotion come only in the Gift Box. Choose who it is for, pick the scent by the fragrance it is inspired by, then add a card."],
       };
     case "/subscribe":
       return {

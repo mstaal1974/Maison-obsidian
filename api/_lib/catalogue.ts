@@ -72,12 +72,9 @@ export function formatPrice(f: CatalogueItem, key: FormatKey): number {
 }
 
 export function formatStatus(f: CatalogueItem, key: FormatKey): FormatStatus {
-  const own = f.formatStatus?.[key] ?? FORMAT_BY_KEY[key].defaultStatus;
-  if (key !== "ritual") return own;
-  const parts = RITUAL_PARTS.map((k) => formatStatus(f, k));
-  if (parts.includes("hidden")) return "hidden";
-  if (parts.includes("coming_soon")) return own === "hidden" ? "hidden" : "coming_soon";
-  return own;
+  // Body wash and body lotion are sold only inside the Gift Box. Mirrors src/lib/formats.ts.
+  if (key === "wash" || key === "moist") return "hidden";
+  return f.formatStatus?.[key] ?? FORMAT_BY_KEY[key].defaultStatus;
 }
 
 function rawStock(f: CatalogueItem, key: FormatKey): number {
@@ -111,7 +108,7 @@ export function launched(f: Pick<CatalogueItem, "launchAt">, now = Date.now()): 
 export function buyable(f: CatalogueItem, key: FormatKey): boolean {
   if (!launched(f)) return false;
   const def = FORMAT_BY_KEY[key];
-  const perfume = def.group === "wear" || def.group === "drive";
+  const perfume = def.group === "wear" || def.group === "drive" || key === "ritual";
   return formatStatus(f, key) === "live" && (rawStock(f, key) > 0 || perfume);
 }
 

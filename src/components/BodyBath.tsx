@@ -11,12 +11,8 @@ import { MONO, SERIF, body, btnGold, micro } from "./styles";
 type Wearer = "him" | "her";
 type Step = 1 | 2 | 3;
 
-/** What can be bought on this page: the boxed set first, then the two singles. */
-const PRODUCTS: { key: FormatKey; title: string; sub: string }[] = [
-  { key: "ritual", title: "Gift Box", sub: "30 ml eau de parfum, body wash and body lotion, boxed" },
-  { key: "wash", title: "Body Wash", sub: "300 ml" },
-  { key: "moist", title: "Body Lotion", sub: "300 ml" },
-];
+/** The one thing sold here: body wash and lotion come only in the Gift Box. */
+const BOX: FormatKey = "ritual";
 
 const LIMIT = { to: 40, from: 40, note: 240 } as const;
 
@@ -36,7 +32,6 @@ export default function BodyBath({ fragrances, vip, onAdd }: BodyBathProps) {
   const [step, setStep] = useState<Step>(1);
   const [wearer, setWearer] = useState<Wearer | null>(null);
   const [frag, setFrag] = useState<Fragrance | null>(null);
-  const [product, setProduct] = useState<FormatKey>("ritual");
   const [gift, setGift] = useState<boolean | null>(null);
   const [card, setCard] = useState<GiftCard>({ to: "", from: "", note: "" });
   const [query, setQuery] = useState("");
@@ -45,7 +40,7 @@ export default function BodyBath({ fragrances, vip, onAdd }: BodyBathProps) {
 
   // Scents with body care on sale or coming: masculine or feminine, plus unisex.
   const shelf = useMemo(() => {
-    const has = (f: Fragrance) => PRODUCTS.some((p) => formatStatus(f, p.key) !== "hidden") && (!f.vipOnly || vip);
+    const has = (f: Fragrance) => formatStatus(f, BOX) !== "hidden" && (!f.vipOnly || vip);
     const base = fragrances.filter(has);
     return wearer ? base.filter((f) => matches(f, wearer === "him" ? "men" : "women")) : base;
   }, [fragrances, wearer, vip]);
@@ -64,19 +59,18 @@ export default function BodyBath({ fragrances, vip, onAdd }: BodyBathProps) {
     window.requestAnimationFrame(() => stepTop.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
-  const s = frag ? skuOf(frag, product) : null;
+  const s = frag ? skuOf(frag, BOX) : null;
   const giftReady = gift === false || (gift === true && (card.to.trim() || card.from.trim() || card.note.trim()));
   const add = () => {
     if (!frag || !s?.buyable || !giftReady) return;
     const g = gift ? { to: card.to.trim(), from: card.from.trim(), note: card.note.trim() } : null;
-    onAdd(frag, product, g);
+    onAdd(frag, BOX, g);
     setAdded(true);
   };
   const reset = () => {
     setFrag(null);
     setGift(null);
     setCard({ to: "", from: "", note: "" });
-    setProduct("ritual");
     go(2);
   };
 
@@ -88,7 +82,7 @@ export default function BodyBath({ fragrances, vip, onAdd }: BodyBathProps) {
             <p style={{ ...micro, color: GOLD, margin: 0 }}>Body &amp; Bath</p>
             <h1 style={{ margin: "12px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(38px, 5vw, 60px)", lineHeight: 1.02, color: CREAM }}>Your scent, from shower to skin.</h1>
             <p style={{ ...body, margin: "14px 0 0", fontSize: 15, color: "rgba(243,236,220,0.8)" }}>
-              Body wash and body lotion in your fragrance — or all three in the Gift Box, {money(GIFT_BOX_PRICE)}. Three quick steps.
+              Your fragrance as a 30 ml eau de parfum, body wash and body lotion — the Gift Box, {money(GIFT_BOX_PRICE)}. Three quick steps.
             </p>
           </div>
           <img
@@ -195,43 +189,21 @@ export default function BodyBath({ fragrances, vip, onAdd }: BodyBathProps) {
               <button type="button" onClick={() => go(2)} style={linkBtn}>Change scent</button>
             </div>
 
-            <h2 id="bb-3" style={{ ...heading, marginTop: 30 }}>Choose</h2>
-            <div role="radiogroup" aria-label="Product" className="mo-bb-products" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12, marginTop: 16 }}>
-              {PRODUCTS.map((p) => {
-                const ps = skuOf(frag, p.key);
-                if (ps.status === "hidden") return null;
-                const on = product === p.key;
-                return (
-                  <button
-                    key={p.key}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => {
-                      setProduct(p.key);
-                      setAdded(false);
-                    }}
-                    style={{ ...choice(on), padding: 0, textAlign: "left", overflow: "hidden", display: "flex", flexDirection: "column" }}
-                  >
-                    {p.key === "ritual" && <img src="/assets/gift-box.jpg" alt="" loading="lazy" style={{ width: "100%", height: 150, objectFit: "cover", display: "block" }} />}
-                    <span style={{ padding: "14px 16px 16px", display: "block" }}>
-                      <span style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
-                        <span style={{ fontFamily: SERIF, fontSize: 24, color: CREAM }}>{p.title}</span>
-                        <span style={{ fontFamily: MONO, fontSize: 13, color: GOLD }}>{money(ps.price)}</span>
-                      </span>
-                      <span style={{ display: "block", fontSize: 13, color: "rgba(243,236,220,0.6)", marginTop: 4, lineHeight: 1.5 }}>{p.sub}</span>
-                      {p.key === "ritual" && ps.compareAt && ps.compareAt > ps.price && (
-                        <span style={{ display: "block", ...micro, color: GOLD, marginTop: 8 }}>Save {money(ps.compareAt - ps.price)} on the three</span>
-                      )}
-                      {!ps.buyable && <span style={{ display: "block", ...micro, color: "rgba(243,236,220,0.5)", marginTop: 8 }}>{ps.status === "coming_soon" ? "Coming soon" : ps.availability}</span>}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="mo-bb-box" style={{ ...choice(true), marginTop: 26, display: "grid", gridTemplateColumns: "minmax(0, 260px) minmax(0, 1fr)", overflow: "hidden", maxWidth: 760 }}>
+              <img src="/assets/gift-box.jpg" alt="The Gift Box: 30 ml eau de parfum, body wash and body lotion" loading="lazy" style={{ width: "100%", height: "100%", minHeight: 200, objectFit: "cover", display: "block" }} />
+              <div style={{ padding: "20px 22px" }}>
+                <h2 id="bb-3" style={{ ...heading, fontSize: 32 }}>The Gift Box</h2>
+                <p style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.6, color: "rgba(243,236,220,0.72)" }}>
+                  {frag.name} as a 30 ml eau de parfum, body wash and body lotion, in the house's black gift box.
+                </p>
+                <div style={{ fontFamily: MONO, fontSize: 18, color: GOLD, marginTop: 14 }}>{s ? money(s.price) : ""}</div>
+                {s && !s.buyable && <div style={{ ...micro, color: "rgba(243,236,220,0.5)", marginTop: 8 }}>{s.status === "coming_soon" ? "Coming soon" : s.availability}</div>}
+                {s?.buyable && <div style={{ ...micro, color: "rgba(243,236,220,0.5)", marginTop: 8 }}>{s.availability}</div>}
+              </div>
             </div>
 
             {s && !s.buyable ? (
-              <NotifyMe frag={frag} format={product} title={PRODUCTS.find((p) => p.key === product)?.title ?? ""} />
+              <NotifyMe frag={frag} format="ritual" title="Gift Box" />
             ) : (
               <>
                 <h2 style={{ ...heading, marginTop: 34 }}>Is it a gift?</h2>
@@ -301,7 +273,7 @@ function Steps({ step, wearer, frag, onGo }: { step: Step; wearer: Wearer | null
   const items: { n: Step; label: string; value: string | null }[] = [
     { n: 1, label: "For", value: wearer ? (wearer === "him" ? "Him" : "Her") : null },
     { n: 2, label: "Scent", value: frag?.name ?? null },
-    { n: 3, label: "Choose & gift", value: null },
+    { n: 3, label: "Gift Box", value: null },
   ];
   return (
     <ol aria-label="Steps" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", gap: 8, flexWrap: "wrap" }}>

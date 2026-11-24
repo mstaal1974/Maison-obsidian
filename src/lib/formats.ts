@@ -46,6 +46,8 @@ export const FORMAT_BY_KEY: Record<FormatKey, FormatDef> = Object.fromEntries(FO
  */
 export const RITUAL_PARTS: FormatKey[] = ["perf30", "wash", "moist"];
 export const GIFT_BOX_PRICE = 6000;
+/** Never sold on their own: they come in the Gift Box (the box has its own status). */
+export const BOX_ONLY: FormatKey[] = ["wash", "moist"];
 
 export interface Sku {
   key: FormatKey;
@@ -86,13 +88,9 @@ export function formatPrice(f: Fragrance, key: FormatKey): number {
 }
 
 export function formatStatus(f: Fragrance, key: FormatKey): FormatStatus {
-  const own = f.formatStatus?.[key] ?? FORMAT_BY_KEY[key].defaultStatus;
-  if (key !== "ritual") return own;
-  // The set can only be live when every part is live.
-  const parts = RITUAL_PARTS.map((k) => formatStatus(f, k));
-  if (parts.includes("hidden")) return "hidden";
-  if (parts.includes("coming_soon")) return own === "hidden" ? "hidden" : "coming_soon";
-  return own;
+  // Body wash and body lotion are sold only inside the Gift Box.
+  if (BOX_ONLY.includes(key)) return "hidden";
+  return f.formatStatus?.[key] ?? FORMAT_BY_KEY[key].defaultStatus;
 }
 
 export function sku(f: Fragrance, key: FormatKey): Sku {
@@ -100,10 +98,11 @@ export function sku(f: Fragrance, key: FormatKey): Sku {
   const status = formatStatus(f, key);
   const stock = rawStock(f, key);
   const price = formatPrice(f, key);
-  const compareAt = key === "ritual" ? RITUAL_PARTS.reduce((s, k) => s + formatPrice(f, k), 0) : undefined;
-  // Perfume and car diffusers are filled from the same oil on demand, so they
-  // stay orderable at zero stock; body care ships from finished stock only.
-  const perfume = def.group === "wear" || def.group === "drive";
+  // No "compare at" on the Gift Box: its body care isn't sold on its own, so
+  // there is no separate price to save against.
+  const compareAt = undefined;
+  // Perfume and diffusers are poured to order, and so is the Gift Box's 30 ml.
+  const perfume = def.group === "wear" || def.group === "drive" || key === "ritual";
   const buyable = status === "live" && (stock > 0 || perfume);
   const availability =
     status === "coming_soon"

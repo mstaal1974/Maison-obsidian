@@ -972,7 +972,8 @@ main[data-screen-label="Checkout"] aside div { font-size: max(0.875rem, 14px); }
 
 /* Body & Bath: the product choice and two-up fields stack on a phone. */
 @media (max-width: 720px) {
-  .mo-bb-products { grid-template-columns: minmax(0, 1fr) !important; }
+  .mo-bb-box { grid-template-columns: minmax(0, 1fr) !important; }
+  .mo-bb-box img { max-height: 240px; }
   .mo-bb-two { grid-template-columns: minmax(0, 1fr) !important; }
   .mo-bb-hero { grid-template-columns: minmax(0, 1fr) !important; gap: 22px !important; padding-top: 28px !important; padding-bottom: 28px !important; }
   .mo-bb-hero img { max-height: 260px; }

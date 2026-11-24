@@ -110,8 +110,8 @@ export function staticPageMeta(path: string, origin: string, sameAs: string[] = 
         "Luxury hanging car diffusers and car perfume for Australia: every Maison Obsidian scent, from oud to fresh citrus, as a 10 ml diffuser with a wooden cap. Hand-poured in Brisbane.",
     },
     "/body": {
-      title: "Body Wash, Body Lotion & Fragrance Gift Box | Maison Obsidian",
-      description: "Body wash and body lotion in your Maison Obsidian fragrance, or the Gift Box — a 30 ml eau de parfum, body wash and lotion, boxed, for $60. Add a handwritten gift card.",
+      title: "Fragrance Gift Box: Perfume, Body Wash & Lotion | Maison Obsidian",
+      description: "The Maison Obsidian Gift Box: your fragrance as a 30 ml eau de parfum, body wash and body lotion, boxed, for $60. Add a handwritten gift card.",
     },
     "/subscribe": {
       title: "The Monthly Pour — Perfume Subscription | Maison Obsidian",
