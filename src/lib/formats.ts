@@ -24,7 +24,7 @@ export const GROUPS: Record<FormatGroup, { title: string; sub: string; verb: str
   wear: { title: "Wear it", sub: "Eau de Parfum", verb: "Wear" },
   drive: { title: "Drive with it", sub: "Car diffuser", verb: "Drive" },
   live: { title: "Live in it", sub: "Body care", verb: "Ritual" },
-  ritual: { title: "Complete the ritual", sub: "Curated set", verb: "Set" },
+  ritual: { title: "Give it", sub: "Gift box", verb: "Gift" },
 };
 
 export const FORMATS: FormatDef[] = [
@@ -33,15 +33,19 @@ export const FORMATS: FormatDef[] = [
   { key: "perf50", group: "wear", label: "50ml", name: "Eau de Parfum 50ml", short: "50ml", sizeMl: 50, sku: "PERF-50", defaultPrice: null, defaultStatus: "live" },
   { key: "car", group: "drive", label: "Car Diffuser", name: "Car Diffuser 10ml", short: "CAR", sizeMl: 10, sku: "CAR-10", defaultPrice: HOUSE_PRICE.car, defaultStatus: "live" },
   { key: "wash", group: "live", label: "Body Wash", name: "Body Wash 300ml", short: "WASH", sizeMl: 300, sku: "WASH", defaultPrice: 4200, defaultStatus: "coming_soon" },
-  { key: "moist", group: "live", label: "Moisturiser", name: "Body Moisturiser 300ml", short: "BODY", sizeMl: 300, sku: "MOIST", defaultPrice: 4800, defaultStatus: "coming_soon" },
-  { key: "ritual", group: "ritual", label: "The Complete Ritual", name: "The Complete Ritual (4 pieces)", short: "SET", sizeMl: 50, sku: "RITUAL", defaultPrice: null, defaultStatus: "coming_soon" },
+  { key: "moist", group: "live", label: "Body Lotion", name: "Body Lotion 300ml", short: "BODY", sizeMl: 300, sku: "MOIST", defaultPrice: 4800, defaultStatus: "coming_soon" },
+  { key: "ritual", group: "ritual", label: "Gift Box", name: "The Gift Box (30ml, Body Wash & Body Lotion)", short: "GIFT", sizeMl: 30, sku: "RITUAL", defaultPrice: 6000, defaultStatus: "coming_soon" },
 ];
 
 export const FORMAT_BY_KEY: Record<FormatKey, FormatDef> = Object.fromEntries(FORMATS.map((f) => [f.key, f])) as Record<FormatKey, FormatDef>;
 
-/** Bundles are intelligent: the Ritual is made of real SKUs, not its own stock. */
-export const RITUAL_PARTS: FormatKey[] = ["perf50", "wash", "moist"];
-export const RITUAL_DISCOUNT = 0.15;
+/**
+ * The Gift Box is made of real SKUs, not its own stock: a 30 ml eau de parfum,
+ * the body wash and the body lotion in one of the house's black boxes, at a set
+ * price (GIFT_BOX_PRICE; api/_lib/catalogue.ts prices it the same).
+ */
+export const RITUAL_PARTS: FormatKey[] = ["perf30", "wash", "moist"];
+export const GIFT_BOX_PRICE = 6000;
 
 export interface Sku {
   key: FormatKey;
@@ -65,7 +69,8 @@ function rawStock(f: Fragrance, key: FormatKey): number {
     case "car": return f.stockCar ?? 0;
     case "wash": return f.stockWash ?? 0;
     case "moist": return f.stockMoist ?? 0;
-    case "ritual": return Math.min(...RITUAL_PARTS.map((k) => rawStock(f, k)));
+    // The perfume in it is poured to order, so the box is limited by the body care.
+    case "ritual": return Math.min(...RITUAL_PARTS.filter((k) => FORMAT_BY_KEY[k].group === "live").map((k) => rawStock(f, k)));
   }
 }
 
@@ -76,7 +81,6 @@ export function formatPrice(f: Fragrance, key: FormatKey): number {
     case "perf10": return f.price10;
     case "perf30": return f.price30;
     case "perf50": return f.price;
-    case "ritual": return Math.round((RITUAL_PARTS.reduce((s, k) => s + formatPrice(f, k), 0) * (1 - RITUAL_DISCOUNT)) / 100) * 100;
     default: return FORMAT_BY_KEY[key].defaultPrice ?? 0;
   }
 }

@@ -164,6 +164,29 @@ export interface CheckoutLine {
   engraving: string | null;
   /** Discovery Box pieces are priced as a set. */
   label?: string;
+  /** A gift card to write and pack with this line. */
+  gift?: GiftCard | null;
+}
+
+export interface GiftCard {
+  to: string;
+  from: string;
+  note: string;
+}
+
+const GIFT_LIMITS = { to: 40, from: 40, note: 240 } as const;
+
+/** A gift card as sent by the browser: plain text, trimmed and capped; null when empty. */
+export function cleanGift(g: unknown): GiftCard | null {
+  if (g == null) return null;
+  if (typeof g !== "object") throw new Error("Invalid gift card");
+  const read = (k: keyof GiftCard) => {
+    const v = (g as Record<string, unknown>)[k];
+    if (v != null && typeof v !== "string") throw new Error("Invalid gift card");
+    return (v ?? "").replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, "").trim().slice(0, GIFT_LIMITS[k]);
+  };
+  const card = { to: read("to"), from: read("from"), note: read("note") };
+  return card.to || card.from || card.note ? card : null;
 }
 
 export interface PricedLine extends CheckoutLine {
@@ -193,7 +216,7 @@ export function priceLines(lines: CheckoutLine[], catalogue: Map<string, Catalog
     if (!buyable(f, l.format)) throw new Error(`${f.name} ${def.name} is not available`);
     const qty = Math.max(1, Math.min(20, Math.floor(l.qty || 1)));
     const unit = l.format === "perf10" && l.label === "Discovery Box" && boxPriced ? Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE) : formatPrice(f, l.format);
-    return { ...l, qty, engraving: l.engraving?.trim().slice(0, 28) || null, name: f.name, formatName: def.name, sizeMl: def.sizeMl, unitCents: unit };
+    return { ...l, qty, engraving: l.engraving?.trim().slice(0, 28) || null, gift: cleanGift(l.gift), name: f.name, formatName: def.name, sizeMl: def.sizeMl, unitCents: unit };
   });
 }
 

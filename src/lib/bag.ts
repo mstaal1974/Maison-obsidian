@@ -14,6 +14,14 @@ export interface BagLine {
   /** Price override in cents — Discovery Box pieces are priced as a set. */
   unitPrice?: number;
   label?: string; // e.g. "Discovery Box"
+  /** A handwritten card packed with this line. */
+  gift?: GiftCard | null;
+}
+
+export interface GiftCard {
+  to: string;
+  from: string;
+  note: string;
 }
 
 export interface Order {
@@ -86,7 +94,7 @@ const BOX_UNIT = Math.round(DISCOVERY_BOX_PRICE / DISCOVERY_BOX_SIZE);
  * is a personalised bottle, so it stays out of boxes.
  */
 function regroup(input: BagLine[]): BagLine[] {
-  const pooled = (l: BagLine) => l.format === "perf10" && !l.engraving;
+  const pooled = (l: BagLine) => l.format === "perf10" && !l.engraving && !l.gift;
   const pool = input.filter(pooled);
   const total = pool.reduce((n, l) => n + l.qty, 0);
   let boxed = Math.floor(total / DISCOVERY_BOX_SIZE) * DISCOVERY_BOX_SIZE;
@@ -157,9 +165,10 @@ export function addToBag(
   format: FormatKey,
   qty = 1,
   engraving: string | null = null,
-  extra?: { unitPrice?: number; label?: string },
+  extra?: { unitPrice?: number; label?: string; gift?: GiftCard | null },
 ): void {
-  const id = `${fragranceId}:${format}${extra?.label ? ":box" : ""}`;
+  // A gift is its own line, so each keeps its own card.
+  const id = extra?.gift ? `${fragranceId}:${format}:gift:${Date.now().toString(36)}` : `${fragranceId}:${format}${extra?.label ? ":box" : ""}`;
   const existing = lines.find((l) => l.id === id);
   lines = regroup(
     existing

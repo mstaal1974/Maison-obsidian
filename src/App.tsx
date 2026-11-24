@@ -51,6 +51,7 @@ import { demoRequestQueries } from "./lib/requests";
 const AdminConsole = lazy(() => import("./components/AdminConsole"));
 const StaffDesk = lazy(() => import("./components/StaffDesk"));
 const ScentDna = lazy(() => import("./components/ScentDna"));
+const BodyBath = lazy(() => import("./components/BodyBath"));
 
 export default function App() {
   const [route, setRoute] = useState<Route>(() => currentRoute());
@@ -157,7 +158,7 @@ export default function App() {
           }),
         );
         const r = await stripeCheckout(
-          lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })),
+          lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label, ...(l.gift ? { gift: l.gift } : {}) })),
           delivery,
         );
         if (r?.ok) {
@@ -484,7 +485,22 @@ export default function App() {
         </main>
       )}
 
-      {(route.view === "shop" || route.view === "fragrances" || route.view === "car" || route.view === "body") && (
+      {route.view === "body" && (
+        <Suspense fallback={null}>
+          <BodyBath
+            fragrances={fragrances}
+            vip={vip}
+            onAdd={(f, format, gift) => {
+              addToBag(f.id, format, 1, null, gift ? { gift } : undefined);
+              trackAddToCart({ id: f.id, name: f.name, format, priceCents: sku(f, format).price });
+              setPlaced(null);
+              setBagOpen(true);
+            }}
+          />
+        </Suspense>
+      )}
+
+      {(route.view === "shop" || route.view === "fragrances" || route.view === "car") && (
         <Collection
           key={`${route.view}:${route.view === "shop" ? route.facet ?? "" : ""}`}
           mode={route.view}

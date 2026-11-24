@@ -115,6 +115,7 @@ export default function BagDrawer({ lines, fragrances, placed, onClose, onChecko
                     <div>
                       <div style={{ fontFamily: SERIF, fontSize: 18, color: CREAM, lineHeight: 1.05 }}>{frag.name}</div>
                       <div style={{ ...micro, marginTop: 4 }}>{line.label ? `${line.label} · ${s.def.label}` : s.def.name}{line.engraving ? ` · “${line.engraving}”` : ""}</div>
+                      {line.gift && <div style={{ ...micro, marginTop: 4, color: GOLD }}>Gift{line.gift.to ? ` for ${line.gift.to}` : ""} · card{line.gift.from ? ` from ${line.gift.from}` : ""}</div>}
                       {note && <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.45, color: "rgba(243,236,220,0.55)" }}>{note}</div>}
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
                         <button aria-label="Decrease" onClick={() => (line.qty <= 1 ? remove({ line, frag }) : setQty(line.id, line.qty - 1))} style={{ width: 26, height: 26, border: "1px solid #1f1f27", background: "none", color: CREAM, cursor: "pointer" }}>−</button>
