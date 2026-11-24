@@ -46,7 +46,7 @@ const INTRO: Record<CollectionMode, { eyebrow: string; title: string; copy: stri
   shop: { eyebrow: "Shop", title: "Niche perfume, every way in.", copy: "Boutique niche perfume from Australia: filter by who it's for, the scent you're after, or the format you want it in." },
   fragrances: { eyebrow: "Eau de Parfum · Signature", title: "Extrait de parfum, hand-poured.", copy: "Extrait de parfum in Australia — 30% perfume oil sourced from Dubai, hand-poured in small batches in Brisbane, so it lasts all day. Meet each in 10 ml, live in it at 30 ml, sign it at 50 ml." },
   car: { eyebrow: "Obsidian Drive", title: "Luxury car diffusers.", copy: "Luxury car diffusers and car perfume for Australia: every scent in the house, from oud to fresh citrus, in our handcrafted hanging diffuser with a wooden cap.", art: "/assets/banner-drive.jpg", fallback: "/assets/bottle-portrait.webp" },
-  body: { eyebrow: "Obsidian Ritual", title: "Cleanse. Hydrate. Be obsessed.", copy: "Body wash, moisturiser and the Complete Ritual set. Layer the fragrance from morning to night.", art: "/assets/banner-ritual.jpg", fallback: "/assets/bottle-pair.png" },
+  body: { eyebrow: "Obsidian Ritual", title: "Cleanse. Hydrate. Be obsessed.", copy: "Body wash, body lotion and the Gift Box. Layer the fragrance from morning to night.", art: "/assets/banner-ritual.jpg", fallback: "/assets/bottle-pair.png" },
 };
 
 const PHONE = "(max-width: 720px)";

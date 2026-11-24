@@ -93,7 +93,7 @@ export default route("checkout", async function handler(req: any, res: any) {
   // against the email they gave.
   const customer = user ? await customerFor(stripe, db, user) : undefined;
   const site = siteUrl(req);
-  const compact = priced.map((l) => ({ f: l.fragranceId, k: l.format, q: l.qty, e: l.engraving, s: l.sizeMl, u: l.unitCents }));
+  const compact = priced.map((l) => ({ f: l.fragranceId, k: l.format, q: l.qty, e: l.engraving, s: l.sizeMl, u: l.unitCents, ...(l.gift ? { g: [l.gift.to, l.gift.from, l.gift.note] } : {}) }));
   // Refuse now rather than take the money and be unable to record what was
   // bought. Twenty chunks is roughly 180 bag lines, so this is a real outlier.
   if (!bagFits(compact)) {
@@ -146,7 +146,8 @@ export default route("checkout", async function handler(req: any, res: any) {
         unit_amount: l.unitCents,
         product_data: {
           name: `${l.name} — ${l.formatName}`,
-          description: l.engraving ? `Engraved “${l.engraving}”` : undefined,
+          // The engraving keeps its exact form: rebuildFromLineItems reads it back.
+          description: l.engraving ? `Engraved “${l.engraving}”` : l.gift ? `Gift${l.gift.to ? ` for ${l.gift.to}` : ""} — with a handwritten card` : undefined,
         },
       },
     })),

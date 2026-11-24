@@ -97,7 +97,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
     const timer = setTimeout(() => {
       setQuote({ key: quoteKey, status: "loading" });
       void quoteShipping(
-        lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label })),
+        lines.map((l) => ({ fragranceId: l.fragranceId, format: l.format, qty: l.qty, engraving: l.engraving, label: l.label, ...(l.gift ? { gift: l.gift } : {}) })),
         quoteKey.slice(quoteKey.lastIndexOf("@") + 1),
       ).then((r) => {
         if (!active) return;
@@ -239,6 +239,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
               <span style={{ display: "block", ...micro, fontSize: 8 }}>
                 {line.label ? `${line.label} · ${s.def.label}` : FORMAT_BY_KEY[line.format].name}
                 {line.engraving ? ` · “${line.engraving}”` : ""}
+                {line.gift ? ` · Gift${line.gift.to ? ` for ${line.gift.to}` : ""}, with a card` : ""}
               </span>
             </span>
             <span style={{ fontFamily: MONO, fontSize: 14, color: CREAM }}>{money(unit({ line, frag }) * line.qty)}</span>

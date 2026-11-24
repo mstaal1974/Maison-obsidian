@@ -16,6 +16,10 @@ export interface StaffItem {
   size_ml: number;
   qty: number;
   engraving: string | null;
+  /** The gift card to write (migration 0038); absent on older rows. */
+  gift_to?: string | null;
+  gift_from?: string | null;
+  gift_note?: string | null;
 }
 
 export interface StaffOrder {

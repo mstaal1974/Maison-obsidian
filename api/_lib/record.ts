@@ -13,6 +13,7 @@ interface CompactLine {
   e: string | null; // engraving
   s: number; // size ml
   u: number; // unit cents
+  g?: [string, string, string]; // gift card: to, from, note
 }
 
 // ─── The bag, carried through Stripe ─────────────────────────────────────────
@@ -97,6 +98,9 @@ export async function recordOrder(stripe: Stripe, db: SupabaseClient, session: S
     user_email: session.metadata?.user_email || session.customer_details?.email || null,
     contact_email: session.metadata?.contact_email || session.customer_details?.email || null,
     engraving: l.e,
+    gift_to: l.g?.[0] || null,
+    gift_from: l.g?.[1] || null,
+    gift_note: l.g?.[2] || null,
     size_ml: l.s,
     charge_cents: l.u,
     payment_intent_id: piId,

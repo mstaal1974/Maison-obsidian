@@ -819,6 +819,14 @@ function FulfillRow({
           {commit.format ? commit.format.toUpperCase() : `${commit.size_ml} ml`} · {commit.charge_cents != null ? money(commit.charge_cents) : "—"}
           {commit.engraving ? ` · “${commit.engraving}”` : ""} · {commit.status}
         </div>
+        {(commit.gift_to || commit.gift_from || commit.gift_note) && (
+          <div style={{ marginTop: 8, border: "1px solid #1f1f27", padding: "8px 10px", maxWidth: 460, fontSize: 13, color: "rgba(243,236,220,0.8)", lineHeight: 1.5 }}>
+            <div style={{ ...label, color: GOLD }}>Gift card</div>
+            {commit.gift_to && <div>To: {commit.gift_to}</div>}
+            {commit.gift_from && <div>From: {commit.gift_from}</div>}
+            {commit.gift_note && <div style={{ whiteSpace: "pre-wrap" }}>“{commit.gift_note}”</div>}
+          </div>
+        )}
         {commit.delivery_method !== "alternate" && (commit.ship_address || commit.delivery_name) && (
           <div style={{ marginTop: 8, border: "1px solid #1f1f27", padding: "8px 10px", maxWidth: 460 }}>
             <div style={{ ...label, color: GOLD }}>Ship to</div>

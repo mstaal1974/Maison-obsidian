@@ -107,6 +107,7 @@ export interface StripeLine {
   qty: number;
   engraving: string | null;
   label?: string;
+  gift?: { to: string; from: string; note: string } | null;
 }
 
 /**

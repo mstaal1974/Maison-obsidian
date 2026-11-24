@@ -494,6 +494,14 @@ function OrderRow({
             {i.name ?? i.fragrance_id}{" "}
             <span style={{ ...label, fontSize: 9 }}>{formatLabel(i.format, i.size_ml)}</span>
             {i.engraving && <div style={{ ...label, fontSize: 9, color: "rgba(201,169,97,0.8)" }}>Engraved · {i.engraving}</div>}
+            {(i.gift_to || i.gift_from || i.gift_note) && (
+              <div style={{ marginTop: 4, borderLeft: `2px solid ${GOLD}`, paddingLeft: 8, fontSize: 11.5, color: "rgba(243,236,220,0.75)" }}>
+                <span style={{ ...label, fontSize: 9, color: GOLD }}>Gift card</span>
+                {i.gift_to && <div>To: {i.gift_to}</div>}
+                {i.gift_from && <div>From: {i.gift_from}</div>}
+                {i.gift_note && <div style={{ whiteSpace: "pre-wrap" }}>“{i.gift_note}”</div>}
+              </div>
+            )}
             {i.inspiration && <div style={{ fontSize: 10.5, color: "rgba(243,236,220,0.32)" }}>{i.inspiration}</div>}
           </div>
         ))}
@@ -571,6 +579,13 @@ function PackList({ orders }: { orders: StaffOrder[] }) {
                   <td>
                     {i.name ?? i.fragrance_id} <em>{formatLabel(i.format, i.size_ml)}</em>
                     {i.engraving && <div className="engrave">Engrave: {i.engraving}</div>}
+                    {(i.gift_to || i.gift_from || i.gift_note) && (
+                      <div className="engrave">
+                        Gift card — {i.gift_to ? `To: ${i.gift_to}. ` : ""}
+                        {i.gift_from ? `From: ${i.gift_from}. ` : ""}
+                        {i.gift_note ? `“${i.gift_note}”` : ""}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

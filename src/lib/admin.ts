@@ -197,16 +197,22 @@ export interface AdminCommitRow {
   ship_city?: string | null;
   ship_region?: string | null;
   ship_postcode?: string | null;
+  gift_to?: string | null;
+  gift_from?: string | null;
+  gift_note?: string | null;
 }
+
+const COMMIT_COLUMNS =
+  "id, user_id, user_email, fragrance_id, format, size_ml, qty, charge_cents, engraving, status, created_at, delivery_method, delivery_name, delivery_phone, delivery_notes, contact_email, ship_address, ship_city, ship_region, ship_postcode";
 
 /** All commits (admin RLS). Null when unconfigured (caller uses local state). */
 export async function fetchAllCommits(): Promise<AdminCommitRow[] | null> {
   if (!supabase) return null;
   try {
-    const { data, error } = await supabase
-      .from("commits")
-      .select("id, user_id, user_email, fragrance_id, format, size_ml, qty, charge_cents, engraving, status, created_at, delivery_method, delivery_name, delivery_phone, delivery_notes, contact_email, ship_address, ship_city, ship_region, ship_postcode")
-      .order("created_at", { ascending: false });
+    // With the gift-card columns when migration 0038 has run; without them otherwise.
+    const withGift = await supabase.from("commits").select(`${COMMIT_COLUMNS}, gift_to, gift_from, gift_note`).order("created_at", { ascending: false });
+    if (!withGift.error) return (withGift.data ?? []) as AdminCommitRow[];
+    const { data, error } = await supabase.from("commits").select(COMMIT_COLUMNS).order("created_at", { ascending: false });
     if (error) return null;
     return (data ?? []) as AdminCommitRow[];
   } catch {

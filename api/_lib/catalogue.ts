@@ -43,13 +43,13 @@ export const FORMATS: FormatDef[] = [
   { key: "perf50", group: "wear", name: "Eau de Parfum 50ml", sizeMl: 50, defaultPrice: null, defaultStatus: "live" },
   { key: "car", group: "drive", name: "Car Diffuser 10ml", sizeMl: 10, defaultPrice: 1000, defaultStatus: "live" },
   { key: "wash", group: "live", name: "Body Wash 300ml", sizeMl: 300, defaultPrice: 4200, defaultStatus: "coming_soon" },
-  { key: "moist", group: "live", name: "Body Moisturiser 300ml", sizeMl: 300, defaultPrice: 4800, defaultStatus: "coming_soon" },
-  { key: "ritual", group: "ritual", name: "The Complete Ritual (4 pieces)", sizeMl: 50, defaultPrice: null, defaultStatus: "coming_soon" },
+  { key: "moist", group: "live", name: "Body Lotion 300ml", sizeMl: 300, defaultPrice: 4800, defaultStatus: "coming_soon" },
+  { key: "ritual", group: "ritual", name: "The Gift Box (30ml, Body Wash & Body Lotion)", sizeMl: 30, defaultPrice: 6000, defaultStatus: "coming_soon" },
 ];
 export const FORMAT_BY_KEY = Object.fromEntries(FORMATS.map((f) => [f.key, f])) as Record<FormatKey, FormatDef>;
 
-const RITUAL_PARTS: FormatKey[] = ["perf50", "wash", "moist"];
-const RITUAL_DISCOUNT = 0.15;
+// The Gift Box: a 30 ml with the body wash and lotion, boxed, at a set price.
+const RITUAL_PARTS: FormatKey[] = ["perf30", "wash", "moist"];
 
 export const SUBSCRIPTION_MONTHS = 12;
 export const SUBSCRIPTION_DISCOUNT = 0.1;
@@ -66,8 +66,6 @@ export function formatPrice(f: CatalogueItem, key: FormatKey): number {
       return f.price30;
     case "perf50":
       return f.price;
-    case "ritual":
-      return Math.round((RITUAL_PARTS.reduce((s, k) => s + formatPrice(f, k), 0) * (1 - RITUAL_DISCOUNT)) / 100) * 100;
     default:
       return FORMAT_BY_KEY[key].defaultPrice ?? 0;
   }
@@ -97,7 +95,8 @@ function rawStock(f: CatalogueItem, key: FormatKey): number {
     case "moist":
       return f.stockMoist;
     case "ritual":
-      return Math.min(...RITUAL_PARTS.map((k) => rawStock(f, k)));
+      // The perfume in it is poured to order, so the box is limited by the body care.
+      return Math.min(...RITUAL_PARTS.filter((k) => FORMAT_BY_KEY[k].group === "live").map((k) => rawStock(f, k)));
   }
 }
 
