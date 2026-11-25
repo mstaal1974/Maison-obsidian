@@ -12,6 +12,7 @@ import { auspostConfigured, quoteRates } from "../_lib/auspost.js";
 import { bagFits, chunkBag } from "../_lib/record.js";
 import { parcelFor } from "../_lib/parcel.js";
 import { startVoucherCheckout } from "../_lib/voucher.js";
+import { checkCode, findCode } from "../_lib/discount.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -27,6 +28,8 @@ export default route("checkout", async function handler(req: any, res: any) {
   const body = readBody(req);
   // A gift voucher is its own, digital checkout (api/_lib/voucher.ts).
   if (body.kind === "voucher") return startVoucherCheckout(req, res, stripe, body, user);
+  // The gift voucher / promo code box on /checkout (api/_lib/discount.ts).
+  if (body.kind === "check-code") return checkCode(req, res, stripe, body);
   const lines = (Array.isArray(body.lines) ? body.lines : []) as CheckoutLine[];
   if (!lines.length) return json(res, 400, { error: "Your bag is empty" });
 
@@ -92,6 +95,16 @@ export default route("checkout", async function handler(req: any, res: any) {
     shipping = { name: chosen.name, chargeCents: chosen.chargeCents, etaDays: chosen.etaDays };
   }
 
+  // A gift voucher or promo code typed on our page, checked again here and
+  // applied as the session's discount. Without one, Stripe's own "Add
+  // promotion code" stays available (the two can't be combined).
+  let discount: Awaited<ReturnType<typeof findCode>> | null = null;
+  if (String(body.discountCode ?? "").trim()) {
+    discount = await findCode(stripe, body.discountCode, priced.reduce((n, l) => n + l.unitCents * l.qty, 0));
+    if ("error" in discount) return json(res, 400, { error: discount.error });
+  }
+  const promo = discount && !("error" in discount) ? discount.promo : null;
+
   // A signed-in customer keeps their Stripe customer record; a guest is billed
   // against the email they gave.
   const customer = user ? await customerFor(stripe, db, user) : undefined;
@@ -110,12 +123,12 @@ export default route("checkout", async function handler(req: any, res: any) {
     phone_number_collection: { enabled: false },
     automatic_tax: { enabled: false },
     // Codes are created in the Stripe Dashboard (Product catalogue → Coupons).
-    allow_promotion_codes: true,
+    ...(promo ? { discounts: [{ promotion_code: promo.id }] } : { allow_promotion_codes: true }),
     // An unpaid checkout closes after three hours; the recovery link reopens
     // the same bag for 30 days, and the webhook emails it to shoppers who
     // asked for a reminder (api/_lib/recovery.ts).
     expires_at: Math.floor(Date.now() / 1000) + 3 * 60 * 60,
-    after_expiration: { recovery: { enabled: true, allow_promotion_codes: true } },
+    after_expiration: { recovery: { enabled: true, allow_promotion_codes: !promo } },
     submit_type: "auto",
     integration_identifier: "hosted_web_0001",
     origin_context: "web",
@@ -169,6 +182,7 @@ export default route("checkout", async function handler(req: any, res: any) {
       // past about eight lines and made it unrecordable after payment.
       ...chunkBag(compact),
       delivery_method: alternate ? "alternate" : "auspost",
+      ...(promo ? { discount_code: promo.code } : {}),
       ...(delivery.remindMe === true ? { remind: "1" } : {}),
       ...(contactEmail ? { contact_email: contactEmail } : {}),
       ...(deliveryName ? { delivery_name: deliveryName } : {}),

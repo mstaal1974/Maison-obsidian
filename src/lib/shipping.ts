@@ -79,6 +79,8 @@ export interface CheckoutDelivery {
   notes?: string;
   /** Opted in to one email with a link back to this checkout if it isn't finished. */
   remindMe?: boolean;
+  /** A gift voucher or promo code from the code box, applied by the server. */
+  discountCode?: string;
 }
 
 export function etaLabel(r: ShippingRate): string {

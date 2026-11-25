@@ -5,6 +5,7 @@ import { sku as skuOf, FORMAT_BY_KEY } from "../lib/formats";
 import { navigate, paths } from "../lib/route";
 import { type CheckoutDelivery, type ShippingRate, etaLabel, quoteShipping } from "../lib/shipping";
 import { type AnalyticsItem, trackAddPaymentInfo, trackAddShippingInfo } from "../lib/analytics";
+import { type CheckedCode, checkDiscountCode } from "../lib/stripe";
 import { Arrow, Icon } from "./ui";
 import "../styles/checkout.css";
 
@@ -120,7 +121,11 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
   const alternate = method === "alternate";
   // Alternate delivery is arranged directly, so nothing is charged for it.
   const shippingCents = alternate ? 0 : (rate?.chargeCents ?? 0);
-  const total = subtotal + shippingCents;
+  // A gift voucher or promo code: what it takes off the items (not postage),
+  // shown here; the server checks it again and Stripe applies it.
+  const [code, setCode] = useState<CheckedCode | null>(null);
+  const discountCents = code ? Math.min(subtotal, code.amountOffCents ?? Math.round((subtotal * (code.percentOff ?? 0)) / 100)) : 0;
+  const total = subtotal - discountCents + shippingCents;
 
   const delivery: CheckoutDelivery = alternate
     ? { method: "alternate", email: contact.trim(), name: fullName.trim(), phone: phone.trim(), notes: notes.trim(), remindMe }
@@ -136,6 +141,7 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         ...(postcode.trim().length === 4 ? { postcode: postcode.trim() } : {}),
         ...(rate && postcode.trim().length === 4 ? { code: rate.code } : {}),
       };
+  if (code) delivery.discountCode = code.code;
 
   const missing = alternate
     ? [contact, phone, fullName, notes].some((v) => !v.trim())
@@ -310,6 +316,12 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
                 <span style={micro}>Shipping</span>
                 <span style={{ color: shippingCell.tone }}>{shippingCell.value}</span>
               </div>
+              {code && discountCents > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between", color: "#8bb98a" }}>
+                  <span style={{ ...micro, color: "#8bb98a" }}>{code.label}</span>
+                  <span>−{moneyExact(discountCents)}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -471,7 +483,15 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
               <span data-testid="summary-shipping" style={{ color: shippingCell.tone }}>{shippingCell.value}</span>
             </div>
             {shippingCell.note && <div style={{ fontSize: 14, lineHeight: 1.5, color: shippingCell.tone === "#d98a6a" ? "#d98a6a" : "rgba(243,236,220,0.5)" }}>{shippingCell.note}</div>}
+            {code && discountCents > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: MONO, fontSize: 13, color: "#8bb98a" }}>
+                <span style={{ ...micro, color: "#8bb98a" }}>{code.label} · {code.code}</span>
+                <span>−{moneyExact(discountCents)}</span>
+              </div>
+            )}
           </div>
+
+          <CodeBox subtotal={subtotal} applied={code} onApply={setCode} />
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: "1px solid #1f1f27", paddingTop: 14, fontFamily: MONO, color: CREAM }}>
             <span style={micro}>Total</span>
@@ -495,5 +515,82 @@ export default function Checkout({ lines, fragrances, email, signedIn, onSignIn,
         </aside>
       </div>
     </main>
+  );
+}
+
+/**
+ * "Gift voucher or promo code": checked when they press Apply, so a typo or a
+ * used code says so here rather than on Stripe's page. Applying one replaces
+ * Stripe's own "Add promotion code" for this payment.
+ */
+function CodeBox({ subtotal, applied, onApply }: { subtotal: number; applied: CheckedCode | null; onApply: (c: CheckedCode | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (applied) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: "1px solid rgba(139,185,138,0.45)", background: "rgba(139,185,138,0.08)", padding: "10px 12px" }}>
+        <span style={{ fontSize: 14, color: CREAM, lineHeight: 1.4 }}>
+          ✓ {applied.label} <span style={{ fontFamily: MONO, letterSpacing: "0.08em" }}>{applied.code}</span> applied
+        </span>
+        <button type="button" onClick={() => onApply(null)} style={{ ...btnLink, fontSize: 13 }}>
+          Remove
+        </button>
+      </div>
+    );
+  }
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} style={{ ...btnLink, justifySelf: "start", fontSize: 14 }}>
+        Have a gift voucher or promo code?
+      </button>
+    );
+  }
+  const apply = async () => {
+    const c = value.trim();
+    if (!c || busy) return;
+    setBusy(true);
+    setError(null);
+    const r = await checkDiscountCode(c, subtotal);
+    setBusy(false);
+    if (r?.ok) {
+      onApply(r.data);
+      setValue("");
+    } else setError(r?.ok === false ? r.error : "Codes can't be checked right now — you can still add it on the payment page.");
+  };
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void apply();
+      }}
+      style={{ display: "grid", gap: 6 }}
+    >
+      <label htmlFor="mo-co-code" style={{ ...micro, color: GOLD }}>
+        Gift voucher or promo code
+      </label>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          id="mo-co-code"
+          value={value}
+          onChange={(e) => setValue(e.target.value.toUpperCase())}
+          placeholder="MO-XXXX-XXXX"
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          style={{ flex: 1, minWidth: 0, height: 44, background: "#0b0b0d", border: "1px solid #2a2a33", color: CREAM, padding: "0 12px", fontFamily: MONO, fontSize: 14, letterSpacing: "0.08em", outline: "none" }}
+        />
+        <button type="submit" disabled={busy || !value.trim()} style={{ height: 44, padding: "0 16px", background: "none", border: `1px solid ${GOLD}`, color: GOLD, cursor: busy || !value.trim() ? "not-allowed" : "pointer", fontFamily: MONO, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", opacity: busy || !value.trim() ? 0.6 : 1 }}>
+          {busy ? "Checking…" : "Apply"}
+        </button>
+      </div>
+      {error && (
+        <div role="alert" style={{ fontSize: 13.5, color: "#d98a6a", lineHeight: 1.5 }}>
+          {error}
+        </div>
+      )}
+    </form>
   );
 }

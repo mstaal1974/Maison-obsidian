@@ -123,6 +123,7 @@ export async function stripeCheckout(lines: StripeLine[], delivery?: CheckoutDel
       lines,
       ...(delivery?.postcode ? { postcode: delivery.postcode } : {}),
       ...(delivery?.code ? { shippingCode: delivery.code } : {}),
+      ...(delivery?.discountCode ? { discountCode: delivery.discountCode } : {}),
       ...(delivery
         ? {
             delivery: {
@@ -140,6 +141,18 @@ export async function stripeCheckout(lines: StripeLine[], delivery?: CheckoutDel
         : {}),
     }),
   });
+}
+
+export interface CheckedCode {
+  code: string;
+  label: string; // "Gift voucher" | "Promo code"
+  amountOffCents: number | null;
+  percentOff: number | null;
+}
+
+/** The checkout page's code box: what a gift voucher or promo code is worth. */
+export async function checkDiscountCode(code: string, subtotalCents: number) {
+  return call<CheckedCode>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ kind: "check-code", code, subtotalCents }) });
 }
 
 /** Monthly Pour → the hosted Checkout URL (subscription). Null when not configured. */
