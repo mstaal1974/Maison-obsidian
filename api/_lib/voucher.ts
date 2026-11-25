@@ -128,10 +128,34 @@ function rowToVoucher(r: any): Voucher {
  * Issue the voucher for a paid session, once. Returns it either way, so the
  * thank-you page can show the card whichever path issued it.
  */
-export async function issueVoucher(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session, req?: any): Promise<Voucher> {
+export interface EmailOutcome {
+  sent: boolean;
+  /** Why not, in words the owner can act on. */
+  error?: string;
+  to?: string[];
+}
+
+export async function issueVoucher(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<Voucher> {
+  return (await issueVoucherRow(stripe, db, session)).voucher;
+}
+
+/**
+ * Issue (once) and make sure it's emailed. The email is safe to repeat: Resend
+ * de-duplicates on the idempotency key for 24 hours, so the thank-you page
+ * calls this too and reports what actually happened, rather than trusting
+ * that the webhook's attempt went through.
+ */
+export async function issueAndEmailVoucher(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ voucher: Voucher; email: EmailOutcome }> {
+  const { voucher, buyer, recipient } = await issueVoucherRow(stripe, db, session);
+  return { voucher, email: await emailVoucher(voucher, buyer, recipient, session.id) };
+}
+
+async function issueVoucherRow(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<{ voucher: Voucher; buyer: string | null; recipient: string | null; fresh: boolean }> {
   if (session.payment_status !== "paid") throw new Error("Payment is not paid");
-  const { data: existing } = await db.from("gift_vouchers").select("*").eq("checkout_session_id", session.id).maybeSingle();
-  if (existing) return rowToVoucher(existing);
+  const { data: existing, error: readError } = await db.from("gift_vouchers").select("*").eq("checkout_session_id", session.id).maybeSingle();
+  // Most often: migration 0039 hasn't been run, so the table doesn't exist.
+  if (readError) throw new Error(`gift_vouchers: ${readError.message}`);
+  if (existing) return { voucher: rowToVoucher(existing), buyer: existing.buyer_email, recipient: existing.recipient_email, fresh: false };
 
   const m = session.metadata ?? {};
   const amountCents = Number(m.amount) * 100;
@@ -174,23 +198,32 @@ export async function issueVoucher(stripe: Stripe, db: SupabaseClient, session: 
     issued_at: issued.toISOString(),
     expires_at: expires.toISOString(),
   };
-  // Whichever path inserts first sends the email; the other gets nothing back.
   const { data: inserted, error } = await db.from("gift_vouchers").upsert(row, { onConflict: "checkout_session_id", ignoreDuplicates: true }).select("*");
-  if (error) throw new Error(error.message);
-  const voucher = rowToVoucher(inserted?.[0] ?? row);
-  if (inserted?.length) await emailVoucher(voucher, row.buyer_email, row.recipient_email, session.id, req);
-  return voucher;
+  if (error) throw new Error(`gift_vouchers: ${error.message}`);
+  return { voucher: rowToVoucher(inserted?.[0] ?? row), buyer: row.buyer_email, recipient: row.recipient_email, fresh: !!inserted?.length };
+}
+
+/** For the webhook: issue, and email the first time it's issued. */
+export async function issueVoucherFromWebhook(stripe: Stripe, db: SupabaseClient, session: Stripe.Checkout.Session): Promise<void> {
+  const { voucher, buyer, recipient, fresh } = await issueVoucherRow(stripe, db, session);
+  if (!fresh) return;
+  const r = await emailVoucher(voucher, buyer, recipient, session.id);
+  if (!r.sent) console.error(`voucher ${voucher.code}: not emailed — ${r.error}`);
 }
 
 /** The voucher by email: to the buyer, and to the recipient if they gave an address. */
-async function emailVoucher(v: Voucher, buyer: string | null, recipient: string | null, sessionId: string, req?: any) {
+async function emailVoucher(v: Voucher, buyer: string | null, recipient: string | null, sessionId: string): Promise<EmailOutcome> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RECOVERY_EMAIL_FROM;
   if (!key || !from) {
-    console.warn(`voucher ${v.code}: issued, but RESEND_API_KEY / RECOVERY_EMAIL_FROM are not set — no email sent`);
-    return;
+    const missing = [!key && "RESEND_API_KEY", !from && "RECOVERY_EMAIL_FROM"].filter(Boolean).join(", ");
+    console.warn(`voucher ${v.code}: issued, but ${missing} not set — no email sent`);
+    return { sent: false, error: `Email isn't set up — missing in Vercel: ${missing}` };
   }
-  const site = req ? siteUrl(req) : process.env.SITE_URL?.replace(/\/+$/, "") || "https://www.maisonobsidian.com.au";
+  if (!buyer) return { sent: false, error: "No email address on the order" };
+  // Fixed, not taken from the request: a repeat must send exactly the same body
+  // for Resend's idempotency key to match.
+  const site = process.env.SITE_URL?.replace(/\/+$/, "") || "https://www.maisonobsidian.com.au";
   const expiry = new Date(v.expiresAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
   const card = (lead: string) => `<div style="font-family:Georgia,serif;color:#1a1a1f;max-width:560px;line-height:1.6">
 <p>${esc(lead)}</p>
@@ -210,16 +243,36 @@ ${v.from ? `<p style="font-size:13px;color:#b7ad97;margin:12px 0 0">From ${esc(v
     [lead, "", `Maison Obsidian gift voucher: ${money(v.amountCents)} AUD`, v.to ? `To: ${v.to}` : "", v.from ? `From: ${v.from}` : "", v.message ? `“${v.message}”` : "", "", `Code: ${v.code}`, "", `Enter the code as the promotion code on the payment page at ${site}. One order, until ${expiry}. Not redeemable for cash.`, "", "Maison Obsidian"]
       .filter((l, i, a) => l !== "" || a[i - 1] !== "")
       .join("\n");
-  const send = async (to: string, subject: string, lead: string, tag: string) => {
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": `voucher-${tag}-${sessionId}` },
-      body: JSON.stringify({ from, to: [to], subject, text: text(lead), html: card(lead), ...(process.env.RECOVERY_REPLY_TO ? { reply_to: process.env.RECOVERY_REPLY_TO } : {}) }),
-    });
-    if (!r.ok) console.error(`voucher ${v.code}: email to ${tag} failed — Resend ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const send = async (to: string, subject: string, lead: string, tag: string): Promise<string | null> => {
+    try {
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "Idempotency-Key": `voucher-${tag}-${sessionId}` },
+        body: JSON.stringify({ from, to: [to], subject, text: text(lead), html: card(lead), ...(process.env.RECOVERY_REPLY_TO ? { reply_to: process.env.RECOVERY_REPLY_TO } : {}) }),
+      });
+      // 409: this exact email was already sent under the same key (the webhook got there first).
+      if (r.ok || r.status === 409) return null;
+      const detail = (await r.text()).slice(0, 300);
+      console.error(`voucher ${v.code}: email to ${tag} failed — Resend ${r.status}: ${detail}`);
+      let message = detail;
+      try {
+        message = (JSON.parse(detail) as { message?: string }).message ?? detail;
+      } catch {
+        /* not JSON */
+      }
+      return `Resend refused it (${r.status}): ${message}`;
+    } catch (e) {
+      return `Couldn't reach Resend: ${e instanceof Error ? e.message : String(e)}`;
+    }
   };
-  if (buyer) await send(buyer, `Your Maison Obsidian gift voucher — ${money(v.amountCents)}`, `Thank you. Here is the gift voucher you bought${v.to ? ` for ${v.to}` : ""} — forward this email or print it from the page you bought it on.`, "buyer");
-  if (recipient && recipient.toLowerCase() !== buyer?.toLowerCase()) {
-    await send(recipient, `${v.from || "Someone"} sent you a Maison Obsidian gift voucher`, `${v.from || "Someone"} has sent you a Maison Obsidian gift voucher.`, "recipient");
+  const sentTo: string[] = [];
+  const buyerError = await send(buyer, `Your Maison Obsidian gift voucher — ${money(v.amountCents)}`, `Thank you. Here is the gift voucher you bought${v.to ? ` for ${v.to}` : ""} — forward this email or print it from the page you bought it on.`, "buyer");
+  if (buyerError) return { sent: false, error: buyerError };
+  sentTo.push(buyer);
+  if (recipient && recipient.toLowerCase() !== buyer.toLowerCase()) {
+    const recipientError = await send(recipient, `${v.from || "Someone"} sent you a Maison Obsidian gift voucher`, `${v.from || "Someone"} has sent you a Maison Obsidian gift voucher.`, "recipient");
+    if (recipientError) return { sent: false, error: `Sent to you, but not to ${recipient}: ${recipientError}`, to: sentTo };
+    sentTo.push(recipient);
   }
+  return { sent: true, to: sentTo };
 }

@@ -176,6 +176,8 @@ export async function voucherCheckout(v: VoucherRequest) {
 export interface ConfirmResult {
   kind: "order" | "subscription" | "voucher" | "other";
   voucher?: IssuedVoucher;
+  /** Whether the voucher email went, and if not, why. */
+  email?: { sent: boolean; error?: string; to?: string[] };
   lines?: { f: string; k: FormatKey; q: number; e: string | null; s: number; u: number }[];
   amountTotal?: number | null;
 }

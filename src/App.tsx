@@ -292,7 +292,7 @@ export default function App() {
         setCommitsVersion((v) => v + 1);
       } else if (r?.ok && r.data.kind === "voucher" && r.data.voucher) {
         trackPurchase(sessionId, r.data.amountTotal ?? r.data.voucher.amountCents, [{ id: "gift-voucher", name: "Gift voucher", priceCents: r.data.voucher.amountCents, qty: 1 }]);
-        setThanks({ status: "paid", voucher: r.data.voucher });
+        setThanks({ status: "paid", voucher: r.data.voucher, voucherEmail: r.data.email });
       } else if (r?.ok && r.data.kind === "subscription") {
         trackSubscriptionStarted(sessionId);
         setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });

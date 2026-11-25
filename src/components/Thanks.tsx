@@ -16,6 +16,7 @@ export interface ThanksState {
   message?: string;
   /** A gift voucher bought: shown as the card, with its code, to print. */
   voucher?: IssuedVoucher;
+  voucherEmail?: { sent: boolean; error?: string; to?: string[] };
 }
 
 interface ThanksProps {
@@ -43,7 +44,7 @@ export default function Thanks({ state, sessionId, signedIn, onJoin }: ThanksPro
     offerSeen.current = true;
     trackSubscriptionOfferViewed("thanks");
   }, [paid]);
-  if (state.voucher) return <VoucherThanks v={state.voucher} />;
+  if (state.voucher) return <VoucherThanks v={state.voucher} email={state.voucherEmail} />;
   return (
     <main data-screen-label="Thank you" style={{ maxWidth: 720, margin: "0 auto", padding: "140px 32px 110px", textAlign: "center" }}>
       <div style={{ display: "inline-flex", width: 60, height: 60, borderRadius: "50%", border: `1px solid ${GOLD}`, alignItems: "center", justifyContent: "center" }}>

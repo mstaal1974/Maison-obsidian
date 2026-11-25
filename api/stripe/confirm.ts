@@ -9,7 +9,7 @@
 import { getStripe, json, serviceClient, userFromRequest, route, notConfigured } from "../_lib/stripe.js";
 import { bagLines, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
 import { withOriginalMetadata } from "../_lib/recovery.js";
-import { issueVoucher } from "../_lib/voucher.js";
+import { issueAndEmailVoucher } from "../_lib/voucher.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -28,7 +28,8 @@ export default route("confirm", async function handler(req: any, res: any) {
   if (session.status !== "complete" || session.payment_status !== "paid") return json(res, 409, { error: "Payment not completed", status: session.status });
 
   if (session.mode === "payment" && session.metadata?.kind === "voucher") {
-    return json(res, 200, { kind: "voucher", voucher: await issueVoucher(stripe, db, session, req), amountTotal: session.amount_total });
+    const { voucher, email } = await issueAndEmailVoucher(stripe, db, session);
+    return json(res, 200, { kind: "voucher", voucher, email, amountTotal: session.amount_total });
   }
   if (session.mode === "payment") {
     await recordOrder(stripe, db, session);

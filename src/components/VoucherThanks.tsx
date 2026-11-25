@@ -9,7 +9,7 @@ import { SERIF, btnGold, btnGhost, micro } from "./styles";
  * Back from paying for a gift voucher: the card itself, with its real code,
  * ready to print (front and back on one page) or copy. It is also emailed.
  */
-export default function VoucherThanks({ v }: { v: IssuedVoucher }) {
+export default function VoucherThanks({ v, email }: { v: IssuedVoucher; email?: { sent: boolean; error?: string; to?: string[] } }) {
   const [flipped, setFlipped] = useState(false);
   const [copied, setCopied] = useState(false);
   const face: VoucherFace = {
@@ -51,8 +51,15 @@ export default function VoucherThanks({ v }: { v: IssuedVoucher }) {
       <p style={{ ...micro, color: GOLD, margin: 0 }}>Gift voucher · paid</p>
       <h1 style={{ fontFamily: SERIF, fontWeight: 300, fontSize: "clamp(38px, 6vw, 52px)", color: CREAM, margin: "14px 0 0", lineHeight: 1.05 }}>Your voucher is ready.</h1>
       <p style={{ margin: "14px auto 0", maxWidth: 560, fontSize: 15, lineHeight: 1.7, color: "rgba(243,236,220,0.7)" }}>
-        {money(v.amountCents)}{v.to ? ` for ${v.to}` : ""}. We've emailed it to you — print it below, or forward the email. To redeem, enter the code as the promotion code at checkout.
+        {money(v.amountCents)}
+        {v.to ? ` for ${v.to}` : ""}.{" "}
+        {email?.sent ? `We've emailed it to ${email.to?.join(" and ") ?? "you"} — print it below, or forward the email.` : "Print it below or copy the code."} To redeem, enter the code as the promotion code at checkout.
       </p>
+      {email && !email.sent && (
+        <p role="status" style={{ margin: "14px auto 0", maxWidth: 560, fontSize: 13.5, lineHeight: 1.6, color: "#E8B48F", border: "1px solid rgba(232,180,143,0.4)", padding: "10px 14px" }}>
+          We couldn't email this voucher{email.error ? `: ${email.error}` : "."} Your code is below and works now — keep a copy.
+        </p>
+      )}
 
       <div style={{ marginTop: 34 }}>
         <VoucherCard v={face} flipped={flipped} onFlip={() => setFlipped((f) => !f)} />
