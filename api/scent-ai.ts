@@ -414,7 +414,9 @@ export default async function handler(req: any, res: any) {
   try {
     const response = await client.beta.messages.create({
       model: "claude-opus-5-5",
-      max_tokens: op === "explain" || op === "curate" ? 8192 : 4096,
+      // Thinking counts against this too (it can't be turned off on this
+      // model), so leave room; a short answer still stops when it's done.
+      max_tokens: 16000,
       output_config: { effort: EFFORT[op] ?? "medium", format: { type: "json_schema", schema } },
       // Everything above the breakpoint is identical for every operation, so a
       // customer moving through the experience reads the catalogue once.

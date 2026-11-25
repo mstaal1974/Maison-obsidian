@@ -716,6 +716,7 @@ function LeadForm({
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   // Whether the email itself went: the Scentprint is kept either way.
   const [sent, setSent] = useState<"sent" | "unavailable" | "failed">("sent");
+  const [why, setWhy] = useState<string | null>(null);
 
   const submit = useCallback(
     async (e: FormEvent) => {
@@ -725,7 +726,9 @@ function LeadForm({
       if (r.ok) {
         const c = r.code ?? code;
         if (r.code) onCode(r.code);
-        setSent(await emailScentResult(c, identity, matches));
+        const mail = await emailScentResult(c, identity, matches);
+        setSent(mail.status);
+        setWhy(mail.detail ?? null);
         setState("done");
       } else {
         setState("error");
@@ -742,6 +745,7 @@ function LeadForm({
           {sent === "sent" ? "Your results are on their way, and your" : sent === "failed" ? "We couldn't send the email just now, but your" : "Your"} Scentprint is on file
           {marketing ? " and you're on the inner-circle list — unsubscribe any time from your account" : ""}. Keep the link: it opens this result on any device.
         </p>
+        {sent !== "sent" && why && <p style={{ ...micro, margin: "10px 0 0", color: ink(0.4), lineHeight: 1.7, textTransform: "none", letterSpacing: "0.04em" }}>Email not sent · {why}</p>}
       </div>
     );
   }

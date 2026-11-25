@@ -235,17 +235,19 @@ export async function emailScentResult(
   code: string,
   identity: { primary: string; secondary: string },
   matches: { slug: string; percent: number }[],
-): Promise<"sent" | "unavailable" | "failed"> {
-  if (!code || isEncodedCode(code)) return "unavailable";
+): Promise<{ status: "sent" | "unavailable" | "failed"; detail?: string }> {
+  if (!code || isEncodedCode(code)) return { status: "unavailable" };
   try {
     const r = await fetch("/api/scent-ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ op: "email-result", code, identity, matches }),
     });
-    if (r.ok || r.status === 409) return "sent"; // 409: already emailed
-    return r.status === 501 ? "unavailable" : "failed";
+    if (r.ok || r.status === 409) return { status: "sent" }; // 409: already emailed
+    const body = (await r.json().catch(() => ({}))) as { error?: string; detail?: string };
+    const detail = [body.error, body.detail].filter(Boolean).join(" — ") || `HTTP ${r.status}`;
+    return { status: r.status === 501 ? "unavailable" : "failed", detail };
   } catch {
-    return "failed";
+    return { status: "failed", detail: "Couldn't reach the server" };
   }
 }

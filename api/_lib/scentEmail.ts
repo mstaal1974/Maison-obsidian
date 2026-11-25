@@ -54,7 +54,7 @@ export async function emailScentResult(req: any, res: any, ip: string) {
   if (!db || !key || !from) {
     const missing = [!db && "SUPABASE_SERVICE_ROLE_KEY", !key && "RESEND_API_KEY", !from && "RECOVERY_EMAIL_FROM"].filter(Boolean);
     console.warn(`[scent/email] not configured: missing ${missing.join(", ")}`);
-    return json(res, 501, { error: "Email isn't configured" });
+    return json(res, 501, { error: "Email isn't configured", detail: `Missing in Vercel: ${missing.join(", ")}` });
   }
 
   const body = readBody(req);
@@ -162,10 +162,18 @@ ${car ? `<p style="margin:22px 0 0;font-size:15px">Wear ${esc(car.name)} in the 
     }),
   });
   if (!r.ok) {
-    console.error(`[scent/email] Resend ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    const raw = (await r.text()).slice(0, 300);
+    console.error(`[scent/email] Resend ${r.status}: ${raw}`);
     // Release the claim so a retry can send it.
     await db.from("scent_profiles").update({ result_emailed_at: null }).eq("code", code);
-    return json(res, 502, { error: "The email didn't send" });
+    let message = raw;
+    try {
+      message = (JSON.parse(raw) as { message?: string }).message ?? raw;
+    } catch {
+      /* not JSON */
+    }
+    // Resend's own words ("…domain is not verified") say what to fix.
+    return json(res, 502, { error: "The email didn't send", detail: `Resend ${r.status}: ${message}` });
   }
   return json(res, 200, { sent: true });
 }
