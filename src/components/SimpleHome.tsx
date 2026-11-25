@@ -19,17 +19,17 @@ interface SimpleHomeProps {
 
 /**
  * The homepage, simplified (UX simplification plan; the previous one is at /classic). Five blocks, one
- * decision at a time: a focused hero, a choice of how to find a scent, four
- * scents to start with, the formats as ways into the day, and reassurance.
+ * decision at a time: a focused hero, the four shopping ranges, a choice of
+ * how to find a scent, four scents to start with, and reassurance.
  * Everything the full homepage offers stays reachable from the header.
  */
 export default function SimpleHome({ fragrances, vip, onQuickView }: SimpleHomeProps) {
   return (
     <main data-screen-label="Home">
       <FocusedHero />
+      <ChooseObsidian />
       <GuidedChoice />
       <StartHere fragrances={fragrances} vip={vip} onQuickView={onQuickView} />
-      <ChooseObsidian title="Make it part of your day" sub="The same scents, for the car and the shower too." />
       <Reassurance />
     </main>
   );

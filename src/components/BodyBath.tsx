@@ -1,20 +1,26 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { type Fragrance, type FormatKey, GOLD, CREAM, matches, money } from "../lib/data";
-import { GIFT_BOX_PRICE, matchesReference, referenceOf, sku as skuOf, formatStatus } from "../lib/formats";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type Fragrance, type FormatKey, type Filter, matches, moneyExact } from "../lib/data";
+import { GIFT_BOX_PRICE, matchesReference, referenceOf, sku as skuOf } from "../lib/formats";
 import type { GiftCard } from "../lib/bag";
 import { joinWaitlist } from "../lib/waitlist";
 import { trackViewItemList } from "../lib/analytics";
 import BottleImage from "./BottleImage";
-import { Container, InspiredBy } from "./ui";
-import { MONO, SERIF, body, btnGold, micro } from "./styles";
+import { Arrow, Container, Icon, InspiredBy } from "./ui";
+import { btnGold } from "./styles";
+import "../styles/body-bath.css";
 
-type Wearer = "him" | "her";
-type Step = 1 | 2 | 3;
-
-/** The one thing sold here: body wash and lotion come only in the Gift Box. */
-const BOX: FormatKey = "ritual";
-
+const BOX = "ritual";
+const BOX_IMAGE = "/assets/gift-box.jpg";
+const PAGE_SIZE = 6;
 const LIMIT = { to: 40, from: 40, note: 240 } as const;
+const EMPTY_CARD: GiftCard = { to: "", from: "", note: "" };
+const FILTERS = [
+  { value: "all", label: "All scents" },
+  { value: "men", label: "For him" },
+  { value: "women", label: "For her" },
+  { value: "unisex", label: "Unisex" },
+] as const;
+type ScentFilter = Filter | "unisex";
 
 interface BodyBathProps {
   fragrances: Fragrance[];
@@ -22,339 +28,208 @@ interface BodyBathProps {
   onAdd: (frag: Fragrance, format: FormatKey, gift: GiftCard | null) => void;
 }
 
-/**
- * Body & Bath as a short guided choice, not a grid to sift: who it's for,
- * which scent (picked by the fragrance they already know — the "Inspired by"
- * leads each tile), then what to buy and whether it's a gift. A gift carries a
- * card — To, From and a note — that is written by hand and packed with it.
- */
+function jumpTo(heading: HTMLHeadingElement | null) {
+  heading?.focus({ preventScroll: true });
+  heading?.scrollIntoView({ block: "start" });
+}
+
 export default function BodyBath({ fragrances, vip, onAdd }: BodyBathProps) {
-  const [step, setStep] = useState<Step>(1);
-  const [wearer, setWearer] = useState<Wearer | null>(null);
-  const [frag, setFrag] = useState<Fragrance | null>(null);
-  const [gift, setGift] = useState<boolean | null>(null);
-  const [card, setCard] = useState<GiftCard>({ to: "", from: "", note: "" });
+  const [filter, setFilter] = useState<ScentFilter>("all");
   const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [includeCard, setIncludeCard] = useState(false);
+  const [card, setCard] = useState<GiftCard>(EMPTY_CARD);
   const [added, setAdded] = useState(false);
-  const stepTop = useRef<HTMLDivElement>(null);
+  const scentHeading = useRef<HTMLHeadingElement>(null);
+  const boxHeading = useRef<HTMLHeadingElement>(null);
 
-  // Scents with body care on sale or coming: masculine or feminine, plus unisex.
-  const shelf = useMemo(() => {
-    const has = (f: Fragrance) => formatStatus(f, BOX) !== "hidden" && (!f.vipOnly || vip);
-    const base = fragrances.filter(has);
-    return wearer ? base.filter((f) => matches(f, wearer === "him" ? "men" : "women")) : base;
-  }, [fragrances, wearer, vip]);
-  const shown = useMemo(() => shelf.filter((f) => matchesReference(f, query)), [shelf, query]);
-
-  const listKey = wearer ? shelf.map((f) => f.id).join(",") : "";
+  const boxes = useMemo(() => fragrances
+    .filter((f) => !f.vipOnly || vip)
+    .map((fragrance) => ({ fragrance, sku: skuOf(fragrance, BOX) }))
+    .filter(({ sku }) => sku.status !== "hidden")
+    .sort((a, b) => Number(b.sku.buyable) - Number(a.sku.buyable)), [fragrances, vip]);
+  const results = boxes.filter(({ fragrance }) => {
+    const matchesFilter = filter === "unisex" ? fragrance.gender === "unisex" : matches(fragrance, filter);
+    return matchesFilter && (fragrance.name.toLowerCase().includes(query.trim().toLowerCase()) || matchesReference(fragrance, query));
+  });
+  const visible = results.slice(0, limit);
+  const visibleIds = visible.map(({ fragrance }) => fragrance.id).join(",");
   useEffect(() => {
-    if (!listKey) return;
-    trackViewItemList(`body_${wearer}`, shelf.map((f) => ({ id: f.id, name: f.name })));
+    if (!visibleIds) return;
+    const timer = window.setTimeout(() => {
+      trackViewItemList(`body_${filter}`, visible.map(({ fragrance, sku }) => ({ id: fragrance.id, name: fragrance.name, priceCents: sku.price })));
+    }, 800);
+    return () => window.clearTimeout(timer);
+    // Track distinct visible lists, not unrelated renders such as gift card edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listKey]);
+  }, [filter, visibleIds]);
 
-  const go = (s: Step) => {
-    setStep(s);
+  const selection = boxes.find(({ fragrance }) => fragrance.id === selectedId);
+  const prices = [...new Set(boxes.filter(({ sku }) => sku.buyable).map(({ sku }) => sku.price))];
+  const boxPrice = prices.length > 1 ? `From ${moneyExact(Math.min(...prices))}` : moneyExact(prices[0] ?? GIFT_BOX_PRICE);
+  const gift = { to: card.to.trim(), from: card.from.trim(), note: card.note.trim() };
+  const giftReady = !includeCard || Boolean(gift.to || gift.from || gift.note);
+
+  const chooseScent = (id: string) => {
+    setSelectedId(id);
     setAdded(false);
-    window.requestAnimationFrame(() => stepTop.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
-  };
-
-  const s = frag ? skuOf(frag, BOX) : null;
-  const giftReady = gift === false || (gift === true && (card.to.trim() || card.from.trim() || card.note.trim()));
-  const add = () => {
-    if (!frag || !s?.buyable || !giftReady) return;
-    const g = gift ? { to: card.to.trim(), from: card.from.trim(), note: card.note.trim() } : null;
-    onAdd(frag, BOX, g);
-    setAdded(true);
-  };
-  const reset = () => {
-    setFrag(null);
-    setGift(null);
-    setCard({ to: "", from: "", note: "" });
-    go(2);
+    // On smaller screens the summary follows the catalogue.
+    if (window.matchMedia("(max-width: 860px)").matches) {
+      window.requestAnimationFrame(() => jumpTo(boxHeading.current));
+    }
   };
 
   return (
-    <div className="mo-bodybath">
-      <section aria-label="Body & Bath" style={{ borderBottom: "1px solid #1f1f27", background: "#0d0d10" }}>
-        <Container className="mo-bb-hero" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 420px)", gap: 40, alignItems: "center", paddingTop: 40, paddingBottom: 40 }}>
-          <div style={{ maxWidth: 560 }}>
-            <p style={{ ...micro, color: GOLD, margin: 0 }}>Body &amp; Bath</p>
-            <h1 style={{ margin: "12px 0 0", fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(38px, 5vw, 60px)", lineHeight: 1.02, color: CREAM }}>Your scent, from shower to skin.</h1>
-            <p style={{ ...body, margin: "14px 0 0", fontSize: 15, color: "rgba(243,236,220,0.8)" }}>
-              Your fragrance as a 30 ml eau de parfum, body wash and body lotion — the Gift Box, {money(GIFT_BOX_PRICE)}. Three quick steps.
-            </p>
+    <main className="mo-bodybath" data-screen-label="Body & Bath">
+      <section className="mo-bb-hero" aria-labelledby="body-bath-title">
+        <Container className="mo-bb-hero-layout">
+          <div className="mo-bb-hero-copy">
+            <p className="mo-bb-eyebrow">Body &amp; Bath</p>
+            <h1 id="body-bath-title">Your scent, from shower to skin.</h1>
+            <p>Layer your favourite fragrance with the Maison Obsidian Gift Box. Each set pairs a 30 ml eau de parfum with a matching body wash and body lotion.</p>
+            <div className="mo-bb-hero-action">
+              <button type="button" className="mo-cta" style={btnGold} onClick={() => jumpTo(scentHeading.current)}>
+                Choose a scent <Arrow />
+              </button>
+              <span className="mo-bb-price">{boxPrice}</span>
+            </div>
           </div>
-          <img
-            src="/assets/gift-box.jpg"
-            alt="Maison Obsidian Gift Box: 30 ml eau de parfum, body wash and body lotion"
-            width={420}
-            height={420}
-            style={{ width: "100%", height: "auto", aspectRatio: "1 / 1", objectFit: "cover", display: "block", border: "1px solid #1f1f27" }}
-          />
+          <div className="mo-bb-hero-art">
+            <img src={BOX_IMAGE} alt="Maison Obsidian perfume, body wash and body lotion with the black Gift Box" width={1024} height={1024} fetchPriority="high" />
+          </div>
         </Container>
       </section>
 
-      <Container style={{ paddingTop: 34, paddingBottom: 90 }}>
-        <div ref={stepTop} style={{ scrollMarginTop: 90 }} />
-        <Steps step={step} wearer={wearer} frag={frag} onGo={(n) => (n === 1 || (n === 2 && wearer) || (n === 3 && frag)) && go(n)} />
-
-        {/* ─── 1 · Who it's for ─────────────────────────────────────────── */}
-        {step === 1 && (
-          <section aria-labelledby="bb-1" style={{ marginTop: 30 }}>
-            <h2 id="bb-1" style={heading}>Who is it for?</h2>
-            <p style={{ ...body, margin: "8px 0 0" }}>Unisex scents are in both.</p>
-            <div className="mo-bb-two" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginTop: 22, maxWidth: 640 }}>
-              {(["him", "her"] as Wearer[]).map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  aria-pressed={wearer === w}
-                  onClick={() => {
-                    setWearer(w);
-                    setFrag(null);
-                    setQuery("");
-                    go(2);
-                  }}
-                  style={{ ...choice(wearer === w), minHeight: 108, padding: "20px 22px", textAlign: "left" }}
-                >
-                  <span style={{ display: "block", fontFamily: SERIF, fontSize: 30, color: CREAM, lineHeight: 1 }}>{w === "him" ? "For him" : "For her"}</span>
-                  <span style={{ display: "block", ...micro, marginTop: 10, color: "rgba(243,236,220,0.6)" }}>{w === "him" ? "Masculine + unisex" : "Feminine + unisex"}</span>
-                </button>
+      <Container className="mo-bb-builder">
+        <section className="mo-bb-catalogue" aria-labelledby="body-scent-title">
+          <h2 id="body-scent-title" ref={scentHeading} tabIndex={-1}>Choose your scent</h2>
+          <p className="mo-bb-intro">Browse the collection or search for a fragrance you already love.</p>
+          <div className="mo-bb-controls">
+            <div className="mo-bb-filters" role="group" aria-label="Filter scents">
+              {FILTERS.map(({ value, label }) => (
+                <button key={value} type="button" aria-pressed={filter === value} onClick={() => { setFilter(value); setLimit(PAGE_SIZE); }}>{label}</button>
               ))}
             </div>
-          </section>
-        )}
-
-        {/* ─── 2 · Which scent ──────────────────────────────────────────── */}
-        {step === 2 && wearer && (
-          <section aria-labelledby="bb-2" style={{ marginTop: 30 }}>
-            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-              <div>
-                <h2 id="bb-2" style={heading}>Choose the scent</h2>
-                <p style={{ ...body, margin: "8px 0 0" }}>Pick by the fragrance you already know.</p>
-              </div>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search “Inspired by”…"
-                aria-label="Search by the fragrance it's inspired by"
-                style={{ width: 280, maxWidth: "100%", height: 42, background: "#101015", border: "1px solid #2a2a33", color: CREAM, padding: "0 14px", fontSize: 14, outline: "none" }}
-              />
-            </div>
-            <ul className="mo-bb-tiles" style={{ listStyle: "none", padding: 0, margin: "22px 0 0", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-              {shown.map((f) => {
-                const ref = referenceOf(f);
-                const on = frag?.id === f.id;
+            <label className="mo-bb-search">
+              <Icon name="search" size={16} />
+              <input type="search" aria-label="Search by scent name or inspiration" placeholder="Search name or inspiration" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE_SIZE); }} />
+            </label>
+          </div>
+          <p className="mo-bb-result-count" role="status">
+            {results.length ? `Showing ${visible.length} of ${results.length} ${results.length === 1 ? "scent" : "scents"}` : "No matching scents"}
+          </p>
+          {visible.length > 0 ? (
+            <ul className="mo-bb-tiles">
+              {visible.map(({ fragrance, sku }) => {
+                const selected = fragrance.id === selection?.fragrance.id;
+                const notes = [...new Set([...fragrance.top, ...fragrance.heart])].slice(0, 3);
                 return (
-                  <li key={f.id}>
-                    <button
-                      type="button"
-                      aria-pressed={on}
-                      aria-label={`${f.name}, inspired by ${ref.brand}${ref.fragrance ? ` ${ref.fragrance}` : ""}`}
-                      onClick={() => {
-                        setFrag(f);
-                        go(3);
-                      }}
-                      style={{ ...choice(on), width: "100%", height: "100%", display: "flex", flexDirection: "column", gap: 8, padding: 10, textAlign: "left" }}
-                    >
-                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div style={{ width: 46, flexShrink: 0 }}>
-                          <BottleImage imageUrl={f.imageUrl} fallbackSrc="/assets/bottle-portrait.webp" alt="" accent={f.accent} liquid={f.liquid} height={56} />
-                        </div>
-                        <span style={{ minWidth: 0, overflowWrap: "break-word", hyphens: "auto", fontFamily: SERIF, fontSize: 18, lineHeight: 1.1, color: CREAM }}>{f.name}</span>
+                  <li key={fragrance.id}>
+                    <button type="button" className="mo-bb-scent" aria-pressed={selected} onClick={() => chooseScent(fragrance.id)}>
+                      <div className="mo-bb-scent-head">
+                        <BottleImage imageUrl={fragrance.imageUrl} fallbackSrc="/assets/bottle-portrait.webp" alt="" accent={fragrance.accent} liquid={fragrance.liquid} height={72} />
+                        <span className="mo-bb-scent-name">{fragrance.name}</span>
                       </div>
-                      <InspiredBy {...ref} size="sm" style={{ padding: "6px 9px 7px 8px" }} />
+                      <InspiredBy {...referenceOf(fragrance)} size="sm" />
+                      {notes.length > 0 && <span className="mo-bb-notes">{notes.join(" · ")}</span>}
+                      <span className="mo-bb-scent-action">
+                        {selected ? "Selected" : sku.buyable ? "Choose scent" : sku.availability}
+                        {selected ? <span aria-hidden="true">✓</span> : <Arrow size={11} />}
+                      </span>
                     </button>
                   </li>
                 );
               })}
             </ul>
-            {!shown.length && <p style={{ ...body, marginTop: 20 }}>No scent matches “{query}”. Try the house name, like Tom Ford or Dior.</p>}
-          </section>
-        )}
-
-        {/* ─── 3 · What, and is it a gift ───────────────────────────────── */}
-        {step === 3 && frag && (
-          <section aria-labelledby="bb-3" style={{ marginTop: 30 }}>
-            <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ width: 56 }}>
-                <BottleImage imageUrl={frag.imageUrl} fallbackSrc="/assets/bottle-portrait.webp" alt="" accent={frag.accent} liquid={frag.liquid} height={64} />
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: SERIF, fontSize: 24, color: CREAM, textTransform: "uppercase", letterSpacing: "0.04em" }}>{frag.name}</div>
-                <InspiredBy {...referenceOf(frag)} size="sm" style={{ marginTop: 6, width: "auto" }} />
-              </div>
-              <button type="button" onClick={() => go(2)} style={linkBtn}>Change scent</button>
+          ) : (
+            <div className="mo-bb-empty">
+              <p>{boxes.length ? "Try another scent name or browse all scents." : "There are no Gift Box scents listed right now."}</p>
+              {boxes.length > 0 && <button type="button" className="mo-bb-link" onClick={() => { setQuery(""); setFilter("all"); setLimit(PAGE_SIZE); }}>Clear filters</button>}
             </div>
+          )}
+          {visible.length < results.length && (
+            <button type="button" className="mo-bb-more" onClick={() => setLimit(limit + PAGE_SIZE)}>Show more scents <span aria-hidden="true">+</span></button>
+          )}
+        </section>
 
-            <div className="mo-bb-box" style={{ ...choice(true), marginTop: 26, display: "grid", gridTemplateColumns: "minmax(0, 260px) minmax(0, 1fr)", overflow: "hidden", maxWidth: 760 }}>
-              <img src="/assets/gift-box.jpg" alt="The Gift Box: 30 ml eau de parfum, body wash and body lotion" loading="lazy" style={{ width: "100%", height: "100%", minHeight: 200, objectFit: "cover", display: "block" }} />
-              <div style={{ padding: "20px 22px" }}>
-                <h2 id="bb-3" style={{ ...heading, fontSize: 32 }}>The Gift Box</h2>
-                <p style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.6, color: "rgba(243,236,220,0.72)" }}>
-                  {frag.name} as a 30 ml eau de parfum, body wash and body lotion, in the house's black gift box.
-                </p>
-                <div style={{ fontFamily: MONO, fontSize: 18, color: GOLD, marginTop: 14 }}>{s ? money(s.price) : ""}</div>
-                {s && !s.buyable && <div style={{ ...micro, color: "rgba(243,236,220,0.5)", marginTop: 8 }}>{s.status === "coming_soon" ? "Coming soon" : s.availability}</div>}
-                {s?.buyable && <div style={{ ...micro, color: "rgba(243,236,220,0.5)", marginTop: 8 }}>{s.availability}</div>}
-              </div>
-            </div>
-
-            {s && !s.buyable ? (
-              <NotifyMe frag={frag} format="ritual" title="Gift Box" />
-            ) : (
-              <>
-                <h2 style={{ ...heading, marginTop: 34 }}>Is it a gift?</h2>
-                <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
-                  {[true, false].map((v) => (
-                    <button
-                      key={String(v)}
-                      type="button"
-                      aria-pressed={gift === v}
-                      onClick={() => {
-                        setGift(v);
-                        setAdded(false);
-                      }}
-                      style={{ ...choice(gift === v), minWidth: 150, height: 52, fontSize: 16, color: CREAM }}
-                    >
-                      {v ? "Yes, add a card" : "No, it's for me"}
-                    </button>
-                  ))}
+        <section className="mo-bb-summary" aria-labelledby="body-box-title">
+          <div className="mo-bb-summary-title">
+            <h2 id="body-box-title" ref={boxHeading} tabIndex={-1}>Your Gift Box</h2>
+            <span className="mo-bb-price">{selection ? moneyExact(selection.sku.price) : boxPrice}</span>
+          </div>
+          <ul className="mo-bb-includes" aria-label="What's inside the Gift Box">
+            <li>30 ml eau de parfum</li>
+            <li>Body wash</li>
+            <li>Body lotion</li>
+          </ul>
+          {selection ? (
+            <>
+              <div className="mo-bb-selected">
+                <div>
+                  <p className="mo-bb-eyebrow">Selected scent</p>
+                  <h3>{selection.fragrance.name}</h3>
                 </div>
-
-                {gift && (
-                  <div style={{ marginTop: 20, maxWidth: 560, display: "grid", gap: 12 }}>
-                    <p style={{ ...body, margin: 0 }}>We'll hand-write your card and pack it in the box. Prices aren't included in the parcel.</p>
-                    <div className="mo-bb-two" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <Field label="To" value={card.to} max={LIMIT.to} onChange={(to) => setCard({ ...card, to })} placeholder="Their name" />
-                      <Field label="From" value={card.from} max={LIMIT.from} onChange={(from) => setCard({ ...card, from })} placeholder="Your name" />
+                <button type="button" className="mo-bb-link" onClick={() => jumpTo(scentHeading.current)}>Change scent</button>
+              </div>
+              <p className="mo-bb-availability">{selection.sku.availability}</p>
+              {selection.sku.buyable ? (
+                <form className="mo-bb-order" onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!giftReady) return;
+                  onAdd(selection.fragrance, BOX, includeCard ? gift : null);
+                  setAdded(true);
+                }}>
+                  <label className="mo-bb-card-toggle">
+                    <input type="checkbox" checked={includeCard} onChange={(e) => { setIncludeCard(e.target.checked); setAdded(false); }} />
+                    Add a handwritten gift card
+                  </label>
+                  {includeCard && (
+                    <div className="mo-bb-card-fields" onChange={() => setAdded(false)}>
+                      <p>We’ll pack your card inside the box. Prices aren’t included in the parcel.</p>
+                      <div className="mo-bb-card-names">
+                        <label>To<input value={card.to} maxLength={LIMIT.to} onChange={(e) => setCard({ ...card, to: e.target.value })} /></label>
+                        <label>From<input value={card.from} maxLength={LIMIT.from} onChange={(e) => setCard({ ...card, from: e.target.value })} /></label>
+                      </div>
+                      <label>Message<textarea rows={3} value={card.note} maxLength={LIMIT.note} onChange={(e) => setCard({ ...card, note: e.target.value })} /></label>
+                      {!giftReady && <p>Fill in at least one field to include a card.</p>}
                     </div>
-                    <label style={{ display: "grid", gap: 6 }}>
-                      <span style={{ ...micro, color: "rgba(243,236,220,0.7)" }}>Note</span>
-                      <textarea
-                        value={card.note}
-                        maxLength={LIMIT.note}
-                        rows={4}
-                        onChange={(e) => setCard({ ...card, note: e.target.value })}
-                        placeholder="Happy birthday — smell amazing."
-                        style={{ ...input, height: "auto", padding: "12px 14px", resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
-                      />
-                      <span style={{ ...micro, fontSize: 8.5, color: "rgba(243,236,220,0.45)", textAlign: "right" }}>{card.note.length}/{LIMIT.note}</span>
-                    </label>
-                  </div>
-                )}
-
-                {gift !== null && s && (
-                  <div style={{ marginTop: 26, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-                    <button type="button" onClick={add} disabled={!giftReady} style={{ ...btnGold, height: 54, padding: "0 28px", opacity: giftReady ? 1 : 0.5, cursor: giftReady ? "pointer" : "not-allowed" }}>
-                      Add to bag · {money(s.price)}
-                    </button>
-                    {gift && !giftReady && <span style={{ ...micro, color: "rgba(243,236,220,0.55)" }}>Fill in the card to continue</span>}
-                    {added && (
-                      <span role="status" style={{ fontSize: 14, color: GOLD }}>
-                        Added.{" "}
-                        <button type="button" onClick={reset} style={linkBtn}>Choose another</button>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-        )}
+                  )}
+                  <button type="submit" className="mo-cta mo-bb-add" style={btnGold} disabled={!giftReady}>Add to bag · {moneyExact(selection.sku.price)} <Arrow /></button>
+                  <p className="mo-bb-order-status" role="status">{added && `Added ${selection.fragrance.name} to your bag.`}</p>
+                </form>
+              ) : (
+                <NotifyMe key={selection.fragrance.id} fragrance={selection.fragrance} />
+              )}
+            </>
+          ) : (
+            <p className="mo-bb-summary-hint">Choose a scent to check availability and add an optional handwritten card.</p>
+          )}
+        </section>
       </Container>
-    </div>
+    </main>
   );
 }
 
-function Steps({ step, wearer, frag, onGo }: { step: Step; wearer: Wearer | null; frag: Fragrance | null; onGo: (s: Step) => void }) {
-  const items: { n: Step; label: string; value: string | null }[] = [
-    { n: 1, label: "For", value: wearer ? (wearer === "him" ? "Him" : "Her") : null },
-    { n: 2, label: "Scent", value: frag?.name ?? null },
-    { n: 3, label: "Gift Box", value: null },
-  ];
-  return (
-    <ol aria-label="Steps" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {items.map((it) => {
-        const current = it.n === step;
-        return (
-          <li key={it.n}>
-            <button
-              type="button"
-              aria-current={current ? "step" : undefined}
-              onClick={() => onGo(it.n)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                height: 36,
-                padding: "0 14px 0 6px",
-                background: current ? "rgba(201,169,97,0.14)" : "transparent",
-                border: `1px solid ${current ? GOLD : "#2a2a33"}`,
-                color: current ? CREAM : "rgba(243,236,220,0.65)",
-                cursor: "pointer",
-                fontSize: 13,
-              }}
-            >
-              <span style={{ display: "inline-grid", placeItems: "center", width: 24, height: 24, borderRadius: "50%", background: current || it.value ? GOLD : "#2a2a33", color: "#0b0b0d", fontSize: 12, fontWeight: 700 }}>
-                {it.value && !current ? "✓" : it.n}
-              </span>
-              {it.label}
-              {it.value ? <span style={{ color: GOLD }}>· {it.value}</span> : null}
-            </button>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
-function Field({ label, value, max, onChange, placeholder }: { label: string; value: string; max: number; onChange: (v: string) => void; placeholder: string }) {
-  return (
-    <label style={{ display: "grid", gap: 6 }}>
-      <span style={{ ...micro, color: "rgba(243,236,220,0.7)" }}>{label}</span>
-      <input value={value} maxLength={max} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={input} />
-    </label>
-  );
-}
-
-/** Not on sale yet: one email when it is. */
-function NotifyMe({ frag, format, title }: { frag: Fragrance; format: FormatKey; title: string }) {
+function NotifyMe({ fragrance }: { fragrance: Fragrance }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
-  if (state === "done") return <p style={{ ...body, marginTop: 26, color: GOLD }}>We'll email you once when {frag.name} {title} is here.</p>;
   return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setState("busy");
-        setState((await joinWaitlist(frag.id, format, email)) ? "done" : "error");
-      }}
-      style={{ marginTop: 26, maxWidth: 520 }}
-    >
-      <p style={{ ...body, margin: 0 }}>{frag.name} {title} is coming soon. Leave your email and we'll tell you when it arrives.</p>
-      <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" aria-label="Your email" style={{ ...input, flex: 1, minWidth: 200 }} />
-        <button type="submit" disabled={state === "busy"} style={{ ...btnGold, height: 46 }}>
-          {state === "busy" ? "Saving…" : "Notify me"}
-        </button>
-      </div>
-      {state === "error" && <p style={{ ...micro, color: "#E08A6A", marginTop: 10 }}>That didn't save — check the email and try again.</p>}
+    <form className="mo-bb-order mo-bb-notify" onSubmit={async (e) => {
+      e.preventDefault();
+      setState("busy");
+      setState((await joinWaitlist(fragrance.id, BOX, email)) ? "done" : "error");
+    }}>
+      {state === "done" ? (
+        <p role="status">We’ll email you when the {fragrance.name} Gift Box is available.</p>
+      ) : (
+        <>
+          <p>Get an email when this Gift Box is available.</p>
+          <label>Email address<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <button type="submit" className="mo-cta mo-bb-add" style={btnGold} disabled={state === "busy"}>{state === "busy" ? "Saving…" : "Notify me"} <Arrow /></button>
+          {state === "error" && <p role="alert">That didn’t save. Check your email address and try again.</p>}
+        </>
+      )}
     </form>
   );
-}
-
-const heading: CSSProperties = { margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: "clamp(28px, 3.4vw, 40px)", color: CREAM, lineHeight: 1.05 };
-const input: CSSProperties = { height: 46, background: "#101015", border: "1px solid #2a2a33", color: CREAM, padding: "0 14px", fontSize: 15, outline: "none", width: "100%", boxSizing: "border-box" };
-const linkBtn: CSSProperties = { background: "none", border: 0, color: GOLD, cursor: "pointer", padding: "6px 2px", fontSize: 14, textDecoration: "underline", textUnderlineOffset: 4 };
-function choice(on: boolean): CSSProperties {
-  return {
-    background: on ? "rgba(201,169,97,0.12)" : "#101015",
-    border: `1px solid ${on ? GOLD : "#24242c"}`,
-    boxShadow: on ? `inset 0 0 0 1px ${GOLD}` : "none",
-    cursor: "pointer",
-    color: CREAM,
-  };
 }

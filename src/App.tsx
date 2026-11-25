@@ -52,6 +52,7 @@ const AdminConsole = lazy(() => import("./components/AdminConsole"));
 const StaffDesk = lazy(() => import("./components/StaffDesk"));
 const ScentDna = lazy(() => import("./components/ScentDna"));
 const BodyBath = lazy(() => import("./components/BodyBath"));
+const GiftShop = lazy(() => import("./components/GiftShop"));
 const GiftCard = lazy(() => import("./components/GiftCard"));
 
 export default function App() {
@@ -510,7 +511,11 @@ export default function App() {
         </Suspense>
       )}
 
-      {(route.view === "shop" || route.view === "fragrances" || route.view === "car") && (
+      {route.view === "shop" && route.facet === "gifts" && (
+        <Suspense fallback={null}><GiftShop fragrances={fragrances} vip={vip} /></Suspense>
+      )}
+
+      {((route.view === "shop" && route.facet !== "gifts") || route.view === "fragrances" || route.view === "car") && (
         <Collection
           key={`${route.view}:${route.view === "shop" ? route.facet ?? "" : ""}`}
           mode={route.view}
