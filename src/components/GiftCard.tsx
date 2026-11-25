@@ -61,7 +61,8 @@ export default function GiftCard({ cancelled, accountEmail }: { cancelled: boole
       return;
     }
     setBusy(false);
-    setError(r?.ok === false ? r.error : "Payments aren't available right now. Please try again shortly.");
+    // A 501 names what's missing in Vercel ("Missing in Vercel: STRIPE_SECRET_KEY").
+    setError(r?.ok === false ? `${r.error}${r.detail ? ` — ${r.detail}` : ""}` : "Payments aren't available right now. Please try again shortly.");
   };
 
   return (
