@@ -3,8 +3,8 @@ import { CREAM, GOLD } from "../lib/data";
 import { paths } from "../lib/route";
 import { voucherCheckout } from "../lib/stripe";
 import VoucherCard, { type VoucherFinish } from "./VoucherCard";
-import { Container } from "./ui";
-import { SERIF, body, btnGold, btnLink, micro } from "./styles";
+import { Arrow, Container } from "./ui";
+import { SERIF, body, btnGold, micro } from "./styles";
 
 const PRESETS = [20, 30, 50, 100];
 const MIN = 10;
@@ -75,7 +75,24 @@ export default function GiftCard({ cancelled, accountEmail }: { cancelled: boole
           A Maison Obsidian gift voucher from ${MIN} to ${MAX}, emailed the moment it's paid — to you, or straight to them. Valid for three years on anything in the house.
         </p>
 
-        <a href={paths.subscriptionGift} style={{ ...btnLink, marginTop: 12 }}>Shop the Monthly Pour Gift Card</a>
+        <a
+          className="mo-cta"
+          href={paths.subscriptionGift}
+          style={{
+            ...btnGold,
+            marginTop: 20,
+            height: "auto",
+            minHeight: 58,
+            maxWidth: "100%",
+            padding: "12px clamp(14px, 3vw, 28px)",
+            fontSize: 14,
+            letterSpacing: "0.1em",
+            textDecoration: "none",
+            whiteSpace: "normal",
+          }}
+        >
+          <span>Shop the Monthly Pour Gift Card</span> <Arrow size={14} />
+        </a>
 
         <div className="mo-gc-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 5fr) minmax(0, 7fr)", gap: 40, alignItems: "start", marginTop: 32 }}>
           {/* ─── The commission ────────────────────────────────────────── */}
