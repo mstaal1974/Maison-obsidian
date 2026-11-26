@@ -147,6 +147,11 @@ function pageFor(path: string, frags: Fragrance[]): Page | null {
         title: "Gift vouchers",
         intro: ["A Maison Obsidian gift voucher from $10 to $500. Choose the cardstock (Obsidian Noir or Alabaster Silk), the value, who it's for and a note; it's emailed the moment it's paid, to you or straight to them, with a printable card. Redeem it as a promotion code at checkout, in one order, within three years."],
       };
+    case "/subscription-gift":
+      return {
+        title: "Monthly Pour Gift Card",
+        intro: ["Give 3, 6 or 12 months of surprise Maison Obsidian fragrance. Pay once with Australian delivery included, then share the digital card with the recipient."],
+      };
     case "/subscribe":
       return {
         title: "The Monthly Pour",

@@ -1,9 +1,10 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { CREAM, GOLD } from "../lib/data";
+import { paths } from "../lib/route";
 import { voucherCheckout } from "../lib/stripe";
 import VoucherCard, { type VoucherFinish } from "./VoucherCard";
 import { Container } from "./ui";
-import { SERIF, body, btnGold, micro } from "./styles";
+import { SERIF, body, btnGold, btnLink, micro } from "./styles";
 
 const PRESETS = [20, 30, 50, 100];
 const MIN = 10;
@@ -73,6 +74,8 @@ export default function GiftCard({ cancelled, accountEmail }: { cancelled: boole
         <p style={{ ...body, margin: "12px 0 0", maxWidth: 600, fontSize: 15 }}>
           A Maison Obsidian gift voucher from ${MIN} to ${MAX}, emailed the moment it's paid — to you, or straight to them. Valid for three years on anything in the house.
         </p>
+
+        <a href={paths.subscriptionGift} style={{ ...btnLink, marginTop: 12 }}>Shop the Monthly Pour Gift Card</a>
 
         <div className="mo-gc-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 5fr) minmax(0, 7fr)", gap: 40, alignItems: "start", marginTop: 32 }}>
           {/* ─── The commission ────────────────────────────────────────── */}

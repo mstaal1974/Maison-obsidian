@@ -13,6 +13,7 @@
 // Every handler is idempotent, so Stripe's retries are safe.
 
 import { getStripe, json, rawBody, serviceClient, route, notConfigured } from "../_lib/stripe.js";
+import { completedGiftRedemption, isGiftRedemption, recordGiftRedemption, revokeSubscriptionGift } from "../_lib/subscription-gift.js";
 import { issueVoucherFromWebhook } from "../_lib/voucher.js";
 import { prepareRenewal, recordDispute, recordRefund, recordRenewal, recordOrder, recordSubscriptionStart } from "../_lib/record.js";
 import { sendRecoveryEmail, withOriginalMetadata } from "../_lib/recovery.js";
@@ -48,9 +49,13 @@ export default route("webhook", async function handler(req: any, res: any) {
       case "checkout.session.async_payment_succeeded":
       case "checkout.session.completed": {
         const session = await withOriginalMetadata(stripe, event.data.object);
+        if (isGiftRedemption(session)) {
+          if (completedGiftRedemption(session)) await recordGiftRedemption(stripe, db, session);
+          break;
+        }
         if (session.payment_status !== "paid") break;
         if (session.mode === "payment" && session.metadata?.kind === "order") await recordOrder(stripe, db, session);
-        if (session.mode === "payment" && session.metadata?.kind === "voucher") await issueVoucherFromWebhook(stripe, db, session);
+        if (session.mode === "payment" && (session.metadata?.kind === "voucher" || session.metadata?.kind === "subscription-gift")) await issueVoucherFromWebhook(stripe, db, session);
         if (session.mode === "subscription") await recordSubscriptionStart(stripe, db, session);
         break;
       }
@@ -74,12 +79,21 @@ export default route("webhook", async function handler(req: any, res: any) {
         await db.from("scent_subscriptions").update({ status: "cancelled", cancelled_at: new Date().toISOString() }).eq("stripe_subscription_id", sub.id).eq("status", "active");
         break;
       }
-      case "charge.refunded":
-        await recordRefund(db, event.data.object);
+      case "charge.refunded": {
+        const charge = event.data.object;
+        if (charge.refunded && charge.metadata?.kind === "subscription-gift") {
+          await revokeSubscriptionGift(stripe, db, charge.payment_intent);
+        }
+        await recordRefund(db, charge);
         break;
-      case "charge.dispute.created":
-        await recordDispute(db, event.data.object);
+      }
+      case "charge.dispute.created": {
+        const dispute = event.data.object;
+        const charge = typeof dispute.charge === "string" ? await stripe.charges.retrieve(dispute.charge) : dispute.charge;
+        if (charge?.metadata?.kind === "subscription-gift") await revokeSubscriptionGift(stripe, db, charge.payment_intent);
+        await recordDispute(db, dispute);
         break;
+      }
       default:
         break;
     }

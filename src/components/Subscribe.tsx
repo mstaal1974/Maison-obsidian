@@ -6,7 +6,7 @@ import { navigate, paths } from "../lib/route";
 import BottleImage from "./BottleImage";
 import { FormatGlyph } from "./ProductGlyphs";
 import { Arrow, Chip, Container, InspiredBy } from "./ui";
-import { MONO, SERIF, btnGold, btnLink, micro } from "./styles";
+import { MONO, SERIF, btnGhost, btnGold, btnLink, micro } from "./styles";
 
 interface SubscribeProps {
   fragrances: Fragrance[];
@@ -81,6 +81,9 @@ export default function Subscribe({ fragrances, vip, initialSlug, initialFormat,
             Choose the format you wear. Each month we pour the fragrance you picked and send it to your door, at 10% under the shelf price. Twelve
             months, billed monthly, cancel whenever.
           </p>
+          <a href={paths.subscriptionGift} style={{ ...btnGhost, marginTop: 20, textDecoration: "none" }}>
+            Give the Monthly Pour <Arrow />
+          </a>
           <div className="mo-steps-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 34 }}>
             {STEPS.map((s) => (
               <div key={s.n} style={{ border: "1px solid #1f1f27", padding: "18px 20px", background: "#101015" }}>

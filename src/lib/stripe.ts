@@ -1,3 +1,5 @@
+import type { SubscriptionGiftPlan } from "../../api/_lib/subscription-gift-plan";
+
 // ─── Stripe: authorize-now / capture-later ───────────────────────────────────
 //
 // The batch model authorizes a customer's card at commit time and only captures
@@ -169,6 +171,7 @@ export interface IssuedVoucher {
   message: string;
   issuedAt: string;
   expiresAt: string;
+  subscriptionGift?: SubscriptionGiftPlan;
 }
 
 export interface VoucherRequest {
@@ -186,8 +189,16 @@ export async function voucherCheckout(v: VoucherRequest) {
   return call<{ url: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ kind: "voucher", ...v }) });
 }
 
+export async function subscriptionGiftCheckout(gift: SubscriptionGiftPlan & Omit<VoucherRequest, "amount" | "finish">) {
+  return call<{ url: string }>("/api/stripe/checkout", { method: "POST", body: JSON.stringify({ kind: "subscription-gift", ...gift }) });
+}
+
+export async function redeemSubscriptionGift(code: string) {
+  return call<{ url: string }>("/api/stripe/subscribe", { method: "POST", body: JSON.stringify({ kind: "redeem-gift", code }) });
+}
+
 export interface ConfirmResult {
-  kind: "order" | "subscription" | "voucher" | "other";
+  kind: "order" | "subscription" | "voucher" | "gift-redemption" | "other";
   voucher?: IssuedVoucher;
   /** Whether the voucher email went, and if not, why. */
   email?: { sent: boolean; error?: string; to?: string[] };

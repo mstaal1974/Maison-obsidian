@@ -14,6 +14,7 @@ export interface ThanksState {
   itemCount?: number;
   amountTotal?: number | null;
   message?: string;
+  giftRedeemed?: boolean;
   /** A gift voucher bought: shown as the card, with its code, to print. */
   voucher?: IssuedVoucher;
   voucherEmail?: { sent: boolean; error?: string; to?: string[] };
@@ -44,6 +45,13 @@ export default function Thanks({ state, sessionId, signedIn, onJoin }: ThanksPro
     offerSeen.current = true;
     trackSubscriptionOfferViewed("thanks");
   }, [paid]);
+  if (state.giftRedeemed) return (
+    <main data-screen-label="Monthly Pour gift redeemed" style={{ maxWidth: 720, margin: "0 auto", padding: "90px 32px", textAlign: "center" }}>
+      <h1 style={{ fontFamily: SERIF, fontWeight: 400, fontSize: 48, color: CREAM }}>Your Monthly Pour gift is active.</h1>
+      <p>Your first scent will be prepared for delivery. Track your prepaid deliveries from your account.</p>
+      <a className="mo-cta" href={paths.account} style={{ ...btnGold, textDecoration: "none" }}>View my deliveries <Arrow /></a>
+    </main>
+  );
   if (state.voucher) return <VoucherThanks v={state.voucher} email={state.voucherEmail} />;
   return (
     <main data-screen-label="Thank you" style={{ maxWidth: 720, margin: "0 auto", padding: "140px 32px 110px", textAlign: "center" }}>

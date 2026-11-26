@@ -27,6 +27,18 @@ export default route("checkout", async function handler(req: any, res: any) {
 
   const body = readBody(req);
   // A gift voucher is its own, digital checkout (api/_lib/voucher.ts).
+  if (body.kind === "subscription-gift") {
+    // Confirm the gift schema and email service are ready before charging a buyer.
+    const { error } = await db.from("gift_vouchers").select("gift_format").limit(0);
+    if (error?.code === "42703" || error?.code === "42P01") {
+      return json(res, 503, { error: "Subscription gift cards are temporarily unavailable." });
+    }
+    if (error) throw new Error(error.message);
+    if (!process.env.RESEND_API_KEY || !process.env.RECOVERY_EMAIL_FROM) {
+      return json(res, 503, { error: "Subscription gift emails are temporarily unavailable." });
+    }
+    return startVoucherCheckout(req, res, stripe, body, user);
+  }
   if (body.kind === "voucher") return startVoucherCheckout(req, res, stripe, body, user);
   // The gift voucher / promo code box on /checkout (api/_lib/discount.ts).
   if (body.kind === "check-code") return checkCode(req, res, stripe, body);

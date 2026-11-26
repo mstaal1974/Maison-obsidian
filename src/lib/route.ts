@@ -1,3 +1,5 @@
+import { GIFT_PATH } from "../../api/_lib/subscription-gift-plan";
+
 // Path router for the storefront. Every page has a real URL
 // (/fragrance/smoky-timber, /shop/woody) so search engines can index it and a
 // shared link previews the right page; Vercel serves the app for any path
@@ -20,6 +22,7 @@ export type Route =
   | { view: "discovery" }
   | { view: "car" }
   | { view: "body" }
+  | { view: "subscriptiongift"; redeem: boolean; cancelled: boolean }
   | { view: "giftcard"; cancelled: boolean }
   | { view: "find"; query: string }
   // Discover Your Scent DNA — a standalone campaign experience. Reachable at
@@ -28,7 +31,7 @@ export type Route =
   | { view: "scent"; code: string | null }
   | { view: "subscribe"; slug: string | null; format: string | null }
   | { view: "checkout"; cancelled: boolean }
-  | { view: "thanks"; sessionId: string | null }
+  | { view: "thanks"; sessionId: string | null; subscriptionGift: boolean }
   | { view: "product"; slug: string }
   | { view: "about" }
   | { view: "help" }
@@ -63,6 +66,10 @@ export function parseHash(hash: string): Route {
       return { view: "car" };
     case "body":
       return { view: "body" };
+    case "subscription-gift": {
+      const qs = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)) : null;
+      return { view: "subscriptiongift", redeem: qs?.get("redeem") === "1", cancelled: qs?.get("cancelled") === "1" };
+    }
     case "gift-card":
     case "gift-cards":
     case "gift-voucher": {
@@ -90,7 +97,7 @@ export function parseHash(hash: string): Route {
     }
     case "thanks": {
       const qs = h.includes("?") ? new URLSearchParams(h.slice(h.indexOf("?") + 1)) : null;
-      return { view: "thanks", sessionId: qs?.get("session_id") ?? null };
+      return { view: "thanks", sessionId: qs?.get("session_id") ?? null, subscriptionGift: qs?.get("gift") === "1" };
     }
     case "fragrance":
       return tail ? { view: "product", slug: decodeURIComponent(tail) } : { view: "fragrances" };
@@ -183,6 +190,7 @@ export const paths = {
   car: "/car",
   body: "/body",
   giftCard: "/gift-card",
+  subscriptionGift: GIFT_PATH,
   find: (q?: string) => (q ? `/find?q=${encodeURIComponent(q)}` : "/find"),
   discover: "/discover",
   scent: (code: string) => `/scent/${encodeURIComponent(code)}`,

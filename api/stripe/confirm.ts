@@ -11,6 +11,8 @@ import { bagLines, recordOrder, recordSubscriptionStart } from "../_lib/record.j
 import { withOriginalMetadata } from "../_lib/recovery.js";
 import { issueAndEmailVoucher } from "../_lib/voucher.js";
 
+import { completedGiftRedemption, isGiftRedemption, recordGiftRedemption } from "../_lib/subscription-gift.js";
+
 export const config = { runtime: "nodejs" };
 
 export default route("confirm", async function handler(req: any, res: any) {
@@ -25,9 +27,17 @@ export default route("confirm", async function handler(req: any, res: any) {
   const session = await withOriginalMetadata(stripe, await stripe.checkout.sessions.retrieve(id));
   const owner = session.metadata?.user_id ?? "";
   if (owner && owner !== user?.id) return json(res, 403, { error: "Not your session" });
+  if (isGiftRedemption(session)) {
+    if (!completedGiftRedemption(session)) return json(res, 409, { error: "Gift redemption is incomplete." });
+    const result = await recordGiftRedemption(stripe, db, session);
+    if (result === "active_subscription") return json(res, 409, { error: "Your gift is still valid. Redeem it after your current Monthly Pour ends." });
+    if (result === "address") return json(res, 400, { error: "Redeem again and provide a complete Australian delivery address." });
+    if (result !== "recorded" && result !== "already_recorded") return json(res, 409, { error: "This gift code is unavailable, expired or already redeemed." });
+    return json(res, 200, { kind: "gift-redemption" });
+  }
   if (session.status !== "complete" || session.payment_status !== "paid") return json(res, 409, { error: "Payment not completed", status: session.status });
 
-  if (session.mode === "payment" && session.metadata?.kind === "voucher") {
+  if (session.mode === "payment" && (session.metadata?.kind === "voucher" || session.metadata?.kind === "subscription-gift")) {
     const { voucher, email } = await issueAndEmailVoucher(stripe, db, session);
     return json(res, 200, { kind: "voucher", voucher, email, amountTotal: session.amount_total });
   }

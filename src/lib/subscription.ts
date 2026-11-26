@@ -38,6 +38,8 @@ export interface Subscription {
   userEmail: string | null;
   /** Set when Stripe bills it; the console's manual "Bill month" is hidden. */
   stripeSubscriptionId?: string | null;
+  prepaidGift?: boolean;
+  giftDeliveryAddress?: { name: string; line1: string; line2?: string; city: string; state?: string; postal_code: string; country: string } | null;
   format: FormatKey;
   months: number;
   status: SubscriptionStatus;
@@ -148,6 +150,8 @@ interface SubRow {
   user_id?: string | null;
   user_email: string | null;
   stripe_subscription_id?: string | null;
+  prepaid_gift?: boolean;
+  gift_delivery_address?: Subscription["giftDeliveryAddress"];
   format: FormatKey;
   months: number;
   status: SubscriptionStatus;
@@ -171,6 +175,8 @@ function rowToSub(r: SubRow): Subscription {
     userId: r.user_id ?? null,
     userEmail: r.user_email,
     stripeSubscriptionId: r.stripe_subscription_id ?? null,
+    prepaidGift: r.prepaid_gift ?? false,
+    giftDeliveryAddress: r.gift_delivery_address ?? null,
     format: r.format,
     months: r.months,
     status: r.status,
@@ -183,7 +189,7 @@ function rowToSub(r: SubRow): Subscription {
   };
 }
 
-const SELECT_ADMIN = "id, user_id, user_email, stripe_subscription_id, format, months, status, pick_mode, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
+const SELECT_SUBSCRIPTIONS = "id, user_id, user_email, stripe_subscription_id, format, months, status, pick_mode, next_fragrance_id, started_at, subscription_deliveries(id, month, fragrance_id, charge_cents, status, billed_at)";
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -345,12 +351,12 @@ export function useSubscriptions(enabled: boolean) {
   const [remote, setRemote] = useState<Subscription[] | null>(null);
 
   const reload = useCallback(() => {
-    if (!supabase || !enabled) return;
-    void supabase
-      .from("scent_subscriptions")
-      .select(SELECT_ADMIN)
-      .order("started_at", { ascending: false })
-      .then(({ data, error }) => {
+    const db = supabase;
+    if (!db || !enabled) return;
+    const select = (fields: string) => db.from("scent_subscriptions").select(fields).order("started_at", { ascending: false });
+    void select(`${SELECT_SUBSCRIPTIONS}, prepaid_gift, gift_delivery_address`)
+      .then(async (current) => {
+        const { data, error } = current.error?.code === "42703" ? await select(SELECT_SUBSCRIPTIONS) : current;
         if (!error && data) setRemote((data as unknown as SubRow[]).map(rowToSub));
       });
   }, [enabled]);

@@ -42,6 +42,7 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
   const active = subscriptions.filter((s) => s.status === "active");
   // Surprise subscriptions count at the catalogue's lowest member price.
   const monthly = active.reduce((sum, s) => {
+    if (s.prepaidGift) return sum;
     if (s.pickMode === "surprise") return sum + subscriptionRange(fragrances, s.format)[0];
     const f = fragrances.find((x) => x.id === s.nextFragranceId);
     return sum + (f ? subscriptionPrice(f, s.format) : 0);
@@ -109,7 +110,7 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
                     <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: "rgba(243,236,220,0.6)", wordBreak: "break-all" }}>{s.userEmail ?? "—"}</div>
                   </div>
                   <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: "rgba(243,236,220,0.7)" }}>
-                    <span style={{ color: GOLD }}>{Math.min(monthsBilled(s), s.months)}</span> / {s.months} billed
+                    <span style={{ color: GOLD }}>{Math.min(monthsBilled(s), s.months)}</span> / {s.months} {s.prepaidGift ? "recorded" : "billed"}
                     <div style={{ ...label, marginTop: 4 }}>{s.status}</div>
                   </div>
                   <div>
@@ -122,12 +123,12 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
                     )}
                   </div>
                   <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 10.5, color: "rgba(243,236,220,0.65)" }}>
-                    <div style={label}>Bills</div>
+                    <div style={label}>{s.prepaidGift ? "Next delivery" : "Bills"}</div>
                     {billing ? fmtDate(billing) : "—"}
                   </div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
                     {s.status === "active" && n !== null && s.stripeSubscriptionId && (
-                      <span style={{ ...label, alignSelf: "center", color: "#8bb98a" }}>Stripe bills month {n}</span>
+                      <span style={{ ...label, alignSelf: "center", color: "#8bb98a" }}>{s.prepaidGift ? `Month ${n} prepaid` : `Stripe bills month ${n}`}</span>
                     )}
                     {s.status === "active" && n !== null && !s.stripeSubscriptionId && (surprise || next) && (
                       <button style={{ ...btnGhost, height: 32, padding: "0 12px" }} disabled={busy === s.id} onClick={() => void bill(s)}>
@@ -141,6 +142,11 @@ export default function AdminSubscriptions({ fragrances, configured }: { fragran
                     )}
                   </div>
                 </div>
+                {s.giftDeliveryAddress && (
+                  <p style={{ fontSize: 13, color: "#f3ecdc" }}>
+                    Delivery to {s.giftDeliveryAddress.name} · {[s.giftDeliveryAddress.line1, s.giftDeliveryAddress.line2, s.giftDeliveryAddress.city, s.giftDeliveryAddress.state, s.giftDeliveryAddress.postal_code].filter(Boolean).join(", ")}
+                  </p>
+                )}
                 {s.deliveries.length > 0 && (
                   <div style={{ marginTop: 12, borderTop: "1px solid #1f1f27", paddingTop: 10, display: "grid", gap: 6 }}>
                     {s.deliveries.map((d) => {

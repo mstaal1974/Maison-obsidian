@@ -110,7 +110,7 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                   <div>
                     <div style={{ fontFamily: SERIF, fontSize: 28, color: CREAM, lineHeight: 1 }}>{subscriptionLabel(s)}</div>
                     <div style={{ marginTop: 8, fontFamily: MONO, fontSize: 11, color: "rgba(243,236,220,0.6)" }}>
-                      Month {Math.min(monthsBilled(s), s.months)} of {s.months} · started {fmtDate(s.startedAt)} · {surprise ? "the house chooses" : "you choose"}
+                      Month {Math.min(monthsBilled(s), s.months)} of {s.months} · started {fmtDate(s.startedAt)} · {s.prepaidGift ? "prepaid gift" : surprise ? "the house chooses" : "you choose"}
                     </div>
                   </div>
                   <span style={{ ...micro, color: st.color, border: `1px solid ${st.color}`, padding: "5px 10px" }}>{st.label}</span>
@@ -130,11 +130,11 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                       </div>
                     )}
                     <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
-                      <div style={{ ...micro, color: GOLD }}>Month {n} · {billing ? `bills ${fmtDate(billing)}` : ""}</div>
+                      <div style={{ ...micro, color: GOLD }}>Month {n} · {billing ? `${s.prepaidGift ? "scheduled for" : "bills"} ${fmtDate(billing)}` : ""}</div>
                       <div style={{ fontFamily: SERIF, fontSize: 22, color: CREAM, lineHeight: 1.05 }}>{surprise ? "The house chooses." : next ? next.name : "Choose a scent"}</div>
                       {surprise && (
                         <div style={{ fontSize: 12.5, lineHeight: 1.6, color: "rgba(243,236,220,0.6)" }}>
-                          A random scent you haven't received yet, revealed when it ships. <span style={{ fontFamily: MONO, fontSize: 11, color: GOLD }}>{range}</span>
+                          {s.prepaidGift ? "A surprise scent, prepaid with your gift." : <>A random scent you haven’t received yet, revealed when it ships. <span style={{ fontFamily: MONO, fontSize: 11, color: GOLD }}>{range}</span></>}
                         </div>
                       )}
                       {next && <InspiredBy {...referenceOf(next)} size="sm" />}
@@ -161,9 +161,9 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                           </select>
                         </label>
                       )}
-                      <button style={btnLink} disabled={busy} onClick={() => void toggleMode(s)}>
+                      {!s.prepaidGift && <button style={btnLink} disabled={busy} onClick={() => void toggleMode(s)}>
                         {surprise ? "I'll choose instead" : "Let the house choose"} <Arrow size={10} />
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 )}
@@ -179,7 +179,7 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                           <button style={{ ...btnLink, letterSpacing: 0, textTransform: "none", fontFamily: SERIF, fontSize: 17, color: CREAM }} onClick={() => f && navigate(paths.product(f.slug))}>
                             {f?.name ?? "—"}
                           </button>
-                          <span style={{ color: GOLD }}>{money(d.chargeCents)}</span>
+                          <span style={{ color: GOLD }}>{s.prepaidGift ? "Prepaid" : money(d.chargeCents)}</span>
                           <span style={{ color: d.status === "delivered" ? "#8bb98a" : "rgba(243,236,220,0.6)" }}>{DELIVERY[d.status]} · {fmtDate(d.billedAt)}</span>
                         </div>
                       );
@@ -187,7 +187,7 @@ export default function SubscriptionPanel({ subscriptions, fragrances, loading, 
                   </div>
                 </div>
 
-                {s.status === "active" && (
+                {s.status === "active" && !s.prepaidGift && (
                   <div style={{ marginTop: 20, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
                     {confirmCancel === s.id ? (
                       <>

@@ -117,6 +117,10 @@ export function staticPageMeta(path: string, origin: string, sameAs: string[] = 
       title: "Perfume Gift Voucher Australia | Gift Card $10–$500 | Maison Obsidian",
       description: "A Maison Obsidian gift voucher from $10 to $500: design the card, add a note, and it's emailed instantly — to you or straight to them. Valid for three years.",
     },
+    "/subscription-gift": {
+      title: "Monthly Pour Subscription Gift Card | Maison Obsidian",
+      description: "Give 3, 6 or 12 months of surprise fragrances with a prepaid digital Monthly Pour Gift Card. Australian delivery included.",
+    },
     "/subscribe": {
       title: "The Monthly Pour — Perfume Subscription | Maison Obsidian",
       description: `A bottle a month for ${SUBSCRIPTION_MONTHS} months at ${Math.round(SUBSCRIPTION_DISCOUNT * 100)}% under the shelf price. Choose the size, then the scent each month.`,

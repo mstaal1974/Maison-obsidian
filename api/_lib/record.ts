@@ -5,6 +5,7 @@ import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadCatalogue, memberPrice, CURRENCY } from "./stripe.js";
 import { FORMATS, type FormatKey } from "./catalogue.js";
+import { cancelGiftSubscription } from "./subscription-gift.js";
 
 interface CompactLine {
   f: string; // fragrance id
@@ -252,6 +253,16 @@ interface SubRow {
   next_fragrance_id: string | null;
   billing_fragrance_id: string | null;
   stripe_subscription_id: string;
+  prepaid_gift?: boolean;
+}
+
+async function loadRenewalSubscription(db: SupabaseClient, stripeSubId: string): Promise<SubRow | null> {
+  const columns = "id, format, months, status, pick_mode, next_fragrance_id, billing_fragrance_id, stripe_subscription_id";
+  const select = (fields: string) => db.from("scent_subscriptions").select(fields).eq("stripe_subscription_id", stripeSubId).maybeSingle();
+  const current = await select(`${columns}, prepaid_gift`);
+  const result = current.error?.code === "42703" ? await select(columns) : current;
+  if (result.error) throw new Error(result.error.message);
+  return result.data as SubRow | null;
 }
 
 /**
@@ -259,9 +270,8 @@ interface SubRow {
  * surprise mode) and re-price the Stripe subscription to it.
  */
 export async function prepareRenewal(stripe: Stripe, db: SupabaseClient, stripeSubId: string): Promise<void> {
-  const { data } = await db.from("scent_subscriptions").select("id, format, months, status, pick_mode, next_fragrance_id, billing_fragrance_id, stripe_subscription_id").eq("stripe_subscription_id", stripeSubId).maybeSingle();
-  const sub = data as SubRow | null;
-  if (!sub || sub.status !== "active") return;
+  const sub = await loadRenewalSubscription(db, stripeSubId);
+  if (!sub || sub.status !== "active" || sub.prepaid_gift) return;
   let fragranceId = sub.next_fragrance_id;
   if (sub.pick_mode === "surprise") {
     const { data: drawn } = await db.rpc("draw_subscription_scent", { p_id: sub.id });
@@ -289,9 +299,15 @@ export async function recordRenewal(stripe: Stripe, db: SupabaseClient, invoice:
   const rawSub = anyInv.subscription ?? anyInv.parent?.subscription_details?.subscription ?? null;
   const stripeSubId = typeof rawSub === "string" ? rawSub : rawSub?.id;
   if (!stripeSubId) return;
-  const { data } = await db.from("scent_subscriptions").select("id, format, months, status, pick_mode, next_fragrance_id, billing_fragrance_id, stripe_subscription_id").eq("stripe_subscription_id", stripeSubId).maybeSingle();
-  const sub = data as SubRow | null;
+  const sub = await loadRenewalSubscription(db, stripeSubId);
   if (!sub) return;
+  if (sub.prepaid_gift) {
+    if (invoice.amount_due !== 0 || invoice.amount_paid !== 0) throw new Error("A prepaid gift invoice must be zero dollars");
+    const { data: result, error } = await db.rpc("record_subscription_gift_delivery", { p_subscription: stripeSubId, p_invoice: invoice.id });
+    if (error || result === "no_scent") throw new Error(error?.message ?? "No available scent for the prepaid gift delivery");
+    if (result === "completed" || result === "revoked" || result === "cancelled") await cancelGiftSubscription(stripe, stripeSubId);
+    return;
+  }
   const { data: exists } = await db.from("subscription_deliveries").select("id").eq("invoice_id", invoice.id).maybeSingle();
   if (exists) return;
   const { data: prior } = await db.from("subscription_deliveries").select("month, fragrance_id").eq("subscription_id", sub.id);

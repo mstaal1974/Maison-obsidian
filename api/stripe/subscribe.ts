@@ -9,6 +9,8 @@
 import { customerFor, getStripe, json, loadCatalogue, memberPrice, readBody, serviceClient, siteUrl, userFromRequest, CURRENCY, route, notConfigured } from "../_lib/stripe.js";
 import { type FormatKey, FORMAT_BY_KEY, SUBSCRIPTION_MONTHS, launched } from "../_lib/catalogue.js";
 
+import { startGiftRedemption } from "../_lib/subscription-gift.js";
+
 export const config = { runtime: "nodejs" };
 
 const FORMATS: FormatKey[] = ["perf10", "perf30", "perf50", "car"];
@@ -22,6 +24,7 @@ export default route("subscribe", async function handler(req: any, res: any) {
   if (!user) return json(res, 401, { error: "Sign in to subscribe" });
 
   const body = readBody(req);
+  if (body.kind === "redeem-gift") return startGiftRedemption(req, res, stripe, db, body.code, user);
   const format = body.format as FormatKey;
   const pickMode = body.pickMode === "surprise" ? "surprise" : "choose";
   if (!FORMATS.includes(format)) return json(res, 400, { error: "Choose a format" });

@@ -53,6 +53,7 @@ const StaffDesk = lazy(() => import("./components/StaffDesk"));
 const ScentDna = lazy(() => import("./components/ScentDna"));
 const BodyBath = lazy(() => import("./components/BodyBath"));
 const GiftShop = lazy(() => import("./components/GiftShop"));
+const SubscriptionGift = lazy(() => import("./components/SubscriptionGift"));
 const GiftCard = lazy(() => import("./components/GiftCard"));
 
 export default function App() {
@@ -274,6 +275,7 @@ export default function App() {
   const [stripeNotice, setStripeNotice] = useState<{ kind: "order" | "subscription"; detail: string } | null>(null);
   const [thanks, setThanks] = useState<ThanksState>({ status: "checking" });
   const onThanks = route.view === "thanks";
+  const onGiftThanks = route.view === "thanks" && route.subscriptionGift;
   const sessionId = route.view === "account" ? route.sessionId : route.view === "thanks" ? route.sessionId : null;
   useEffect(() => {
     if (!sessionId) return;
@@ -292,8 +294,12 @@ export default function App() {
         setThanks({ status: "paid", itemCount, amountTotal: r.data.amountTotal });
         setCommitsVersion((v) => v + 1);
       } else if (r?.ok && r.data.kind === "voucher" && r.data.voucher) {
-        trackPurchase(sessionId, r.data.amountTotal ?? r.data.voucher.amountCents, [{ id: "gift-voucher", name: "Gift voucher", priceCents: r.data.voucher.amountCents, qty: 1 }]);
+        const gift = r.data.voucher.subscriptionGift;
+        trackPurchase(sessionId, r.data.amountTotal ?? r.data.voucher.amountCents, [{ id: gift ? "subscription-gift" : "gift-voucher", name: gift ? "Monthly Pour Gift Card" : "Gift voucher", priceCents: r.data.voucher.amountCents, qty: 1 }]);
         setThanks({ status: "paid", voucher: r.data.voucher, voucherEmail: r.data.email });
+      } else if (r?.ok && r.data.kind === "gift-redemption") {
+        setThanks({ status: "paid", giftRedeemed: true });
+        reloadSubs();
       } else if (r?.ok && r.data.kind === "subscription") {
         trackSubscriptionStarted(sessionId);
         setStripeNotice({ kind: "subscription", detail: "Your Monthly Pour is live. Month 1 is paid; the rest bill monthly." });
@@ -302,18 +308,20 @@ export default function App() {
       } else if (r?.ok === false) {
         setStripeNotice({ kind: "order", detail: r.error });
         setThanks({ status: "error", message: r.error });
+      } else if (onGiftThanks) {
+        setThanks({ status: "error", message: "We couldn’t confirm the gift just yet. Refresh this page to try again." });
       } else {
         // No backend to ask (the offline demo): the payment stands on its own.
         clearBag();
         setThanks({ status: "paid" });
       }
-      // Drop the session id from the URL so a refresh doesn't re-confirm.
-      window.history.replaceState(null, "", onThanks ? paths.thanks : paths.account);
+      // Keep the gift receipt available on refresh so buyers can still share it.
+      if (!onGiftThanks) window.history.replaceState(null, "", onThanks ? paths.thanks : paths.account);
     });
     return () => {
       active = false;
     };
-  }, [sessionId, onThanks, reloadSubs]);
+  }, [sessionId, onThanks, onGiftThanks, reloadSubs]);
 
   const shipmentFor = useCallback(
     (fragranceId: string): Partial<AccountOrder> => {
@@ -382,6 +390,7 @@ export default function App() {
     car: paths.car,
     body: paths.body,
     subscribe: paths.subscribe(),
+    subscriptiongift: paths.subscriptionGift,
     about: paths.about,
     help: paths.help,
   };
@@ -488,6 +497,12 @@ export default function App() {
           <SubscribeBand />
           <RangeBanners />
         </main>
+      )}
+
+      {route.view === "subscriptiongift" && (
+        <Suspense fallback={null}>
+          <SubscriptionGift redeem={route.redeem} cancelled={route.cancelled} email={auth.user?.email ?? null} onSignIn={() => setAuthOpen(true)} />
+        </Suspense>
       )}
 
       {route.view === "giftcard" && (
